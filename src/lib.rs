@@ -15,6 +15,10 @@ use std::sync::Arc;
 use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
 
+mod filter;
+use filter::FilterType;
+use filter::AdaptiveFilter;
+
 #[derive(Copy, Clone)]
 pub enum ColorType {
     Greyscale = 0,
