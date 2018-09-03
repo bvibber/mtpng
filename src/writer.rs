@@ -2,6 +2,7 @@ use crc::crc32;
 use crc::Hasher32;
 
 use std::io;
+use std::io::{Error, ErrorKind};
 use std::io::Write;
 
 use super::Header;
@@ -17,6 +18,16 @@ fn write_be32<W: Write>(w: &mut W, val: u32) -> IoResult {
         (val & 0xff) as u8,
     ];
     w.write_all(&bytes)
+}
+
+fn write_byte<W: Write>(w: &mut W, val: u8) -> IoResult {
+    let bytes = [val];
+    w.write_all(&bytes)
+}
+
+fn invalid_input(payload: &str) -> Error
+{
+    Error::new(ErrorKind::InvalidInput, payload)
 }
 
 pub struct Writer<W: Write> {
@@ -79,8 +90,12 @@ impl<W: Write> Writer<W> {
     // https://www.w3.org/TR/PNG/#5CRC-algorithm
     //
     pub fn write_chunk(&mut self, tag: &[u8], data: &[u8]) -> IoResult {
-        assert_eq!(tag.len(), 4);
-        assert!(data.len() <= u32::max_value() as usize);
+        if tag.len() != 4 {
+            return Err(invalid_input("Chunk tags must be 4 bytes"));
+        }
+        if data.len() > u32::max_value() as usize {
+            return Err(invalid_input("Data chunks cannot exceed 4 GiB - 1 byte"));
+        }
 
         // CRC is initialized to all 1 bits, and covers both tag and data.
         let mut digest = crc32::Digest::new_with_initial(crc32::IEEE, 0xffffffffu32);
@@ -88,6 +103,7 @@ impl<W: Write> Writer<W> {
         digest.write(data);
         let checksum = digest.sum32();
 
+        // Write data...
         self.write_be32(data.len() as u32)?;
         self.write_bytes(tag)?;
         self.write_bytes(data)?;
@@ -98,8 +114,15 @@ impl<W: Write> Writer<W> {
     // https://www.w3.org/TR/PNG/#11IHDR
     //
     pub fn write_header(&mut self, header: Header) -> IoResult {
-        // fixme
-        Ok(())
+        let mut data = Vec::<u8>::new();
+        write_be32(&mut data, header.width)?;
+        write_be32(&mut data, header.height)?;
+        write_byte(&mut data, header.depth)?;
+        write_byte(&mut data, header.compression_method as u8)?;
+        write_byte(&mut data, header.filter_method as u8)?;
+        write_byte(&mut data, header.interlace_method as u8)?;
+
+        self.write_chunk(b"IHDR", &data)
     }
 
     pub fn flush(&mut self) -> IoResult {

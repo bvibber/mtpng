@@ -25,6 +25,7 @@ mod writer;
 use writer::Writer;
 
 #[derive(Copy, Clone)]
+#[repr(u8)]
 pub enum ColorType {
     Greyscale = 0,
     Truecolor = 2,
@@ -34,11 +35,19 @@ pub enum ColorType {
 }
 
 #[derive(Copy, Clone)]
+#[repr(u8)]
+pub enum CompressionMethod {
+    Deflate = 0,
+}
+
+#[derive(Copy, Clone)]
+#[repr(u8)]
 pub enum FilterMethod {
     Standard = 0,
 }
 
 #[derive(Copy, Clone)]
+#[repr(u8)]
 pub enum InterlaceMethod {
     Standard = 0,
     Adam7 = 1,
@@ -50,24 +59,26 @@ pub struct Header {
     height: u32,
     depth: u8,
     color_type: ColorType,
+    compression_method: CompressionMethod,
     filter_method: FilterMethod,
     interlace_method: InterlaceMethod,
 }
 
 impl Header {
-    pub fn new(width: u32, height: u32, color_type: ColorType, depth: u8, filter_method: FilterMethod, interlace_method: InterlaceMethod) -> Header {
+    pub fn new(width: u32, height: u32, color_type: ColorType, depth: u8, interlace_method: InterlaceMethod) -> Header {
         Header {
             width: width,
             height: height,
             depth: depth,
             color_type: color_type,
-            filter_method: filter_method,
+            compression_method: CompressionMethod::Deflate,
+            filter_method: FilterMethod::Standard,
             interlace_method: interlace_method,
         }
     }
 
     pub fn with_depth(width: u32, height: u32, color_type: ColorType, depth: u8) -> Header {
-        Header::new(width, height, color_type, depth, FilterMethod::Standard, InterlaceMethod::Standard)
+        Header::new(width, height, color_type, depth, InterlaceMethod::Standard)
     }
 
     pub fn with_color(width: u32, height: u32, color_type: ColorType) -> Header {
