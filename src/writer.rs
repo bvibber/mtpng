@@ -9,6 +9,16 @@ use super::ColorType;
 
 type IoResult = io::Result<()>;
 
+fn write_be32<W: Write>(w: &mut W, val: u32) -> IoResult {
+    let bytes = [
+        (val >> 24 & 0xff) as u8,
+        (val >> 16 & 0xff) as u8,
+        (val >> 8 & 0xff) as u8,
+        (val & 0xff) as u8,
+    ];
+    w.write_all(&bytes)
+}
+
 pub struct Writer<'a, W: 'a + Write> {
     output: &'a mut W,
 }
@@ -39,13 +49,7 @@ impl<'a, W: 'a + Write> Writer<'a, W> {
     }
 
     fn write_be32(&mut self, val: u32) -> IoResult {
-        let bytes = [
-            (val >> 24 & 0xff) as u8,
-            (val >> 16 & 0xff) as u8,
-            (val >> 8 & 0xff) as u8,
-            (val & 0xff) as u8,
-        ];
-        self.write_bytes(&bytes)
+        write_be32(&mut self.output, val)
     }
 
     fn write_bytes(&mut self, data: &[u8]) -> IoResult {
@@ -57,7 +61,7 @@ impl<'a, W: 'a + Write> Writer<'a, W> {
     //
     // https://www.w3.org/TR/PNG/#5CRC-algorithm
     //
-    pub fn write_tag(&mut self, tag: &[u8], data: &[u8]) -> IoResult {
+    pub fn write_chunk(&mut self, tag: &[u8], data: &[u8]) -> IoResult {
         assert_eq!(tag.len(), 4);
         assert!(data.len() <= u32::max_value() as usize);
 
@@ -71,6 +75,14 @@ impl<'a, W: 'a + Write> Writer<'a, W> {
         self.write_bytes(tag)?;
         self.write_bytes(data)?;
         self.write_be32(checksum)
+    }
+
+    //
+    // https://www.w3.org/TR/PNG/#11IHDR
+    //
+    pub fn write_header(&mut self, header: Header) -> IoResult {
+        // fixme
+        Ok(())
     }
 
     pub fn flush(&mut self) -> IoResult {
@@ -117,9 +129,9 @@ mod tests {
     }
 
     #[test]
-    fn empty_tag_works() {
+    fn empty_chunk_works() {
         test_writer(|writer| {
-            writer.write_tag(b"IDAT", b"")
+            writer.write_chunk(b"IDAT", b"")
         }, |output| {
             // 4 bytes len
             // 4 bytes tag
@@ -129,9 +141,9 @@ mod tests {
     }
 
     #[test]
-    fn full_tag_works() {
+    fn full_chunk_works() {
         test_writer(|writer| {
-            writer.write_tag(b"IDAT", b"01234567890123456789")
+            writer.write_chunk(b"IDAT", b"01234567890123456789")
         }, |output| {
             // 4 bytes len
             // 4 bytes tag

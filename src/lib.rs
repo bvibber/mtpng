@@ -142,6 +142,7 @@ pub enum CompressionLevel {
 pub struct Options {
     chunk_size: usize,
     compression_level: CompressionLevel,
+    streaming: bool,
 }
 
 impl Options {
@@ -150,6 +151,7 @@ impl Options {
         Options {
             chunk_size: 128 * 1024,
             compression_level: CompressionLevel::Default,
+            streaming: true,
         }
     }
 }
@@ -480,7 +482,7 @@ enum DispatchMode {
 struct State<'a, W: 'a + Write> {
     header: Header,
     options: Options,
-    writer: &'a mut W,
+    writer: Writer<'a, &'a mut W>,
     thread_pool: Option<&'a ThreadPool>,
 
     rows_per_chunk: usize,
@@ -502,7 +504,7 @@ struct State<'a, W: 'a + Write> {
 }
 
 impl<'a, W: 'a + Write> State<'a, W> {
-    fn new(header: Header, options: Options, writer: &'a mut W, thread_pool: Option<&'a ThreadPool>) -> State<'a, W> {
+    fn new(header: Header, options: Options, write: &'a mut W, thread_pool: Option<&'a ThreadPool>) -> State<'a, W> {
         let stride = header.stride() + 1;
 
         let full_rows = options.chunk_size / stride;
@@ -520,6 +522,10 @@ impl<'a, W: 'a + Write> State<'a, W> {
         } else {
             0
         });
+
+        let mut writer = Writer::new(&mut write);
+        writer.write_signature();
+        writer.write_header(header);
 
         let (tx, rx) = mpsc::channel();
 
@@ -612,7 +618,10 @@ impl<'a, W: 'a + Write> State<'a, W> {
                     if self.chunks_output >= self.chunks_total {
                         panic!("Got extra output after end of file; should not happen.");
                     }
-                    self.writer.write(&current.data).unwrap(); // @fixme return error
+                    // @fixme if not streaming, append to an in-memory buffer
+                    // and output a giant tag later.
+                    self.writer.write_chunk(b"IDAT", &current.data).unwrap();
+                    // @fixme handle errors
                     self.chunks_output = self.chunks_output + 1;
                 },
                 None => {
