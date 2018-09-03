@@ -16,7 +16,6 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
 
 mod filter;
-use filter::FilterType;
 use filter::AdaptiveFilter;
 
 #[derive(Copy, Clone)]
@@ -50,7 +49,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn new(width: u32, height: u32, depth: u8, color_type: ColorType, filter_method: FilterMethod, interlace_method: InterlaceMethod) -> Header {
+    pub fn new(width: u32, height: u32, color_type: ColorType, depth: u8, filter_method: FilterMethod, interlace_method: InterlaceMethod) -> Header {
         Header {
             width: width,
             height: height,
@@ -61,12 +60,12 @@ impl Header {
         }
     }
 
-    pub fn with_depth(width: u32, height: u32, depth: u8, color_type: ColorType) -> Header {
-        Header::new(width, height, depth, color_type, FilterMethod::Standard, InterlaceMethod::Standard)
+    pub fn with_depth(width: u32, height: u32, color_type: ColorType, depth: u8) -> Header {
+        Header::new(width, height, color_type, depth, FilterMethod::Standard, InterlaceMethod::Standard)
     }
 
     pub fn with_color(width: u32, height: u32, color_type: ColorType) -> Header {
-        Header::with_depth(width, height, 8, color_type)
+        Header::with_depth(width, height, color_type, 8)
     }
 
     // @todo return errors gracefully
@@ -109,7 +108,7 @@ impl Header {
         true
     }
 
-    fn stride(&self) -> usize {
+    pub fn bytes_per_pixel(&self) -> usize {
         return match self.color_type {
             ColorType::Greyscale => 1,
             ColorType::Truecolor => 3,
@@ -120,7 +119,11 @@ impl Header {
             2
         } else {
             1
-        } * self.width as usize;
+        }
+    }
+
+    pub fn stride(&self) -> usize {
+        self.bytes_per_pixel() * self.width as usize
     }
 }
 
@@ -211,11 +214,11 @@ impl PixelChunk {
 
     fn get_row(&self, row: usize) -> &[u8] {
         if row < self.start_row {
-            panic!("Tried to access row from earlier chunk");
+            panic!("Tried to access row from earlier chunk: {} < {}", row, self.start_row);
         } else if row >= self.end_row {
-            panic!("Tried to access row from later chunk");
+            panic!("Tried to access row from later chunk: {} >= {}", row, self.end_row);
         } else {
-            let start = self.stride * row;
+            let start = self.stride * (row - self.start_row);
             return &self.data[start .. start + self.stride];
         }
     }
@@ -281,8 +284,33 @@ impl FilterChunk {
         }
     }
 
+    //
+    // Run the filtering, on a background thread.
+    //
     fn run(&mut self) {
-        // -> run the filtering
+        let mut filter = AdaptiveFilter::new(self.input.header);
+        let zero = vec![0u8; self.stride];
+        for i in self.start_row .. self.end_row {
+            let prior = if i == self.start_row {
+                match self.prior_input {
+                    Some(ref input) => &input,
+                    None => &self.input, // Won't get used.
+                }
+            } else {
+                &self.input
+            };
+            let prev = if i == 0 {
+                &zero
+            } else {
+                prior.get_row(i - 1)
+            };
+
+            let row = self.input.get_row(i);
+
+            let output = filter.filter(prev, row);
+
+            self.data.write(output).unwrap(); // @fixme handle errors
+        }
     }
 }
 
