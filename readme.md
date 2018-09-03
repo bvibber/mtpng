@@ -26,7 +26,9 @@ The code mocks up the basic flow of data blocks through a Rayon ThreadPool, but 
 
 # Dependencies
 
-Rayon is used for its ThreadPool implementation. You can create an encoder using either the default Rayon global pool or a custom ThreadPool instance.
+[Rayon](https://crates.io/crates/rayon) is used for its ThreadPool implementation. You can create an encoder using either the default Rayon global pool or a custom ThreadPool instance.
+
+[crc](https://crates.io/crates/crc) is used for calculating PNG chunk checksums.
 
 # Copyright
 

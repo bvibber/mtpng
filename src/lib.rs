@@ -2,6 +2,7 @@
 // Brion Vibber 2018-09-02
 
 extern crate rayon;
+extern crate crc;
 
 use rayon::ThreadPool;
 
@@ -17,6 +18,9 @@ use std::sync::mpsc::{Sender, Receiver};
 
 mod filter;
 use filter::AdaptiveFilter;
+
+mod writer;
+use writer::Writer;
 
 #[derive(Copy, Clone)]
 pub enum ColorType {
