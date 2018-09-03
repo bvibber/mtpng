@@ -22,7 +22,7 @@ The code mocks up the basic flow of data blocks through a Rayon ThreadPool, but 
 
 # Data flow
 
-[diagram]: png-data-flow.png
+![Data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/png-data-flow.png)
 
 # Dependencies
 
