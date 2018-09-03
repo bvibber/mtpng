@@ -19,15 +19,32 @@ fn write_be32<W: Write>(w: &mut W, val: u32) -> IoResult {
     w.write_all(&bytes)
 }
 
-pub struct Writer<'a, W: 'a + Write> {
-    output: &'a mut W,
+pub struct Writer<W: Write> {
+    output: W,
 }
 
-impl<'a, W: 'a + Write> Writer<'a, W> {
-    pub fn new(output: &'a mut W) -> Writer<W> {
+impl<W: Write> Writer<W> {
+    //
+    // Creates a new PNG chunk stream writer.
+    // Consumes the output Write object, but will
+    // give it back to you via Writer::close().
+    //
+    pub fn new(output: W) -> Writer<W> {
         Writer {
             output: output,
         }
+    }
+
+    //
+    // Close out the writer and return the Write
+    // passed in originally so it can be used for
+    // further output if necessary.
+    //
+    // Consumes the writer.
+    //
+    pub fn close(mut this: Writer<W>) -> io::Result<W> {
+        this.flush()?;
+        Ok(this.output)
     }
 
     //
@@ -92,6 +109,9 @@ impl<'a, W: 'a + Write> Writer<'a, W> {
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+    use std::io::Write;
+
     use super::Writer;
     use super::IoResult;
 
@@ -99,14 +119,15 @@ mod tests {
         where F: Fn(&mut Writer<Vec<u8>>) -> IoResult,
               G: Fn(&[u8])
     {
-        let mut output = Vec::<u8>::new();
-        let result = {
-            let mut writer = Writer::new(&mut output);
-            test_func(&mut writer)
-        };
+        let result = (|| -> io::Result<Vec<u8>> {
+            let mut output = Vec::<u8>::new();
+            let mut writer = Writer::new(output);
+            test_func(&mut writer)?;
+            Writer::close(writer)
+        })();
         match result {
-            Ok(()) => assert_func(&output),
-            Err(e) => assert!(false, "Error encountered: {}", e),
+            Ok(output) => assert_func(&output),
+            Err(e) => assert!(false, "Error: {}", e),
         }
     }
 

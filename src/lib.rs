@@ -10,7 +10,9 @@ use std::cmp;
 
 use std::collections::HashMap;
 
+use std::io;
 use std::io::Write;
+type IoResult = io::Result<()>;
 
 use std::sync::Arc;
 use std::sync::mpsc;
@@ -479,10 +481,10 @@ enum DispatchMode {
     NonBlocking,
 }
 
-struct State<'a, W: 'a + Write> {
+struct State<'a, W: Write> {
     header: Header,
     options: Options,
-    writer: Writer<'a, &'a mut W>,
+    writer: Writer<W>,
     thread_pool: Option<&'a ThreadPool>,
 
     rows_per_chunk: usize,
@@ -503,8 +505,8 @@ struct State<'a, W: 'a + Write> {
     rx: Receiver<ThreadMessage>,
 }
 
-impl<'a, W: 'a + Write> State<'a, W> {
-    fn new(header: Header, options: Options, write: &'a mut W, thread_pool: Option<&'a ThreadPool>) -> State<'a, W> {
+impl<'a, W: Write> State<'a, W> {
+    fn new(header: Header, options: Options, write: W, thread_pool: Option<&'a ThreadPool>) -> State<'a, W> {
         let stride = header.stride() + 1;
 
         let full_rows = options.chunk_size / stride;
@@ -523,7 +525,8 @@ impl<'a, W: 'a + Write> State<'a, W> {
             0
         });
 
-        let mut writer = Writer::new(&mut write);
+        let mut writer = Writer::new(write);
+        // @fime move these to another func
         writer.write_signature();
         writer.write_header(header);
 
@@ -549,6 +552,11 @@ impl<'a, W: 'a + Write> State<'a, W> {
             tx: tx,
             rx: rx,
         }
+    }
+
+    fn close(mut this: State<W>) -> io::Result<W> {
+        this.flush()?;
+        Writer::close(this.writer)
     }
 
     fn dispatch_func<F>(&self, func: F)
@@ -590,7 +598,7 @@ impl<'a, W: 'a + Write> State<'a, W> {
         }
     }
 
-    fn dispatch(&mut self, mode: DispatchMode) {
+    fn dispatch(&mut self, mode: DispatchMode) -> IoResult {
         // See if anything interesting happened on the threads.
         let mut blocking_mode = mode;
         while self.filter_chunks.in_flight() || self.deflate_chunks.in_flight() {
@@ -620,8 +628,7 @@ impl<'a, W: 'a + Write> State<'a, W> {
                     }
                     // @fixme if not streaming, append to an in-memory buffer
                     // and output a giant tag later.
-                    self.writer.write_chunk(b"IDAT", &current.data).unwrap();
-                    // @fixme handle errors
+                    self.writer.write_chunk(b"IDAT", &current.data)?;
                     self.chunks_output = self.chunks_output + 1;
                 },
                 None => {
@@ -668,10 +675,13 @@ impl<'a, W: 'a + Write> State<'a, W> {
                 }
             }
         }
+
+        Ok(())
     }
 
-    fn append_row(&mut self, row: &[u8]) {
+    fn append_row(&mut self, row: &[u8]) -> IoResult {
         if self.pixel_index >= self.chunks_total {
+            // @todo use Err
             panic!("Tried to append beyond end of image");
         }
 
@@ -692,8 +702,9 @@ impl<'a, W: 'a + Write> State<'a, W> {
             }
 
             // Dispatch any available async tasks and output.
-            self.dispatch(DispatchMode::NonBlocking);
+            self.dispatch(DispatchMode::NonBlocking)?;
         }
+        Ok(())
     }
 
     fn progress(&self) -> f64 {
@@ -704,11 +715,12 @@ impl<'a, W: 'a + Write> State<'a, W> {
         self.chunks_output == self.chunks_total
     }
 
-    fn flush(&mut self) {
+    fn flush(&mut self) -> IoResult {
         while self.chunks_output < self.pixel_index {
             // Dispatch any available async tasks and output.
-            self.dispatch(DispatchMode::Blocking);
+            self.dispatch(DispatchMode::Blocking)?;
         }
+        Ok(())
     }
 }
 
@@ -716,15 +728,16 @@ impl<'a, W: 'a + Write> State<'a, W> {
 // A parallelized PNG encoder.
 // Very unfinished.
 //
-pub struct Encoder<'a, W: 'a + Write> {
+pub struct Encoder<'a, W: Write> {
     state: State<'a, W>,
 }
 
-impl<'a, W: 'a + Write> Encoder<'a, W> {
+impl<'a, W: Write> Encoder<'a, W> {
     //
-    // Create a new encoder using default thread pool
+    // Create a new encoder using default thread pool.
+    // Consumes the Write target, but you can get it back via Encoder::close()
     //
-    pub fn new(header: Header, options: Options, writer: &'a mut W) -> Encoder<'a, W> {
+    pub fn new(header: Header, options: Options, writer: W) -> Encoder<'static, W> {
         Encoder {
             state: State::new(header, options, writer, None)
         }
@@ -733,17 +746,25 @@ impl<'a, W: 'a + Write> Encoder<'a, W> {
     //
     // Create a new encoder state using given thread pool
     //
-    pub fn with_thread_pool(header: Header, options: Options, writer: &'a mut W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
+    pub fn with_thread_pool(header: Header, options: Options, writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
         Encoder {
             state: State::new(header, options, writer, Some(thread_pool))
         }
     }
 
     //
+    // Flush output and return the Write sink for further manipulation.
+    // Consumes the encoder instance.
+    //
+    pub fn close(mut this: Encoder<'a, W>) -> io::Result<W> {
+        State::close(this.state)
+    }
+
+    //
     // Copy a row's pixel data into buffers for async compression.
     // Returns immediately after copying.
     //
-    pub fn append_row(&mut self, row: &[u8]) {
+    pub fn append_row(&mut self, row: &[u8]) -> IoResult {
         self.state.append_row(row)
     }
 
@@ -766,8 +787,8 @@ impl<'a, W: 'a + Write> Encoder<'a, W> {
     // Flush all currently in-progress data to output
     // Warning: this will block.
     //
-    pub fn flush(&mut self) {
-        self.state.flush();
+    pub fn flush(&mut self) -> IoResult {
+        self.state.flush()
     }
 }
 
@@ -781,13 +802,19 @@ mod tests {
     fn test_encoder<F>(width: u32, height: u32, func: F)
         where F: Fn(&mut Encoder<Vec<u8>>)
     {
-        let header = Header::with_color(width,
-                                        height,
-                                        ColorType::Truecolor);
-        let options = Options::default();
-        let mut writer = Vec::<u8>::new();
-        let mut encoder = Encoder::new(header, options, &mut writer);
-        func(&mut encoder);
+        match {
+            let header = Header::with_color(width,
+                                            height,
+                                            ColorType::Truecolor);
+            let options = Options::default();
+            let mut writer = Vec::<u8>::new();
+            let mut encoder = Encoder::new(header, options, writer);
+            func(&mut encoder);
+            Encoder::close(encoder)
+        } {
+            Ok(writer) => {},
+            Err(e) => assert!(false, "Error {}", e),
+        }
     }
 
     fn make_row(width: usize) -> Vec<u8> {
