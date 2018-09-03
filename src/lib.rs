@@ -93,34 +93,29 @@ impl Header {
             ColorType::TruecolorAlpha => match self.depth {
                 8 | 16 => {},
                 _ => panic!("Invalid color depth"),
-            },
-            _ => {
-                panic!("Invalid color type");
             }
         }
         match self.filter_method {
             FilterMethod::Standard => {},
-            _ => panic!("Non-standard filter method not implemented."),
         }
         match self.interlace_method {
             InterlaceMethod::Standard => {},
-            _ => panic!("Interlacing not yet implemented."),
+            InterlaceMethod::Adam7 => panic!("Interlacing not yet implemented."),
         }
         true
     }
 
     fn stride(&self) -> usize {
         return match self.color_type {
-            ColorType::Greyscale => 1 as usize,
-            ColorType::Truecolor => 3 as usize,
-            ColorType::IndexedColor => 1 as usize,
-            ColorType::GreyscaleAlpha => 2 as usize,
-            ColorType::TruecolorAlpha => 4 as usize,
-            _ => 0, // invalid... should not happen... how to panic?
+            ColorType::Greyscale => 1,
+            ColorType::Truecolor => 3,
+            ColorType::IndexedColor => 1,
+            ColorType::GreyscaleAlpha => 2,
+            ColorType::TruecolorAlpha => 4,
         } * if self.depth > 8 {
-            2 as usize
+            2
         } else {
-            1 as usize
+            1
         } * self.width as usize;
     }
 }
@@ -140,7 +135,7 @@ pub struct Options {
 
 impl Options {
     // Use default options
-    fn default() -> Options {
+    pub fn default() -> Options {
         Options {
             chunk_size: 128 * 1024,
             compression_level: CompressionLevel::Default,
@@ -436,7 +431,6 @@ impl<T> ChunkMap<T> {
 }
 
 enum ThreadMessage {
-    PixelDone(Arc<PixelChunk>),
     FilterDone(Arc<FilterChunk>),
     DeflateDone(Arc<DeflateChunk>),
 }
@@ -474,7 +468,6 @@ struct State<'a, W: 'a + Write> {
 impl<'a, W: 'a + Write> State<'a, W> {
     fn new(header: Header, options: Options, writer: &'a mut W, thread_pool: Option<&'a ThreadPool>) -> State<'a, W> {
         let stride = header.stride() + 1;
-        let filtered_image_size = stride * header.height as usize;
 
         let full_rows = options.chunk_size / stride;
         let extra_pixels = options.chunk_size % stride;
@@ -560,9 +553,6 @@ impl<'a, W: 'a + Write> State<'a, W> {
         let mut blocking_mode = mode;
         while self.filter_chunks.in_flight() || self.deflate_chunks.in_flight() {
             match self.receive(blocking_mode) {
-                Some(ThreadMessage::PixelDone(pixel)) => {
-                    self.pixel_chunks.land(pixel.index, pixel);
-                },
                 Some(ThreadMessage::FilterDone(filter)) => {
                     self.filter_chunks.land(filter.index, filter);
                 }
@@ -789,7 +779,7 @@ mod tests {
     #[test]
     fn test_many_rows() {
         test_encoder(7680, 2160, |encoder| {
-            for i in 0 .. 256 {
+            for _i in 0 .. 256 {
                 let row = make_row(7680);
                 encoder.append_row(&row);
             }
@@ -805,7 +795,7 @@ mod tests {
     #[test]
     fn test_all_rows() {
         test_encoder(7680, 2160, |encoder| {
-            for i in 0 .. 2160 {
+            for _i in 0 .. 2160 {
                 let row = make_row(7680);
                 encoder.append_row(&row);
             }
