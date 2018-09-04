@@ -233,13 +233,14 @@ impl AdaptiveFilter {
 #[cfg(test)]
 mod tests {
     use super::AdaptiveFilter;
+    use super::FilterMode;
     use super::super::Header;
     use super::super::ColorType;
 
     #[test]
     fn it_works() {
         let header = Header::with_color(1024, 768, ColorType::Truecolor);
-        let mut filter = AdaptiveFilter::new(header);
+        let mut filter = AdaptiveFilter::new(header, FilterMode::Adaptive);
 
         let prev = vec![0u8; header.stride()];
         let row = vec![0u8; header.stride()];
@@ -250,7 +251,7 @@ mod tests {
     #[test]
     fn it_works_16() {
         let header = Header::with_depth(1024, 768, ColorType::Truecolor, 16);
-        let mut filter = AdaptiveFilter::new(header);
+        let mut filter = AdaptiveFilter::new(header, FilterMode::Adaptive);
 
         let prev = vec![0u8; header.stride()];
         let row = vec![0u8; header.stride()];
