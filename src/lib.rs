@@ -19,6 +19,8 @@ use std::io;
 use std::io::Write;
 type IoResult = io::Result<()>;
 
+use utils::other;
+
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum ColorType {
@@ -26,7 +28,20 @@ pub enum ColorType {
     Truecolor = 2,
     IndexedColor = 3,
     GreyscaleAlpha = 4,
-    TruecolorAlpha = 5,
+    TruecolorAlpha = 6,
+}
+
+impl ColorType {
+    pub fn from_u8(val: u8) -> io::Result<ColorType> {
+        return match val {
+            0 => Ok(ColorType::Greyscale),
+            2 => Ok(ColorType::Truecolor),
+            3 => Ok(ColorType::IndexedColor),
+            4 => Ok(ColorType::GreyscaleAlpha),
+            6 => Ok(ColorType::TruecolorAlpha),
+            _ => Err(other("Inalid color type value")),
+        }
+    }
 }
 
 #[derive(Copy, Clone)]

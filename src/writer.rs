@@ -100,6 +100,7 @@ impl<W: Write> Writer<W> {
         write_be32(&mut data, header.width)?;
         write_be32(&mut data, header.height)?;
         write_byte(&mut data, header.depth)?;
+        write_byte(&mut data, header.color_type as u8)?;
         write_byte(&mut data, header.compression_method as u8)?;
         write_byte(&mut data, header.filter_method as u8)?;
         write_byte(&mut data, header.interlace_method as u8)?;
