@@ -112,6 +112,7 @@ impl<W: Write> Writer<W> {
     }
 
     //
+    // IHDR - first chunk in the file.
     // https://www.w3.org/TR/PNG/#11IHDR
     //
     pub fn write_header(&mut self, header: Header) -> IoResult {
@@ -126,6 +127,17 @@ impl<W: Write> Writer<W> {
         self.write_chunk(b"IHDR", &data)
     }
 
+    //
+    // IEND - last chunk in the file.
+    // https://www.w3.org/TR/PNG/#11IEND
+    //
+    pub fn write_end(&mut self) -> IoResult {
+        self.write_chunk(b"IEND", b"")
+    }
+
+    //
+    // Flush output.
+    //
     pub fn flush(&mut self) -> IoResult {
         self.output.flush()
     }
