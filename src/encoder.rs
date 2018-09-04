@@ -625,3 +625,111 @@ impl<'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::Header;
+    use super::super::ColorType;
+    use super::super::Options;
+    use super::Encoder;
+    use super::IoResult;
+
+    fn test_encoder<F>(width: u32, height: u32, func: F)
+        where F: Fn(&mut Encoder<Vec<u8>>) -> IoResult
+    {
+        match {
+            let header = Header::with_color(width,
+                                            height,
+                                            ColorType::Truecolor);
+            let options = Options::default();
+            let writer = Vec::<u8>::new();
+            let mut encoder = Encoder::new(header, options, writer);
+            match func(&mut encoder) {
+                Ok(()) => {},
+                Err(e) => assert!(false, "Error during test: {}", e),
+            }
+            Encoder::close(encoder)
+        } {
+            Ok(writer) => {},
+            Err(e) => assert!(false, "Error {}", e),
+        }
+    }
+
+    fn make_row(width: usize) -> Vec<u8> {
+        let stride = width * 3;
+        let mut row = Vec::<u8>::with_capacity(stride);
+        for i in 0 .. stride {
+            row.push((i % 255) as u8);
+        }
+        row
+    }
+
+    #[test]
+    fn create_and_state() {
+        test_encoder(7680, 2160, |encoder| {
+            encoder.write_header()?;
+
+            assert_eq!(encoder.is_finished(), false);
+            assert_eq!(encoder.progress(), 0.0);
+
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn test_one_row() {
+        test_encoder(7680, 2160, |encoder| {
+            encoder.write_header()?;
+
+            let row = make_row(7680);
+            encoder.append_row(&row)?;
+            encoder.flush()?;
+
+            // A single row should be not enough to trigger
+            // a chunk.
+            assert_eq!(encoder.is_finished(), false);
+            assert_eq!(encoder.progress(), 0.0);
+
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn test_many_rows() {
+        test_encoder(7680, 2160, |encoder| {
+            encoder.write_header()?;
+
+            for _i in 0 .. 256 {
+                let row = make_row(7680);
+                encoder.append_row(&row)?;
+            }
+            encoder.flush()?;
+
+            // Should trigger at least one block
+            // but not enough to finish
+            assert_eq!(encoder.is_finished(), false);
+            assert!(encoder.progress() > 0.0);
+
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn test_all_rows() {
+        test_encoder(7680, 2160, |encoder| {
+            encoder.write_header()?;
+
+            for _i in 0 .. 2160 {
+                let row = make_row(7680);
+                encoder.append_row(&row)?;
+            }
+            encoder.flush()?;
+
+            // Should trigger all blocks!
+            assert_eq!(encoder.is_finished(), true);
+            assert_eq!(encoder.progress(), 1.0);
+
+            Ok(())
+        });
+    }
+}
