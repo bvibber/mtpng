@@ -791,15 +791,15 @@ mod tests {
 
     #[test]
     fn create_and_state() {
-        test_encoder(7680, 2160, |encoder| {
+        test_encoder(1920, 1080, |encoder| {
             encoder.write_header()?;
 
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
 
             // We must finish out the file or it'll whinge.
-            let row = make_row(7680);
-            for _i in 0 .. 2160 {
+            let row = make_row(1920);
+            for _i in 0 .. 1080 {
                 encoder.append_row(&row)?;
             }
 
@@ -809,13 +809,13 @@ mod tests {
 
     #[test]
     fn test_rows() {
-        test_encoder(7680, 2160, |encoder| {
+        test_encoder(1920, 1080, |encoder| {
             encoder.write_header()?;
 
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
 
-            let row = make_row(7680);
+            let row = make_row(1920);
             encoder.append_row(&row)?;
             encoder.flush()?;
 
@@ -836,7 +836,7 @@ mod tests {
             assert!(encoder.progress() > 0.0);
 
             // We must finish out the file or it'll whinge.
-            for _i in 256 .. 2160 {
+            for _i in 256 .. 1080 {
                 encoder.append_row(&row)?;
             }
 
