@@ -162,7 +162,7 @@ impl Options {
 }
 
 //
-// Republic the Encoder type!
+// Republish the Encoder type!
 //
 pub type Encoder<'a, W> = encoder::Encoder<'a, W>;
 
