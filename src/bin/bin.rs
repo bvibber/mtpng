@@ -54,7 +54,7 @@ fn write_png(filename: &str, header: Header, options: Options, data: &[u8]) -> i
 fn doit(matches: ArgMatches) -> io::Result<()> {
     let infile = matches.value_of("input").unwrap();
     let outfile = matches.value_of("output").unwrap();
-    let chunk_size = matches.value_of("chunk_size");
+    let chunk_size = matches.value_of("chunk-size");
     let level = matches.value_of("level");
 
     let mut options = Options::default();
