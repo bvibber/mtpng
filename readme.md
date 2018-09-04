@@ -20,6 +20,25 @@ Currently very unfinished.
 
 The code mocks up the basic flow of data blocks through a Rayon ThreadPool, but doesn't actually write or compress anything correctly.
 
+Immediate todos:
+* implement compression!
+* make sure generated files are correct
+* benchmark and optimize
+* compare compression tradeoffs for different chunk sizes
+
+Soon todos:
+* compare with the filter heuristics used in libpng
+* allow buffering into a single IDAT chunk if not streaming
+
+When it works todos:
+* make a nice CLI tool
+* start figuring out a public-facing api
+* publish crate
+
+Someday todos:
+* helpers for packing pixels from non-native formats
+* interlacing support
+
 # Data flow
 
 ![Data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/png-data-flow.png)
