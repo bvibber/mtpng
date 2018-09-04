@@ -225,7 +225,17 @@ impl<W: Write> Deflate<W> {
         }
     }
 
+    //
+    // Get the checksum so far.
+    //
     pub fn get_adler32(&self) -> u32 {
         (*self.stream).adler as u32
+    }
+
+    //
+    // Reset the checksum to the initial value.
+    //
+    pub fn reset_adler32(&mut self) {
+        (*self.stream).adler = 1;
     }
 }

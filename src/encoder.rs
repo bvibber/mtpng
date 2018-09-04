@@ -274,6 +274,7 @@ impl DeflateChunk {
             Some(ref filter) => {
                 let trailer = filter.get_trailer();
                 encoder.set_dictionary(trailer)?;
+                encoder.reset_adler32();
             },
             None => {
                 // do nothing.
