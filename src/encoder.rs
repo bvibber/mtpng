@@ -237,8 +237,14 @@ impl DeflateChunk {
         // @fixme error handling
         let options = deflate::OptionsBuilder::new().finish();
         let mut encoder = Deflate::new(options, Vec::new());
-        if !self.is_start {
-            encoder.set_dictionary(self.prior_input.unwrap().get_trailer());
+        match self.prior_input {
+            Some(ref filter) => {
+                let trailer = filter.get_trailer();
+                encoder.set_dictionary(trailer);
+            },
+            None => {
+                // do nothing.
+            }
         }
         encoder.write(&self.input.data);
         match encoder.finish(Flush::SyncFlush) {
