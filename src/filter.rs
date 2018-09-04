@@ -118,7 +118,7 @@ fn estimate_complexity(data: &[u8]) -> i64 {
         let val = (data[i] as i8) as i64;
         sum = sum + val;
     }
-    sum
+    i64::abs(sum)
 }
 
 //
