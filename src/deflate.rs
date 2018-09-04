@@ -87,7 +87,7 @@ pub struct Deflate<W: Write> {
     options: Options,
     initialized: bool,
     finished: bool,
-    stream: z_stream,
+    stream: Box<z_stream>,
 }
 
 impl<W: Write> Deflate<W> {
@@ -97,9 +97,9 @@ impl<W: Write> Deflate<W> {
             options: options,
             initialized: false,
             finished: false,
-            stream: unsafe {
+            stream: Box::new(unsafe {
                 mem::zeroed()
-            },
+            }),
         }
     }
 
@@ -108,7 +108,7 @@ impl<W: Write> Deflate<W> {
             Ok(())
         } else {
             let ret = unsafe {
-                deflateInit2_(&mut self.stream,
+                deflateInit2_(&mut *self.stream,
                               self.options.level,
                               self.options.method,
                               self.options.window_bits,
@@ -133,7 +133,7 @@ impl<W: Write> Deflate<W> {
     pub fn set_dictionary(&mut self, dict: &[u8]) -> IoResult {
         self.init()?;
         let ret = unsafe {
-            deflateSetDictionary(&mut self.stream,
+            deflateSetDictionary(&mut *self.stream,
                                  &dict[0],
                                  dict.len() as c_uint)
         };
@@ -145,41 +145,25 @@ impl<W: Write> Deflate<W> {
     }
 
     fn deflate(&mut self, data: &[u8], flush: Flush, output: Output) -> IoResult {
-        eprintln!("DEFLATE! {} {}", data.len(), flush as u32);
         self.init()?;
-        let stub = [0u8];
-        let buffer = [0u8; 32 * 1024];
+        let buffer = [0u8; 128 * 1024];
+        let mut stream = &mut *self.stream;
         unsafe {
-            if data.len() > 0 {
-                self.stream.next_in = char_ptr(&data[0]);
-            } else {
-                self.stream.next_in = char_ptr(&stub[0]);
-            }
-            self.stream.avail_in = data.len() as c_uint;
+            stream.next_in = char_ptr(&data[0]);
+            stream.avail_in = data.len() as c_uint;
         }
         loop {
             let ret = unsafe {
-                self.stream.next_out = char_ptr(&buffer[0]);
-                self.stream.avail_out = buffer.len() as c_uint;
+                stream.next_out = char_ptr(&buffer[0]);
+                stream.avail_out = buffer.len() as c_uint;
 
-                eprintln!("> avail_in {}", self.stream.avail_in);
-                eprintln!("> total_in {}", self.stream.total_in);
-                eprintln!("> avail_out {}", self.stream.avail_out);
-                eprintln!("> total_out {}", self.stream.total_out);
-
-                eprintln!("> zalloc {}", mem::transmute::<alloc_func, usize>(self.stream.zalloc));
-                eprintln!("> zfree {}", mem::transmute::<free_func, usize>(self.stream.zfree));
-                eprintln!("> opaque {}", mem::transmute::<voidpf, usize>(self.stream.opaque));
-
-                let retx = deflate(&mut self.stream, flush as c_int);
-                eprintln!("< ret {}", retx);
-                retx
+                deflate(stream, flush as c_int)
             };
             match ret {
                 Z_OK | Z_STREAM_END => {
                     match output {
                         Output::Write => {
-                            let end = buffer.len() - self.stream.avail_out as usize;
+                            let end = buffer.len() - stream.avail_out as usize;
                             self.output.write_all(&buffer[0 .. end])?;
                         },
                         Output::Discard => {
@@ -188,7 +172,7 @@ impl<W: Write> Deflate<W> {
                     }
                     match ret {
                         Z_OK => {
-                            if self.stream.avail_out == 0 {
+                            if stream.avail_out == 0 {
                                 // Must call again; more output available.
                                 continue;
                             } else {
@@ -197,7 +181,12 @@ impl<W: Write> Deflate<W> {
                         },
                         Z_STREAM_END => {
                             self.finished = true;
-                            return Ok(());
+                            if stream.avail_out == 0 {
+                                // Must call again; more output available.
+                                continue;
+                            } else {
+                                return Ok(());
+                            }
                         },
                         _ => unreachable!(),
                     }
@@ -219,22 +208,14 @@ impl<W: Write> Deflate<W> {
     //
     pub fn finish(mut self) -> io::Result<W> {
         return if self.initialized {
-            if !self.finished {
-                //self.deflate(b"\x00", Flush::Finish, Output::Discard)?;
-            }
             let ret = unsafe {
-                deflateEnd(&mut self.stream)
+                deflateEnd(&mut *self.stream)
             };
             match ret {
-                Z_OK => Ok(self.output),
-
-                // This looks very wrong. From looking at zlib source, it's not
-                // actually freeing any memory from the structure if it gets this
-                // condition.
-                //Z_STREAM_ERROR => Err(invalid_input("Inconsistent stream state")),
-                Z_STREAM_ERROR => Ok(self.output),
-
-                Z_DATA_ERROR => Err(invalid_input("Stream freed early")),
+                // Z_DATA_ERROR means we freed before finishing the stream.
+                // For our use case we do this deliberately, it's ok!
+                Z_OK | Z_DATA_ERROR => Ok(self.output),
+                Z_STREAM_ERROR => Err(invalid_input("Inconsistent stream state")),
                 _ => Err(other("Unexpected error")),
             }
         } else {
