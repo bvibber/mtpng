@@ -33,9 +33,9 @@ impl<W: Write> Writer<W> {
     //
     // Consumes the writer.
     //
-    pub fn close(mut this: Writer<W>) -> io::Result<W> {
-        this.flush()?;
-        Ok(this.output)
+    pub fn finish(mut self: Writer<W>) -> io::Result<W> {
+        self.flush()?;
+        Ok(self.output)
     }
 
     //

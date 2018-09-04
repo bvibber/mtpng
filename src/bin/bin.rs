@@ -39,13 +39,15 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>)> {
 fn write_png(filename: &str, header: Header, options: Options, data: &[u8]) -> io::Result<()> {
     let writer = try!(File::create(filename));
     let mut encoder = Encoder::new(header, options, writer);
+
     encoder.write_header()?;
     for i in 0 .. header.height as usize {
         let start = header.stride() * i;
         let end = start + header.stride();
         encoder.append_row(&data[start .. end])?;
     }
-    encoder.flush()?;
+    encoder.finish()?;
+
     Ok(())
 }
 

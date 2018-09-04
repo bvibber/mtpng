@@ -232,7 +232,7 @@ impl DeflateChunk {
             prior_input: prior_input,
             input: input,
             data: Vec::new(),
-            adler32: 0,
+            adler32: deflate::adler32_initial(),
         }
     }
 
@@ -274,7 +274,6 @@ impl DeflateChunk {
             Some(ref filter) => {
                 let trailer = filter.get_trailer();
                 encoder.set_dictionary(trailer)?;
-                encoder.reset_adler32();
             },
             None => {
                 // do nothing.
@@ -286,7 +285,9 @@ impl DeflateChunk {
         } else {
             Flush::SyncFlush
         })?;
-        self.adler32 = encoder.get_adler32();
+
+        // In raw deflate mode we have to calculate the checksum ourselves.
+        self.adler32 = deflate::adler32(1, &self.input.data);
 
         return match encoder.finish() {
             Ok(data) => {
@@ -480,7 +481,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             filter_chunks: ChunkMap::new(),
             deflate_chunks: ChunkMap::new(),
 
-            adler32: 0,
+            adler32: deflate::adler32_initial(),
 
             tx: tx,
             rx: rx,
@@ -506,9 +507,14 @@ impl<'a, W: Write> Encoder<'a, W> {
     // Flush output and return the Write sink for further manipulation.
     // Consumes the encoder instance.
     //
-    pub fn close(mut this: Encoder<W>) -> io::Result<W> {
-        this.flush()?;
-        Writer::close(this.writer)
+    pub fn finish(mut self) -> io::Result<W> {
+        self.flush()?;
+        return if self.is_finished() {
+            self.writer.write_end()?;
+            self.writer.finish()
+        } else {
+            Err(other("Incomplete image input"))
+        }
     }
 
     fn dispatch_func<F>(&self, func: F)
@@ -587,17 +593,15 @@ impl<'a, W: Write> Encoder<'a, W> {
                                                             current.adler32,
                                                             current.input.data.len());
 
-                    let mut chunk = Vec::<u8>::new();
-                    let data = if current.is_end {
-                        write_be32(&mut chunk, self.adler32)?;
-                        &chunk
-                    } else {
-                        &current.data
-                    };
-
                     // @fixme if not streaming, append to an in-memory buffer
                     // and output a giant tag later.
-                    self.writer.write_chunk(b"IDAT", &data)?;
+                    self.writer.write_chunk(b"IDAT", &current.data)?;
+
+                    if current.is_end {
+                        let mut chunk = Vec::<u8>::new();
+                        write_be32(&mut chunk, self.adler32)?;
+                        self.writer.write_chunk(b"IDAT", &chunk)?;
+                    }
 
                     self.chunks_output = self.chunks_output + 1;
                 },

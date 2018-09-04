@@ -4,6 +4,8 @@ use std::io::Write;
 
 use std::mem;
 
+use std::ptr;
+
 use std::os::raw::*;
 
 use ::libz_sys::*;
@@ -14,8 +16,16 @@ unsafe fn char_ptr(byte_ref: &u8) -> *mut u8 {
     mem::transmute::<*const u8, *mut c_uchar>(byte_ref)
 }
 
-unsafe fn ptr_addr(byte_ptr: *mut u8) -> usize {
-    mem::transmute::<*mut u8, usize>(byte_ptr)
+pub fn adler32(sum: u32, bytes: &[u8]) -> u32 {
+    unsafe {
+        ::libz_sys::adler32(sum as c_ulong, &bytes[0], bytes.len() as c_uint) as u32
+    }
+}
+
+pub fn adler32_initial() -> u32 {
+    unsafe {
+        ::libz_sys::adler32(0, ptr::null(), 0) as u32
+    }
 }
 
 pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
@@ -230,12 +240,5 @@ impl<W: Write> Deflate<W> {
     //
     pub fn get_adler32(&self) -> u32 {
         (*self.stream).adler as u32
-    }
-
-    //
-    // Reset the checksum to the initial value.
-    //
-    pub fn reset_adler32(&mut self) {
-        (*self.stream).adler = 1;
     }
 }
