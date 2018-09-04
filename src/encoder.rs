@@ -162,7 +162,7 @@ impl FilterChunk {
     //
     // Run the filtering, on a background thread.
     //
-    fn run(&mut self) {
+    fn run(&mut self) -> IoResult {
         let mut filter = AdaptiveFilter::new(self.input.header);
         let zero = vec![0u8; self.stride];
         for i in self.start_row .. self.end_row {
@@ -184,8 +184,9 @@ impl FilterChunk {
 
             let output = filter.filter(prev, row);
 
-            self.data.write(output).unwrap(); // @fixme handle errors
+            self.data.write_all(output)?
         }
+        Ok(())
     }
 }
 
@@ -230,29 +231,39 @@ impl DeflateChunk {
         }
     }
 
-    fn run(&mut self) {
+    fn run(&mut self) -> IoResult {
         // @fixme header
 
         // Run the deflate!
         // @fixme error handling
         let options = deflate::OptionsBuilder::new().finish();
         let mut encoder = Deflate::new(options, Vec::new());
+
         match self.prior_input {
             Some(ref filter) => {
                 let trailer = filter.get_trailer();
-                encoder.set_dictionary(trailer);
+                encoder.set_dictionary(trailer)?;
             },
             None => {
                 // do nothing.
             }
         }
-        encoder.write(&self.input.data);
-        match encoder.finish(Flush::SyncFlush) {
-            // This seems lame to move the vector back, but it's actually cheap.
-            Ok(data) => self.data = data,
-            Err(e) => panic!("todo: error handling {}", e),
+
+        encoder.write(&self.input.data, if self.is_end {
+            Flush::Finish
+        } else {
+            Flush::SyncFlush
+        })?;
+
+        return match encoder.finish() {
+            Ok(data) => {
+                // This seems lame to move the vector back, but it's actually cheap.
+                self.data = data;
+                // @fixme save the adler32 checksums
+                Ok(())
+            },
+            Err(e) => Err(e)
         }
-        // @fixme adler32 checksums
     }
 }
 
@@ -361,6 +372,7 @@ impl<T> ChunkMap<T> {
 enum ThreadMessage {
     FilterDone(Arc<FilterChunk>),
     DeflateDone(Arc<DeflateChunk>),
+    Error(io::Error),
 }
 
 #[derive(Copy, Clone)]
@@ -511,6 +523,9 @@ impl<'a, W: Write> Encoder<'a, W> {
                 Some(ThreadMessage::DeflateDone(deflate)) => {
                     self.deflate_chunks.land(deflate.index, deflate);
                 },
+                Some(ThreadMessage::Error(e)) => {
+                    return Err(e);
+                }
                 None => {
                     // No more output from the threads.
                     break;
@@ -550,8 +565,10 @@ impl<'a, W: Write> Encoder<'a, W> {
                     self.deflate_chunks.advance();
                     self.dispatch_func(move |tx| {
                         let mut deflate = DeflateChunk::new(level, previous.clone(), current.clone());
-                        deflate.run();
-                        tx.send(ThreadMessage::DeflateDone(Arc::new(deflate))).unwrap();
+                        tx.send(match deflate.run() {
+                            Ok(()) => ThreadMessage::DeflateDone(Arc::new(deflate)),
+                            Err(e) => ThreadMessage::Error(e),
+                        }).unwrap();
                     });
                 },
                 None => {
@@ -568,8 +585,10 @@ impl<'a, W: Write> Encoder<'a, W> {
                     self.filter_chunks.advance();
                     self.dispatch_func(move |tx| {
                         let mut filter = FilterChunk::new(previous.clone(), current.clone());
-                        filter.run();
-                        tx.send(ThreadMessage::FilterDone(Arc::new(filter))).unwrap();
+                        tx.send(match filter.run() {
+                            Ok(()) => ThreadMessage::FilterDone(Arc::new(filter)),
+                            Err(e) => ThreadMessage::Error(e),
+                        }).unwrap();
                     });
                 },
                 None => {
