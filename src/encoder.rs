@@ -23,6 +23,7 @@ use super::writer::Writer;
 use super::deflate;
 use super::deflate::Deflate;
 use super::deflate::Flush;
+use super::deflate::Strategy;
 
 use super::utils::*;
 
@@ -200,6 +201,7 @@ struct DeflateChunk {
     is_end: bool,
 
     compression_level: CompressionLevel,
+    strategy: Strategy,
 
     // The filtered pixels for chunk n-1
     // Empty on first chunk.
@@ -218,6 +220,7 @@ struct DeflateChunk {
 
 impl DeflateChunk {
     fn new(compression_level: CompressionLevel,
+           strategy: Strategy,
            prior_input: Option<Arc<FilterChunk>>,
            input: Arc<FilterChunk>) -> DeflateChunk {
 
@@ -229,6 +232,8 @@ impl DeflateChunk {
             is_end: input.is_end,
 
             compression_level: compression_level,
+            strategy: strategy,
+
             prior_input: prior_input,
             input: input,
             data: Vec::new(),
@@ -276,6 +281,7 @@ impl DeflateChunk {
             CompressionLevel::Fast => options.set_level(1),
             CompressionLevel::High => options.set_level(9),
         }
+        options.set_strategy(self.strategy);
 
         let mut encoder = Deflate::new(options, data);
 
@@ -454,22 +460,23 @@ pub struct Encoder<'a, W: Write> {
 impl<'a, W: Write> Encoder<'a, W> {
     fn new_encoder(header: Header, options: Options, write: W, thread_pool: Option<&'a ThreadPool>) -> Encoder<'a, W> {
         let stride = header.stride() + 1;
+        let height = header.height as usize;
 
         let full_rows = options.chunk_size / stride;
         let extra_pixels = options.chunk_size % stride;
-        let rows_per_chunk = full_rows + if extra_pixels > 0 {
-            1
-        } else {
-            0
-        };
-
-        let full_chunks = header.height as usize / rows_per_chunk;
-        let extra_lines = header.height as usize % rows_per_chunk;
-        let chunks_total = full_chunks + (if extra_lines > 0 {
+        let rows_per_chunk = cmp::min(height, full_rows + if extra_pixels > 0 {
             1
         } else {
             0
         });
+
+        let full_chunks = height / rows_per_chunk;
+        let extra_lines = height % rows_per_chunk;
+        let chunks_total = full_chunks + if extra_lines > 0 {
+            1
+        } else {
+            0
+        };
 
         let (tx, rx) = mpsc::channel();
 
@@ -628,9 +635,10 @@ impl<'a, W: Write> Encoder<'a, W> {
                 Some((previous, current)) => {
                     // Prepare to dispatch the deflate job:
                     let level = self.options.compression_level;
+                    let strategy = self.options.strategy;
                     self.deflate_chunks.advance();
                     self.dispatch_func(move |tx| {
-                        let mut deflate = DeflateChunk::new(level, previous.clone(), current.clone());
+                        let mut deflate = DeflateChunk::new(level, strategy, previous.clone(), current.clone());
                         tx.send(match deflate.run() {
                             Ok(()) => ThreadMessage::DeflateDone(Arc::new(deflate)),
                             Err(e) => ThreadMessage::Error(e),
@@ -750,7 +758,7 @@ mod tests {
             let header = Header::with_color(width,
                                             height,
                                             ColorType::Truecolor);
-            let options = Options::default();
+            let options = Options::new();
             let writer = Vec::<u8>::new();
             let mut encoder = Encoder::new(header, options, writer);
             match func(&mut encoder) {

@@ -16,6 +16,7 @@ extern crate png;
 // Hey that's us!
 extern crate mtpng;
 use mtpng::{ColorType, CompressionLevel, Encoder, Header, Options};
+use mtpng::deflate::Strategy;
 
 pub fn err(payload: &str) -> Error
 {
@@ -52,19 +53,16 @@ fn write_png(filename: &str, header: Header, options: Options, data: &[u8]) -> i
 }
 
 fn doit(matches: ArgMatches) -> io::Result<()> {
-    let infile = matches.value_of("input").unwrap();
-    let outfile = matches.value_of("output").unwrap();
-    let chunk_size = matches.value_of("chunk-size");
-    let level = matches.value_of("level");
+    let mut options = Options::new();
 
-    let mut options = Options::default();
-    match chunk_size {
+    match matches.value_of("chunk-size") {
         Some(s) => {
             options.chunk_size = s.parse::<usize>().unwrap()
         },
         None => {},
     }
-    match level {
+
+    match matches.value_of("level") {
         Some(s) => {
             if s == "1" {
                 options.compression_level = CompressionLevel::Fast
@@ -74,6 +72,18 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
         },
         None => {},
     }
+
+    options.strategy = match matches.value_of("strategy") {
+        None => Strategy::Default,
+        Some("filtered") => Strategy::Filtered,
+        Some("huffman") => Strategy::HuffmanOnly,
+        Some("rle") => Strategy::RLE,
+        Some("fixed") => Strategy::Fixed,
+        _ => panic!("Invalid compression strategy mode"),
+    };
+
+    let infile = matches.value_of("input").unwrap();
+    let outfile = matches.value_of("output").unwrap();
 
     println!("{} -> {}", infile, outfile);
     let (header, data) = read_png(&infile)?;
@@ -95,6 +105,10 @@ pub fn main() {
             .long("level")
             .value_name("level")
             .help("Set deflate compression level, from 1-9."))
+        .arg(Arg::with_name("strategy")
+            .long("strategy")
+            .value_name("strategy")
+            .help("Deflate strategy: one of filtered, huffman, rle, or fixed"))
         .arg(Arg::with_name("input")
             .help("Input filename, must be another PNG.")
             .required(true)

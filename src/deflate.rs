@@ -42,6 +42,16 @@ pub struct Options {
     strategy: c_int,
 }
 
+#[repr(i32)]
+#[derive(Copy, Clone)]
+pub enum Strategy {
+    Default = Z_DEFAULT_STRATEGY,
+    Filtered = Z_FILTERED,
+    HuffmanOnly = Z_HUFFMAN_ONLY,
+    RLE = Z_RLE,
+    Fixed = Z_FIXED,
+}
+
 impl Options {
     pub fn new() -> Options {
         Options {
@@ -66,6 +76,10 @@ impl Options {
     //
     pub fn set_window_bits(&mut self, bits: i32) {
         self.window_bits = bits as c_int;
+    }
+
+    pub fn set_strategy(&mut self, strategy: Strategy) {
+        self.strategy = strategy as c_int;
     }
 }
 

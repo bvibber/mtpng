@@ -5,7 +5,9 @@ extern crate rayon;
 extern crate crc;
 extern crate libz_sys;
 
-mod deflate;
+// quick hack -- export deflate module so we can use the Strategy enum
+pub mod deflate;
+
 mod encoder;
 mod filter;
 mod utils;
@@ -19,6 +21,7 @@ use std::io;
 use std::io::Write;
 type IoResult = io::Result<()>;
 
+use deflate::Strategy;
 use utils::other;
 
 #[derive(Copy, Clone)]
@@ -166,15 +169,17 @@ pub enum CompressionLevel {
 pub struct Options {
     pub chunk_size: usize,
     pub compression_level: CompressionLevel,
+    pub strategy: Strategy,
     pub streaming: bool,
 }
 
 impl Options {
     // Use default options
-    pub fn default() -> Options {
+    pub fn new() -> Options {
         Options {
             chunk_size: 128 * 1024,
             compression_level: CompressionLevel::Default,
+            strategy: Strategy::Default,
             streaming: true,
         }
     }
