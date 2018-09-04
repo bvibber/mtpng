@@ -50,13 +50,14 @@ pub enum InterlaceMethod {
 
 #[derive(Copy, Clone)]
 pub struct Header {
-    width: u32,
-    height: u32,
-    depth: u8,
-    color_type: ColorType,
-    compression_method: CompressionMethod,
-    filter_method: FilterMethod,
-    interlace_method: InterlaceMethod,
+    // @fixme dont use pub?
+    pub width: u32,
+    pub height: u32,
+    pub depth: u8,
+    pub color_type: ColorType,
+    pub compression_method: CompressionMethod,
+    pub filter_method: FilterMethod,
+    pub interlace_method: InterlaceMethod,
 }
 
 impl Header {

@@ -7,3 +7,4 @@ authors = ["Brion Vibber <brion@pobox.com>"]
 rayon = "1.0.2"
 crc = "1.8.1"
 libz-sys = "1.0.20"
+png = "0.12.0"
