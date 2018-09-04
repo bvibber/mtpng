@@ -87,6 +87,7 @@ impl<W: Write> Writer<W> {
     //
     // Write a chunk to the output stream.
     //
+    // https://www.w3.org/TR/PNG/#5DataRep
     // https://www.w3.org/TR/PNG/#5CRC-algorithm
     //
     pub fn write_chunk(&mut self, tag: &[u8], data: &[u8]) -> IoResult {
@@ -97,8 +98,8 @@ impl<W: Write> Writer<W> {
             return Err(invalid_input("Data chunks cannot exceed 4 GiB - 1 byte"));
         }
 
-        // CRC is initialized to all 1 bits, and covers both tag and data.
-        let mut digest = crc32::Digest::new_with_initial(crc32::IEEE, 0xffffffffu32);
+        // CRC covers both tag and data.
+        let mut digest = crc32::Digest::new(crc32::IEEE);
         digest.write(tag);
         digest.write(data);
         let checksum = digest.sum32();
@@ -194,6 +195,20 @@ mod tests {
             // 20 bytes data
             // 4 bytes crc
             assert_eq!(output.len(), 32);
+        })
+    }
+
+    #[test]
+    fn crc_works() {
+        // From a 1x1 truecolor black pixel made with gd
+        let one_pixel = b"\x08\x99\x63\x60\x60\x60\x00\x00\x00\x04\x00\x01";
+        test_writer(|writer| {
+            writer.write_chunk(b"IDAT", one_pixel)
+        }, |output| {
+            assert_eq!(output[0..4], b"\x00\x00\x00\x0c"[..], "expected length 12");
+            assert_eq!(output[4..8], b"IDAT"[..], "expected IDAT");
+            assert_eq!(output[8..20], one_pixel[..], "expected data payload");
+            assert_eq!(output[20..24], b"\xa3\x0a\x15\xe3"[..], "expected crc32");
         })
     }
 }
