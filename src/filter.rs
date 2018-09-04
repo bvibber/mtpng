@@ -5,12 +5,19 @@ use super::Header;
 use super::ColorType;
 
 #[repr(u8)]
+#[derive(Copy, Clone)]
 pub enum FilterType {
     None = 0,
     Sub = 1,
     Up = 2,
     Average = 3,
     Paeth = 4,
+}
+
+#[derive(Copy, Clone)]
+pub enum FilterMode {
+    Adaptive,
+    Fixed(FilterType),
 }
 
 fn filter_none(_bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
@@ -104,8 +111,7 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     }
 }
 
-fn estimate_complexity(filtered_row: &[u8]) -> i64 {
-    let data = &filtered_row[1 ..];
+fn estimate_complexity(data: &[u8]) -> i64 {
     let len = data.len();
     let mut sum = 0i64;
     for i in 0 .. len {
@@ -115,64 +121,111 @@ fn estimate_complexity(filtered_row: &[u8]) -> i64 {
     sum
 }
 
-pub struct AdaptiveFilter {
+//
+// Holds a target row that can be filtered
+// Can be reused.
+//
+struct Filterator {
+    filter: FilterType,
     bpp: usize,
     stride: usize,
-    selected_filter: FilterType,
-    data_none: Vec<u8>,
-    data_sub: Vec<u8>,
-    data_up: Vec<u8>,
-    data_average: Vec<u8>,
-    data_paeth: Vec<u8>,
+    data: Vec<u8>,
+    complexity: i64,
+}
+
+impl Filterator {
+    fn new(filter: FilterType, bpp: usize, stride: usize) -> Filterator {
+        Filterator {
+            filter: filter,
+            bpp: bpp,
+            stride: stride,
+            data: vec![0u8; stride + 1],
+            complexity: 0,
+        }
+    }
+
+    fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
+        match self.filter {
+            FilterType::None    => filter_none(self.bpp, prev, src, &mut self.data),
+            FilterType::Sub     => filter_sub(self.bpp, prev, src, &mut self.data),
+            FilterType::Up      => filter_up(self.bpp, prev, src, &mut self.data),
+            FilterType::Average => filter_average(self.bpp, prev, src, &mut self.data),
+            FilterType::Paeth   => filter_paeth(self.bpp, prev, src, &mut self.data),
+        }
+        self.complexity = estimate_complexity(&self.data[1..]);
+        &self.data
+    }
+
+    fn get_data(&self) -> &[u8] {
+        &self.data
+    }
+
+    fn get_complexity(&self) -> i64 {
+        self.complexity
+    }
+}
+
+pub struct AdaptiveFilter {
+    mode: FilterMode,
+    filter_none: Filterator,
+    filter_up: Filterator,
+    filter_sub: Filterator,
+    filter_average: Filterator,
+    filter_paeth: Filterator,
 }
 
 impl AdaptiveFilter {
-    pub fn new(header: Header) -> AdaptiveFilter {
-        let stride_in = header.stride();
-        let stride_out = stride_in + 1;
+    pub fn new(header: Header, mode: FilterMode) -> AdaptiveFilter {
+        let stride = header.stride();
+        let bpp = header.bytes_per_pixel();
         AdaptiveFilter {
-            bpp: header.bytes_per_pixel(),
-            stride: stride_in,
-            selected_filter: FilterType::None,
-            data_none: vec![0; stride_out],
-            data_sub: vec![0; stride_out],
-            data_up: vec![0; stride_out],
-            data_average: vec![0; stride_out],
-            data_paeth: vec![0; stride_out],
+            mode: mode,
+            filter_none:    Filterator::new(FilterType::None,    bpp, stride),
+            filter_up:      Filterator::new(FilterType::Up,      bpp, stride),
+            filter_sub:     Filterator::new(FilterType::Sub,     bpp, stride),
+            filter_average: Filterator::new(FilterType::Average, bpp, stride),
+            filter_paeth:   Filterator::new(FilterType::Paeth,   bpp, stride),
+        }
+    }
+
+    fn filter_adaptive(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
+
+        self.filter_none.filter(prev, src);
+        let mut min = self.filter_none.get_complexity();
+
+        self.filter_sub.filter(prev, src);
+        min = cmp::min(min, self.filter_sub.get_complexity());
+
+        self.filter_up.filter(prev, src);
+        min = cmp::min(min, self.filter_up.get_complexity());
+
+        self.filter_average.filter(prev, src);
+        min = cmp::min(min, self.filter_average.get_complexity());
+
+        self.filter_paeth.filter(prev, src);
+        min = cmp::min(min, self.filter_paeth.get_complexity());
+
+        if min == self.filter_paeth.get_complexity() {
+            self.filter_paeth.get_data()
+        } else if min == self.filter_average.get_complexity() {
+            self.filter_average.get_data()
+        } else if min == self.filter_up.get_complexity() {
+            self.filter_up.get_data()
+        } else if min == self.filter_sub.get_complexity() {
+            self.filter_sub.get_data()
+        } else {
+            self.filter_none.get_data()
         }
     }
 
     pub fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
-        filter_none(self.bpp, prev, src, &mut self.data_none);
-        let complexity_none = estimate_complexity(&self.data_none);
-        let mut min = complexity_none;
-
-        filter_sub(self.bpp, prev, src, &mut self.data_sub);
-        let complexity_sub = estimate_complexity(&self.data_sub);
-        min = cmp::min(min, complexity_sub);
-
-        filter_up(self.bpp, prev, src, &mut self.data_up);
-        let complexity_up = estimate_complexity(&self.data_up);
-        min = cmp::min(min, complexity_up);
-
-        filter_average(self.bpp, prev, src, &mut self.data_average);
-        let complexity_average = estimate_complexity(&self.data_average);
-        min = cmp::min(min, complexity_average);
-
-        filter_paeth(self.bpp, prev, src, &mut self.data_paeth);
-        let complexity_paeth = estimate_complexity(&self.data_paeth);
-        min = cmp::min(min, complexity_sub);
-
-        if min == complexity_paeth {
-            &self.data_paeth
-        } else if min == complexity_average {
-            &self.data_average
-        } else if min == complexity_up {
-            &self.data_up
-        } else if min == complexity_sub {
-            &self.data_sub
-        } else {
-            &self.data_none
+        match self.mode {
+            FilterMode::Fixed(FilterType::None)    => self.filter_none.filter(prev, src),
+            FilterMode::Fixed(FilterType::Sub)     => self.filter_sub.filter(prev, src),
+            FilterMode::Fixed(FilterType::Up)      => self.filter_up.filter(prev, src),
+            FilterMode::Fixed(FilterType::Average) => self.filter_average.filter(prev, src),
+            FilterMode::Fixed(FilterType::Paeth)   => self.filter_paeth.filter(prev, src),
+            FilterMode::Adaptive                   => self.filter_adaptive(prev, src),
         }
     }
 }

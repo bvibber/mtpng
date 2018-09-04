@@ -5,13 +5,11 @@ extern crate rayon;
 extern crate crc;
 extern crate libz_sys;
 
-// quick hack -- export deflate module so we can use the Strategy enum
 pub mod deflate;
-
-mod encoder;
-mod filter;
-mod utils;
-mod writer;
+pub mod filter;
+pub mod encoder;
+pub mod utils;
+pub mod writer;
 
 use rayon::ThreadPool;
 
@@ -22,6 +20,7 @@ use std::io::Write;
 type IoResult = io::Result<()>;
 
 use deflate::Strategy;
+use filter::FilterMode;
 use utils::other;
 
 #[derive(Copy, Clone)]
@@ -171,6 +170,7 @@ pub struct Options {
     pub compression_level: CompressionLevel,
     pub strategy: Strategy,
     pub streaming: bool,
+    pub filter_mode: FilterMode,
 }
 
 impl Options {
@@ -180,6 +180,7 @@ impl Options {
             chunk_size: 128 * 1024,
             compression_level: CompressionLevel::Default,
             strategy: Strategy::Default,
+            filter_mode: FilterMode::Adaptive,
             streaming: true,
         }
     }

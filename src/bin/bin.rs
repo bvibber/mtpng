@@ -24,6 +24,7 @@ use time::precise_time_s;
 extern crate mtpng;
 use mtpng::{ColorType, CompressionLevel, Encoder, Header, Options};
 use mtpng::deflate::Strategy;
+use mtpng::filter::{FilterMode, FilterType};
 
 pub fn err(payload: &str) -> Error
 {
@@ -68,6 +69,17 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
             options.chunk_size = s.parse::<usize>().unwrap()
         },
         None => {},
+    }
+
+    match matches.value_of("filter") {
+        None => {},
+        Some("adaptive") => options.filter_mode = FilterMode::Adaptive,
+        Some("none")     => options.filter_mode = FilterMode::Fixed(FilterType::None),
+        Some("up")       => options.filter_mode = FilterMode::Fixed(FilterType::Up),
+        Some("sub")      => options.filter_mode = FilterMode::Fixed(FilterType::Sub),
+        Some("average")  => options.filter_mode = FilterMode::Fixed(FilterType::Average),
+        Some("paeth")    => options.filter_mode = FilterMode::Fixed(FilterType::Paeth),
+        _ => panic!("Unsupported filter type"),
     }
 
     match matches.value_of("level") {
@@ -124,6 +136,10 @@ pub fn main() {
             .value_name("bytes")
             .help("Divide image into chunks of at least this given size.")
             .takes_value(true))
+        .arg(Arg::with_name("filter")
+            .long("filter")
+            .value_name("filter")
+            .help("Set a fixed filter: one of none, sub, up, average, or paeth."))
         .arg(Arg::with_name("level")
             .long("level")
             .value_name("level")

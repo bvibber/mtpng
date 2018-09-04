@@ -18,6 +18,7 @@ use super::Header;
 use super::Options;
 use super::CompressionLevel;
 use super::filter::AdaptiveFilter;
+use super::filter::FilterMode;
 use super::writer::Writer;
 
 use super::deflate;
@@ -110,6 +111,7 @@ struct FilterChunk {
     is_end: bool,
 
     stride: usize,
+    filter_mode: FilterMode,
 
     // The input pixels for chunk n-1
     // Needed for its last row only.
@@ -124,7 +126,9 @@ struct FilterChunk {
 
 impl FilterChunk {
     fn new(prior_input: Option<Arc<PixelChunk>>,
-           input: Arc<PixelChunk>) -> FilterChunk {
+           input: Arc<PixelChunk>,
+           filter_mode: FilterMode) -> FilterChunk
+    {
         // Prepend one byte for the filter selector.
         let stride = input.stride + 1;
         let nbytes = stride * (input.end_row - input.start_row);
@@ -137,6 +141,7 @@ impl FilterChunk {
             is_end: input.is_end,
 
             stride: stride,
+            filter_mode: filter_mode,
 
             prior_input: prior_input,
             input: input,
@@ -165,7 +170,7 @@ impl FilterChunk {
     // Run the filtering, on a background thread.
     //
     fn run(&mut self) -> IoResult {
-        let mut filter = AdaptiveFilter::new(self.input.header);
+        let mut filter = AdaptiveFilter::new(self.input.header, self.filter_mode);
         let zero = vec![0u8; self.stride];
         for i in self.start_row .. self.end_row {
             let prior = if i == self.start_row {
@@ -657,8 +662,11 @@ impl<'a, W: Write> Encoder<'a, W> {
                 Some((previous, current)) => {
                     // Prepare to dispatch the filter job:
                     self.filter_chunks.advance();
+                    let filter_mode = self.options.filter_mode;
                     self.dispatch_func(move |tx| {
-                        let mut filter = FilterChunk::new(previous.clone(), current.clone());
+                        let mut filter = FilterChunk::new(previous.clone(),
+                                                          current.clone(),
+                                                          filter_mode);
                         tx.send(match filter.run() {
                             Ok(()) => ThreadMessage::FilterDone(Arc::new(filter)),
                             Err(e) => ThreadMessage::Error(e),
