@@ -4,7 +4,7 @@
 
 use std::fs::File;
 use std::io;
-use std::io::{Error, ErrorKind, Read, Write};
+use std::io::{Error, ErrorKind};
 
 // CLI options
 extern crate clap;
@@ -12,7 +12,6 @@ use clap::{Arg, App, ArgMatches};
 
 // For reading an existing file
 extern crate png;
-use png::Decoder;
 
 // Hey that's us!
 extern crate mtpng;
@@ -27,10 +26,10 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>)> {
     let decoder = png::Decoder::new(File::open(filename)?);
     let (info, mut reader) = decoder.read_info()?;
 
-    let mut header = Header::with_depth(info.width,
-                                        info.height,
-                                        ColorType::from_u8(info.color_type as u8)?,
-                                        info.bit_depth as u8);
+    let header = Header::with_depth(info.width,
+                                    info.height,
+                                    ColorType::from_u8(info.color_type as u8)?,
+                                    info.bit_depth as u8);
     let mut data = vec![0u8; info.buffer_size()];
     reader.next_frame(&mut data)?;
 
@@ -38,7 +37,7 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>)> {
 }
 
 fn write_png(filename: &str, header: Header, options: Options, data: &[u8]) -> io::Result<()> {
-    let mut writer = try!(File::create(filename));
+    let writer = try!(File::create(filename));
     let mut encoder = Encoder::new(header, options, writer);
     encoder.write_header()?;
     for i in 0 .. header.height as usize {
