@@ -4,23 +4,11 @@ use std::io::Write;
 
 use std::mem;
 
-use std::ptr;
-
 use std::os::raw::*;
 
 use ::libz_sys::*;
 
-type IoResult = io::Result<()>;
-
-fn invalid_input(payload: &str) -> Error
-{
-    Error::new(ErrorKind::InvalidInput, payload)
-}
-
-fn other(payload: &str) -> Error
-{
-    Error::new(ErrorKind::Other, payload)
-}
+use super::utils::*;
 
 unsafe fn char_ptr(byte_ref: &u8) -> *mut u8 {
     mem::transmute::<*const u8, *mut c_uchar>(byte_ref)
@@ -30,6 +18,11 @@ unsafe fn ptr_addr(byte_ptr: *mut u8) -> usize {
     mem::transmute::<*mut u8, usize>(byte_ptr)
 }
 
+pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
+    unsafe {
+        ::libz_sys::adler32_combine(sum_a as c_ulong, sum_b as c_ulong, len_b as c_long) as u32
+    }
+}
 
 pub struct Options {
     level: c_int,
@@ -56,8 +49,17 @@ impl OptionsBuilder {
         }
     }
 
-    pub fn set_level(mut self, level: u32) -> OptionsBuilder {
+    pub fn set_level(mut self, level: i32) -> OptionsBuilder {
         self.options.level = level as c_int;
+        self
+    }
+
+    //
+    // Default is 15 (32 KiB)
+    // Set negative value for raw stream (no header/checksum)
+    //
+    pub fn set_window_bits(mut self, bits: i32) -> OptionsBuilder {
+        self.options.window_bits = bits as c_int;
         self
     }
 
@@ -221,5 +223,9 @@ impl<W: Write> Deflate<W> {
         } else {
             Ok(self.output)
         }
+    }
+
+    pub fn get_adler32(&self) -> u32 {
+        (*self.stream).adler as u32
     }
 }

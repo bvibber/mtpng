@@ -9,7 +9,6 @@ use std::collections::HashMap;
 
 use std::io;
 use std::io::Write;
-type IoResult = io::Result<()>;
 
 use std::sync::Arc;
 use std::sync::mpsc;
@@ -24,6 +23,8 @@ use super::writer::Writer;
 use super::deflate;
 use super::deflate::Deflate;
 use super::deflate::Flush;
+
+use super::utils::*;
 
 // Accumulates a set of pixels, then gets sent off as input
 // to the deflate jobs.
@@ -210,6 +211,9 @@ struct DeflateChunk {
 
     // Compressed output bytes
     data: Vec<u8>,
+
+    // Checksum of this chunk
+    adler32: u32,
 }
 
 impl DeflateChunk {
@@ -228,16 +232,29 @@ impl DeflateChunk {
             prior_input: prior_input,
             input: input,
             data: Vec::new(),
+            adler32: 0,
         }
     }
 
     fn run(&mut self) -> IoResult {
-        // @fixme header
-
         // Run the deflate!
-        // @fixme error handling
-        let options = deflate::OptionsBuilder::new().finish();
-        let mut encoder = Deflate::new(options, Vec::new());
+        // Todo: don't create an empty vector earlier, but reuse it sanely.
+        let mut data = Vec::<u8>::new();
+
+        if self.is_start {
+            // Manually prepend the zlib header.
+            // 0x8 == deflate
+            // 0x7 == 15-bit window size
+            data.push(0x87);
+            // 0x9 == check bits for the above
+            // 0x8 + 0x2 == check bit & default algorithm
+            data.push(0x9a);
+        }
+
+        let options = deflate::OptionsBuilder::new()
+            .set_window_bits(-15) // negative forces raw stream output
+            .finish();
+        let mut encoder = Deflate::new(options, data);
 
         match self.prior_input {
             Some(ref filter) => {
@@ -254,6 +271,7 @@ impl DeflateChunk {
         } else {
             Flush::SyncFlush
         })?;
+        self.adler32 = encoder.get_adler32();
 
         return match encoder.finish() {
             Ok(data) => {
@@ -400,6 +418,9 @@ pub struct Encoder<'a, W: Write> {
     filter_chunks: ChunkMap<FilterChunk>,
     deflate_chunks: ChunkMap<DeflateChunk>,
 
+    // Accumulates the checksum of all output chunks in turn.
+    adler32: u32,
+
     // For messages from the thread pool.
     tx: Sender<ThreadMessage>,
     rx: Receiver<ThreadMessage>,
@@ -443,6 +464,8 @@ impl<'a, W: Write> Encoder<'a, W> {
             pixel_chunks: ChunkMap::new(),
             filter_chunks: ChunkMap::new(),
             deflate_chunks: ChunkMap::new(),
+
+            adler32: 0,
 
             tx: tx,
             rx: rx,
@@ -543,9 +566,24 @@ impl<'a, W: Write> Encoder<'a, W> {
                     if self.chunks_output >= self.chunks_total {
                         panic!("Got extra output after end of file; should not happen.");
                     }
+
+                    // Combine the checksums!
+                    self.adler32 = deflate::adler32_combine(self.adler32,
+                                                            current.adler32,
+                                                            current.input.data.len());
+
+                    let mut chunk = Vec::<u8>::new();
+                    let data = if current.is_end {
+                        write_be32(&mut chunk, self.adler32)?;
+                        &chunk
+                    } else {
+                        &current.data
+                    };
+
                     // @fixme if not streaming, append to an in-memory buffer
                     // and output a giant tag later.
-                    self.writer.write_chunk(b"IDAT", &current.data)?;
+                    self.writer.write_chunk(b"IDAT", &data)?;
+
                     self.chunks_output = self.chunks_output + 1;
                 },
                 None => {

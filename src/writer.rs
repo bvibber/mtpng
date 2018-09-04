@@ -8,27 +8,7 @@ use std::io::Write;
 use super::Header;
 use super::ColorType;
 
-type IoResult = io::Result<()>;
-
-fn write_be32<W: Write>(w: &mut W, val: u32) -> IoResult {
-    let bytes = [
-        (val >> 24 & 0xff) as u8,
-        (val >> 16 & 0xff) as u8,
-        (val >> 8 & 0xff) as u8,
-        (val & 0xff) as u8,
-    ];
-    w.write_all(&bytes)
-}
-
-fn write_byte<W: Write>(w: &mut W, val: u8) -> IoResult {
-    let bytes = [val];
-    w.write_all(&bytes)
-}
-
-fn invalid_input(payload: &str) -> Error
-{
-    Error::new(ErrorKind::InvalidInput, payload)
-}
+use super::utils::*;
 
 pub struct Writer<W: Write> {
     output: W,
