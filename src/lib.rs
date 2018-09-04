@@ -3,10 +3,12 @@
 
 extern crate rayon;
 extern crate crc;
+extern crate libz_sys;
 
 mod encoder;
 mod filter;
 mod writer;
+mod deflate;
 
 use rayon::ThreadPool;
 

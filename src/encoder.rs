@@ -21,6 +21,9 @@ use super::CompressionLevel;
 use super::filter::AdaptiveFilter;
 use super::writer::Writer;
 
+use super::deflate;
+use super::deflate::Deflate;
+use super::deflate::Flush;
 
 // Accumulates a set of pixels, then gets sent off as input
 // to the deflate jobs.
@@ -228,7 +231,22 @@ impl DeflateChunk {
     }
 
     fn run(&mut self) {
-        // -> run the deflating
+        // @fixme header
+
+        // Run the deflate!
+        // @fixme error handling
+        let options = deflate::OptionsBuilder::new().finish();
+        let mut encoder = Deflate::new(options, Vec::new());
+        if !self.is_start {
+            encoder.set_dictionary(self.prior_input.unwrap().get_trailer());
+        }
+        encoder.write(&self.input.data);
+        match encoder.finish(Flush::SyncFlush) {
+            // This seems lame to move the vector back, but it's actually cheap.
+            Ok(data) => self.data = data,
+            Err(e) => panic!("todo: error handling {}", e),
+        }
+        // @fixme adler32 checksums
     }
 }
 
