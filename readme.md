@@ -16,13 +16,10 @@ I was also inspired by an experimental C++/OpenMP project called `png-parallel` 
 
 # State
 
-Currently very unfinished.
-
-The code mocks up the basic flow of data blocks through a Rayon ThreadPool, but doesn't actually write or compress anything correctly.
+Currently very unfinished, but more or less works. Not yet optimized or made usable.
 
 Immediate todos:
-* implement compression!
-* make sure generated files are correct
+* implement compression level parameter
 * benchmark and optimize
 * compare compression tradeoffs for different chunk sizes
 
@@ -30,10 +27,10 @@ Soon todos:
 * compare with the filter heuristics used in libpng
 * allow buffering into a single IDAT chunk if not streaming
 
-When it works todos:
-* make a nice CLI tool
+In a bit todos:
 * start figuring out a public-facing api
 * publish crate
+* allow blocking on full thread pool to share resources more nicely
 
 Someday todos:
 * helpers for packing pixels from non-native formats
@@ -48,6 +45,12 @@ Someday todos:
 [Rayon](https://crates.io/crates/rayon) is used for its ThreadPool implementation. You can create an encoder using either the default Rayon global pool or a custom ThreadPool instance.
 
 [crc](https://crates.io/crates/crc) is used for calculating PNG chunk checksums.
+
+[libz-sys](https://crates.io/crates/libz-sys) is used to wrap libz for the deflate compression. I briefly looked at pure-Rust implementations but couldn't find any supporting raw stream output, dictionary setting, and flushing to byte boundaries without closing the stream.
+
+[png](https://crates.io/crates/png) is used by the CLI tool to load input files to recompress for testing.
+
+[clap](https://crates.io/crates/clap) is used by the CLI tool to handle option parsing and help display.
 
 # Copyright
 
