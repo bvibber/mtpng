@@ -140,7 +140,7 @@ mod tests {
             let output = Vec::<u8>::new();
             let mut writer = Writer::new(output);
             test_func(&mut writer)?;
-            Writer::close(writer)
+            writer.finish()
         })();
         match result {
             Ok(output) => assert_func(&output),

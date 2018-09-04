@@ -13,6 +13,10 @@ use clap::{Arg, App, ArgMatches};
 // For reading an existing file
 extern crate png;
 
+// For timing!
+extern crate time;
+use time::precise_time_s;
+
 // Hey that's us!
 extern crate mtpng;
 use mtpng::{ColorType, CompressionLevel, Encoder, Header, Options};
@@ -87,7 +91,13 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
 
     println!("{} -> {}", infile, outfile);
     let (header, data) = read_png(&infile)?;
+
+    let start_time = precise_time_s();
     write_png(&outfile, header, options, &data)?;
+    let delta = precise_time_s() - start_time;
+
+    println!("Done in {} ms", (delta * 1000.0).round());
+
     Ok(())
 }
 

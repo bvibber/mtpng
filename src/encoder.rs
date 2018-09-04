@@ -765,7 +765,7 @@ mod tests {
                 Ok(()) => {},
                 Err(e) => assert!(false, "Error during test: {}", e),
             }
-            Encoder::close(encoder)
+            encoder.finish()
         } {
             Ok(writer) => {},
             Err(e) => assert!(false, "Error {}", e),
@@ -789,14 +789,23 @@ mod tests {
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
 
+            // We must finish out the file or it'll whinge.
+            let row = make_row(7680);
+            for _i in 0 .. 2160 {
+                encoder.append_row(&row)?;
+            }
+
             Ok(())
         });
     }
 
     #[test]
-    fn test_one_row() {
+    fn test_rows() {
         test_encoder(7680, 2160, |encoder| {
             encoder.write_header()?;
+
+            assert_eq!(encoder.is_finished(), false);
+            assert_eq!(encoder.progress(), 0.0);
 
             let row = make_row(7680);
             encoder.append_row(&row)?;
@@ -807,17 +816,8 @@ mod tests {
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
 
-            Ok(())
-        });
-    }
-
-    #[test]
-    fn test_many_rows() {
-        test_encoder(7680, 2160, |encoder| {
-            encoder.write_header()?;
-
-            for _i in 0 .. 256 {
-                let row = make_row(7680);
+            // Add some more rows to trigger a block of output.
+            for _i in 1 .. 256 {
                 encoder.append_row(&row)?;
             }
             encoder.flush()?;
@@ -827,22 +827,13 @@ mod tests {
             assert_eq!(encoder.is_finished(), false);
             assert!(encoder.progress() > 0.0);
 
-            Ok(())
-        });
-    }
-
-    #[test]
-    fn test_all_rows() {
-        test_encoder(7680, 2160, |encoder| {
-            encoder.write_header()?;
-
-            for _i in 0 .. 2160 {
-                let row = make_row(7680);
+            // We must finish out the file or it'll whinge.
+            for _i in 256 .. 2160 {
                 encoder.append_row(&row)?;
             }
-            encoder.flush()?;
 
             // Should trigger all blocks!
+            encoder.flush()?;
             assert_eq!(encoder.is_finished(), true);
             assert_eq!(encoder.progress(), 1.0);
 

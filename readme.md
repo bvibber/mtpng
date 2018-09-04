@@ -51,6 +51,8 @@ Someday todos:
 
 [clap](https://crates.io/crates/clap) is used by the CLI tool to handle option parsing and help display.
 
+[time](https://crates.io/crates/time) is used by the CLI tool to time compression.
+
 # Copyright
 
 Don't touch it until I put that license on it! ;)
