@@ -164,9 +164,9 @@ pub enum CompressionLevel {
 
 #[derive(Copy, Clone)]
 pub struct Options {
-    chunk_size: usize,
-    compression_level: CompressionLevel,
-    streaming: bool,
+    pub chunk_size: usize,
+    pub compression_level: CompressionLevel,
+    pub streaming: bool,
 }
 
 impl Options {

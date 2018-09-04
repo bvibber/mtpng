@@ -23,6 +23,14 @@ pub fn write_be32<W: Write>(w: &mut W, val: u32) -> IoResult {
     w.write_all(&bytes)
 }
 
+pub fn write_be16<W: Write>(w: &mut W, val: u16) -> IoResult {
+    let bytes = [
+        (val >> 8 & 0xff) as u8,
+        (val & 0xff) as u8,
+    ];
+    w.write_all(&bytes)
+}
+
 pub fn write_byte<W: Write>(w: &mut W, val: u8) -> IoResult {
     let bytes = [val];
     w.write_all(&bytes)

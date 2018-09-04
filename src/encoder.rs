@@ -243,12 +243,26 @@ impl DeflateChunk {
 
         if self.is_start {
             // Manually prepend the zlib header.
-            // 0x8 == deflate
-            // 0x7 == 15-bit window size
-            data.push(0x87);
-            // 0x9 == check bits for the above
-            // 0x8 + 0x2 == check bit & default algorithm
-            data.push(0x9a);
+            // https://github.com/madler/zlib/blob/master/deflate.c#L813
+
+            // bits 0-3
+            let cm = 8; // 8 == deflate
+            // bits 4-7
+            let cinfo = 7; // 15-bit window size minus 8
+
+            // bits 0-4: check bits for the above
+            // we'll calculate it  later!
+            // bit 5: dict requirement (0)
+            let dict = 0;
+            // bits 6-7: compression level (02 == default)
+            let level = 2;
+
+            let header = (cinfo as u16) << 12 |
+                         (cm as u16) << 8 |
+                         (level as u16) << 6 |
+                         (dict as u16) << 5;
+            let checksum_header = header + 31 - (header % 31);
+            write_be16(&mut data, checksum_header)?;
         }
 
         let options = deflate::OptionsBuilder::new()
