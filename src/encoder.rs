@@ -539,7 +539,7 @@ impl<'a, W: Write> Encoder<'a, W> {
         let tx = self.tx.clone();
         match self.thread_pool {
             Some(pool) => {
-                pool.install(move || {
+                pool.spawn(move || {
                     func(&tx);
                 });
             },

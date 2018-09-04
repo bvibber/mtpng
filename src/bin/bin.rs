@@ -13,6 +13,9 @@ use clap::{Arg, App, ArgMatches};
 // For reading an existing file
 extern crate png;
 
+extern crate rayon;
+use rayon::{ThreadPool, ThreadPoolBuilder};
+
 // For timing!
 extern crate time;
 use time::precise_time_s;
@@ -41,9 +44,10 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>)> {
     Ok((header, data))
 }
 
-fn write_png(filename: &str, header: Header, options: Options, data: &[u8]) -> io::Result<()> {
+fn write_png(filename: &str, header: Header, options: Options, pool: &ThreadPool, data: &[u8]) -> io::Result<()> {
     let writer = try!(File::create(filename));
-    let mut encoder = Encoder::new(header, options, writer);
+    let mut encoder = Encoder::with_thread_pool(header, options, writer, &pool);
+    //let mut encoder = Encoder::new(header, options, writer);
 
     encoder.write_header()?;
     for i in 0 .. header.height as usize {
@@ -67,14 +71,10 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
     }
 
     match matches.value_of("level") {
-        Some(s) => {
-            if s == "1" {
-                options.compression_level = CompressionLevel::Fast
-            } else if s == "9" {
-                options.compression_level = CompressionLevel::High
-            }
-        },
         None => {},
+        Some("1") => options.compression_level = CompressionLevel::Fast,
+        Some("9") => options.compression_level = CompressionLevel::High,
+        _ => panic!("Unsuppored compression level (try 1 or 9)"),
     }
 
     options.strategy = match matches.value_of("strategy") {
@@ -86,6 +86,19 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
         _ => panic!("Invalid compression strategy mode"),
     };
 
+
+    let threads = match matches.value_of("threads") {
+        Some(s) => {
+            s.parse::<usize>().unwrap()
+        },
+        None => 0, // means default
+    };
+
+    let pool = ThreadPoolBuilder::new().num_threads(threads)
+                                       .build()
+                                       .unwrap();
+    eprintln!("Using {} threads", pool.current_num_threads());
+
     let infile = matches.value_of("input").unwrap();
     let outfile = matches.value_of("output").unwrap();
 
@@ -93,7 +106,7 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
     let (header, data) = read_png(&infile)?;
 
     let start_time = precise_time_s();
-    write_png(&outfile, header, options, &data)?;
+    write_png(&outfile, header, options, &pool, &data)?;
     let delta = precise_time_s() - start_time;
 
     println!("Done in {} ms", (delta * 1000.0).round());
@@ -118,7 +131,11 @@ pub fn main() {
         .arg(Arg::with_name("strategy")
             .long("strategy")
             .value_name("strategy")
-            .help("Deflate strategy: one of filtered, huffman, rle, or fixed"))
+            .help("Deflate strategy: one of filtered, huffman, rle, or fixed."))
+        .arg(Arg::with_name("threads")
+            .long("threads")
+            .value_name("threads")
+            .help("Override default number of threads."))
         .arg(Arg::with_name("input")
             .help("Input filename, must be another PNG.")
             .required(true)
