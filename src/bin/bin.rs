@@ -15,7 +15,7 @@ extern crate png;
 
 // Hey that's us!
 extern crate mtpng;
-use mtpng::{Header, ColorType, Encoder, Options};
+use mtpng::{ColorType, CompressionLevel, Encoder, Header, Options};
 
 pub fn err(payload: &str) -> Error
 {
@@ -55,11 +55,22 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
     let infile = matches.value_of("input").unwrap();
     let outfile = matches.value_of("output").unwrap();
     let chunk_size = matches.value_of("chunk_size");
+    let level = matches.value_of("level");
 
     let mut options = Options::default();
     match chunk_size {
-        Some(ref s) => {
+        Some(s) => {
             options.chunk_size = s.parse::<usize>().unwrap()
+        },
+        None => {},
+    }
+    match level {
+        Some(s) => {
+            if s == "1" {
+                options.compression_level = CompressionLevel::Fast
+            } else if s == "9" {
+                options.compression_level = CompressionLevel::High
+            }
         },
         None => {},
     }
@@ -80,6 +91,10 @@ pub fn main() {
             .value_name("bytes")
             .help("Divide image into chunks of at least this given size.")
             .takes_value(true))
+        .arg(Arg::with_name("level")
+            .long("level")
+            .value_name("level")
+            .help("Set deflate compression level, from 1-9."))
         .arg(Arg::with_name("input")
             .help("Input filename, must be another PNG.")
             .required(true)

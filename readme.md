@@ -19,7 +19,6 @@ I was also inspired by an experimental C++/OpenMP project called `png-parallel` 
 Currently very unfinished, but more or less works. Not yet optimized or made usable.
 
 Immediate todos:
-* implement compression level parameter
 * benchmark and optimize
 * compare compression tradeoffs for different chunk sizes
 

@@ -42,39 +42,30 @@ pub struct Options {
     strategy: c_int,
 }
 
-pub struct OptionsBuilder {
-    options: Options,
-}
-
-impl OptionsBuilder {
-    pub fn new() -> OptionsBuilder {
-        OptionsBuilder {
-            options: Options {
-                level: Z_DEFAULT_COMPRESSION,
-                method: Z_DEFLATED,
-                window_bits: 15,
-                mem_level: 8,
-                strategy: Z_DEFAULT_STRATEGY,
-            }
+impl Options {
+    pub fn new() -> Options {
+        Options {
+            level: Z_DEFAULT_COMPRESSION,
+            method: Z_DEFLATED,
+            window_bits: 15,
+            mem_level: 8,
+            strategy: Z_DEFAULT_STRATEGY,
         }
     }
 
-    pub fn set_level(mut self, level: i32) -> OptionsBuilder {
-        self.options.level = level as c_int;
-        self
+    //
+    // Compression level, 1 (fast) - 9 (high)
+    //
+    pub fn set_level(&mut self, level: i32) {
+        self.level = level as c_int;
     }
 
     //
     // Default is 15 (32 KiB)
     // Set negative value for raw stream (no header/checksum)
     //
-    pub fn set_window_bits(mut self, bits: i32) -> OptionsBuilder {
-        self.options.window_bits = bits as c_int;
-        self
-    }
-
-    pub fn finish(mut self) -> Options {
-        self.options
+    pub fn set_window_bits(&mut self, bits: i32) {
+        self.window_bits = bits as c_int;
     }
 }
 

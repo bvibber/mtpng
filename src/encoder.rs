@@ -265,9 +265,18 @@ impl DeflateChunk {
             write_be16(&mut data, checksum_header)?;
         }
 
-        let options = deflate::OptionsBuilder::new()
-            .set_window_bits(-15) // negative forces raw stream output
-            .finish();
+        let mut options = deflate::Options::new();
+
+        // Negative forces raw stream output
+        // 15 means 2^15 (32 KiB), the max supported.
+        options.set_window_bits(-15);
+
+        match self.compression_level {
+            CompressionLevel::Default => {},
+            CompressionLevel::Fast => options.set_level(1),
+            CompressionLevel::High => options.set_level(9),
+        }
+
         let mut encoder = Deflate::new(options, data);
 
         match self.prior_input {
