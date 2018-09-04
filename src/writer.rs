@@ -143,7 +143,7 @@ mod tests {
               G: Fn(&[u8])
     {
         let result = (|| -> io::Result<Vec<u8>> {
-            let mut output = Vec::<u8>::new();
+            let output = Vec::<u8>::new();
             let mut writer = Writer::new(output);
             test_func(&mut writer)?;
             Writer::close(writer)

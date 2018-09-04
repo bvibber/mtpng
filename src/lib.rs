@@ -4,7 +4,7 @@
 extern crate rayon;
 extern crate crc;
 
-mod state;
+mod encoder;
 mod filter;
 mod writer;
 
@@ -15,8 +15,6 @@ use std::cmp;
 use std::io;
 use std::io::Write;
 type IoResult = io::Result<()>;
-
-use state::State;
 
 #[derive(Copy, Clone)]
 #[repr(u8)]
@@ -164,72 +162,9 @@ impl Options {
 }
 
 //
-// A parallelized PNG encoder.
-// Very unfinished.
+// Republic the Encoder type!
 //
-pub struct Encoder<'a, W: Write> {
-    state: State<'a, W>,
-}
-
-impl<'a, W: Write> Encoder<'a, W> {
-    //
-    // Create a new encoder using default thread pool.
-    // Consumes the Write target, but you can get it back via Encoder::close()
-    //
-    pub fn new(header: Header, options: Options, writer: W) -> Encoder<'static, W> {
-        Encoder {
-            state: State::new(header, options, writer, None)
-        }
-    }
-
-    //
-    // Create a new encoder state using given thread pool
-    //
-    pub fn with_thread_pool(header: Header, options: Options, writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
-        Encoder {
-            state: State::new(header, options, writer, Some(thread_pool))
-        }
-    }
-
-    //
-    // Flush output and return the Write sink for further manipulation.
-    // Consumes the encoder instance.
-    //
-    pub fn close(mut this: Encoder<'a, W>) -> io::Result<W> {
-        State::close(this.state)
-    }
-
-    //
-    // Copy a row's pixel data into buffers for async compression.
-    // Returns immediately after copying.
-    //
-    pub fn append_row(&mut self, row: &[u8]) -> IoResult {
-        self.state.append_row(row)
-    }
-
-    //
-    // Return completion progress as a fraction of 1.0
-    //
-    pub fn progress(&self) -> f64 {
-        self.state.progress()
-    }
-
-    //
-    // Return finished-ness state.
-    // Is it finished? Yeah or no.
-    //
-    pub fn is_finished(&self) -> bool {
-        self.state.is_finished()
-    }
-
-    //
-    // Flush all currently in-progress data to output
-    // Warning: this will block.
-    //
-    pub fn flush(&mut self) -> IoResult {
-        self.state.flush()
-    }
-}
+pub type Encoder<'a, W> = encoder::Encoder<'a, W>;
 
 #[cfg(test)]
 mod tests {
@@ -237,18 +172,22 @@ mod tests {
     use super::ColorType;
     use super::Options;
     use super::Encoder;
+    use super::IoResult;
 
     fn test_encoder<F>(width: u32, height: u32, func: F)
-        where F: Fn(&mut Encoder<Vec<u8>>)
+        where F: Fn(&mut Encoder<Vec<u8>>) -> IoResult
     {
         match {
             let header = Header::with_color(width,
                                             height,
                                             ColorType::Truecolor);
             let options = Options::default();
-            let mut writer = Vec::<u8>::new();
+            let writer = Vec::<u8>::new();
             let mut encoder = Encoder::new(header, options, writer);
-            func(&mut encoder);
+            match func(&mut encoder) {
+                Ok(()) => {},
+                Err(e) => assert!(false, "Error during test: {}", e),
+            }
             Encoder::close(encoder)
         } {
             Ok(writer) => {},
@@ -268,53 +207,69 @@ mod tests {
     #[test]
     fn create_and_state() {
         test_encoder(7680, 2160, |encoder| {
+            encoder.write_header()?;
+
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
+
+            Ok(())
         });
     }
 
     #[test]
     fn test_one_row() {
         test_encoder(7680, 2160, |encoder| {
+            encoder.write_header()?;
+
             let row = make_row(7680);
-            encoder.append_row(&row);
-            encoder.flush();
+            encoder.append_row(&row)?;
+            encoder.flush()?;
 
             // A single row should be not enough to trigger
             // a chunk.
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
+
+            Ok(())
         });
     }
 
     #[test]
     fn test_many_rows() {
         test_encoder(7680, 2160, |encoder| {
+            encoder.write_header()?;
+
             for _i in 0 .. 256 {
                 let row = make_row(7680);
-                encoder.append_row(&row);
+                encoder.append_row(&row)?;
             }
-            encoder.flush();
+            encoder.flush()?;
 
             // Should trigger at least one block
             // but not enough to finish
             assert_eq!(encoder.is_finished(), false);
             assert!(encoder.progress() > 0.0);
+
+            Ok(())
         });
     }
 
     #[test]
     fn test_all_rows() {
         test_encoder(7680, 2160, |encoder| {
+            encoder.write_header()?;
+
             for _i in 0 .. 2160 {
                 let row = make_row(7680);
-                encoder.append_row(&row);
+                encoder.append_row(&row)?;
             }
-            encoder.flush();
+            encoder.flush()?;
 
             // Should trigger all blocks!
             assert_eq!(encoder.is_finished(), true);
             assert_eq!(encoder.progress(), 1.0);
+
+            Ok(())
         });
     }
 }

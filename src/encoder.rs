@@ -345,7 +345,7 @@ enum DispatchMode {
     NonBlocking,
 }
 
-pub struct State<'a, W: Write> {
+pub struct Encoder<'a, W: Write> {
     header: Header,
     options: Options,
     writer: Writer<W>,
@@ -369,8 +369,8 @@ pub struct State<'a, W: Write> {
     rx: Receiver<ThreadMessage>,
 }
 
-impl<'a, W: Write> State<'a, W> {
-    pub fn new(header: Header, options: Options, write: W, thread_pool: Option<&'a ThreadPool>) -> State<'a, W> {
+impl<'a, W: Write> Encoder<'a, W> {
+    fn new_encoder(header: Header, options: Options, write: W, thread_pool: Option<&'a ThreadPool>) -> Encoder<'a, W> {
         let stride = header.stride() + 1;
 
         let full_rows = options.chunk_size / stride;
@@ -389,17 +389,12 @@ impl<'a, W: Write> State<'a, W> {
             0
         });
 
-        let mut writer = Writer::new(write);
-        // @fime move these to another func
-        writer.write_signature();
-        writer.write_header(header);
-
         let (tx, rx) = mpsc::channel();
 
-        State {
+        Encoder {
             header: header,
             options: options,
-            writer: writer,
+            writer: Writer::new(write),
             thread_pool: thread_pool,
 
             rows_per_chunk: rows_per_chunk,
@@ -418,7 +413,26 @@ impl<'a, W: Write> State<'a, W> {
         }
     }
 
-    pub fn close(mut this: State<W>) -> io::Result<W> {
+    //
+    // Create a new encoder using default thread pool.
+    // Consumes the Write target, but you can get it back via Encoder::close()
+    //
+    pub fn new(header: Header, options: Options, writer: W) -> Encoder<'static, W> {
+        Encoder::new_encoder(header, options, writer, None)
+    }
+
+    //
+    // Create a new encoder state using given thread pool
+    //
+    pub fn with_thread_pool(header: Header, options: Options, writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
+        Encoder::new_encoder(header, options, writer, Some(thread_pool))
+    }
+
+    //
+    // Flush output and return the Write sink for further manipulation.
+    // Consumes the encoder instance.
+    //
+    pub fn close(mut this: Encoder<W>) -> io::Result<W> {
         this.flush()?;
         Writer::close(this.writer)
     }
@@ -543,6 +557,19 @@ impl<'a, W: Write> State<'a, W> {
         Ok(())
     }
 
+    //
+    // Write the PNG signature and header chunk.
+    // Must be done before anything else is output.
+    //
+    pub fn write_header(&mut self) -> IoResult {
+        self.writer.write_signature()?;
+        self.writer.write_header(self.header)
+    }
+
+    //
+    // Copy a row's pixel data into buffers for async compression.
+    // Returns immediately after copying.
+    //
     pub fn append_row(&mut self, row: &[u8]) -> IoResult {
         if self.pixel_index >= self.chunks_total {
             // @todo use Err
@@ -571,14 +598,25 @@ impl<'a, W: Write> State<'a, W> {
         Ok(())
     }
 
+    //
+    // Return completion progress as a fraction of 1.0
+    //
     pub fn progress(&self) -> f64 {
         self.chunks_output as f64 / self.chunks_total as f64
     }
 
+    //
+    // Return finished-ness state.
+    // Is it finished? Yeah or no.
+    //
     pub fn is_finished(&self) -> bool {
         self.chunks_output == self.chunks_total
     }
 
+    //
+    // Flush all currently in-progress data to output
+    // Warning: this may block.
+    //
     pub fn flush(&mut self) -> IoResult {
         while self.chunks_output < self.pixel_index {
             // Dispatch any available async tasks and output.

@@ -33,7 +33,7 @@ fn filter_sub(bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
 }
 
 fn filter_up(_bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
-    dest[0] = FilterType::Sub as u8;
+    dest[0] = FilterType::Up as u8;
 
     let out = &mut dest[1 ..];
     let len = src.len();
