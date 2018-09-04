@@ -71,33 +71,32 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
         None => {},
     }
 
-    match matches.value_of("filter") {
-        None => {},
-        Some("adaptive") => options.filter_mode = FilterMode::Adaptive,
-        Some("none")     => options.filter_mode = FilterMode::Fixed(FilterType::None),
-        Some("up")       => options.filter_mode = FilterMode::Fixed(FilterType::Up),
-        Some("sub")      => options.filter_mode = FilterMode::Fixed(FilterType::Sub),
-        Some("average")  => options.filter_mode = FilterMode::Fixed(FilterType::Average),
-        Some("paeth")    => options.filter_mode = FilterMode::Fixed(FilterType::Paeth),
-        _ => panic!("Unsupported filter type"),
-    }
-
-    match matches.value_of("level") {
-        None => {},
-        Some("1") => options.compression_level = CompressionLevel::Fast,
-        Some("9") => options.compression_level = CompressionLevel::High,
-        _ => panic!("Unsuppored compression level (try 1 or 9)"),
-    }
-
-    options.strategy = match matches.value_of("strategy") {
-        None => Strategy::Default,
-        Some("filtered") => Strategy::Filtered,
-        Some("huffman") => Strategy::HuffmanOnly,
-        Some("rle") => Strategy::RLE,
-        Some("fixed") => Strategy::Fixed,
-        _ => panic!("Invalid compression strategy mode"),
+    options.filter_mode = match matches.value_of("filter") {
+        None             => FilterMode::Adaptive,
+        Some("adaptive") => FilterMode::Adaptive,
+        Some("none")     => FilterMode::Fixed(FilterType::None),
+        Some("up")       => FilterMode::Fixed(FilterType::Up),
+        Some("sub")      => FilterMode::Fixed(FilterType::Sub),
+        Some("average")  => FilterMode::Fixed(FilterType::Average),
+        Some("paeth")    => FilterMode::Fixed(FilterType::Paeth),
+        _                => return Err(err("Unsupported filter type")),
     };
 
+     options.compression_level = match matches.value_of("level") {
+        None      => CompressionLevel::Default,
+        Some("1") => CompressionLevel::Fast,
+        Some("9") => CompressionLevel::High,
+        _         => return Err(err("Unsuppored compression level (try 1 or 9)")),
+    };
+
+    options.strategy = match matches.value_of("strategy") {
+        None             => Strategy::Default,
+        Some("filtered") => Strategy::Filtered,
+        Some("huffman")  => Strategy::HuffmanOnly,
+        Some("rle")      => Strategy::RLE,
+        Some("fixed")    => Strategy::Fixed,
+        _                => return Err(err("Invalid compression strategy mode")),
+    };
 
     let threads = match matches.value_of("threads") {
         Some(s) => {
