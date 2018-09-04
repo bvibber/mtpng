@@ -32,8 +32,6 @@ pub struct Options {
     window_bits: c_int,
     mem_level: c_int,
     strategy: c_int,
-    version: *const c_char,
-    stream_size: c_int,
 }
 
 pub struct OptionsBuilder {
@@ -49,10 +47,6 @@ impl OptionsBuilder {
                 window_bits: 15,
                 mem_level: 8,
                 strategy: Z_DEFAULT_STRATEGY,
-                version: unsafe {
-                    zlibVersion()
-                },
-                stream_size: 0,
             }
         }
     }
@@ -108,8 +102,8 @@ impl<W: Write> Deflate<W> {
                               self.options.window_bits,
                               self.options.mem_level,
                               self.options.strategy,
-                              self.options.version,
-                              self.options.stream_size)
+                              zlibVersion(),
+                              mem::size_of::<z_stream>() as c_int)
             };
             return match ret {
                 Z_OK => {
