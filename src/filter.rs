@@ -115,7 +115,7 @@ fn estimate_complexity(data: &[u8]) -> i64 {
     let len = data.len();
     let mut sum = 0i64;
     for i in 0 .. len {
-        let val = (data[i] as i8) as i64;
+        let val = 128 - i64::abs(data[i] as i64 - 128);
         sum = sum + val;
     }
     i64::abs(sum)
