@@ -72,7 +72,11 @@ Someday todos:
 
 # Data flow
 
+Encoding can be broken into many parallel blocks:
+
 ![Encoder data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/docs/data-flow-write.png)
+
+Decoding cannot; it must be run as a stream, but can pipeline.
 
 ![Decoder data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/docs/data-flow-read.png)
 
