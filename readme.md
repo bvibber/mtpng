@@ -68,10 +68,13 @@ In a bit todos:
 Someday todos:
 * helpers for packing pixels from non-native formats
 * interlacing support
+* reading support with two-thread pipeline (see data flow diagram below)
 
 # Data flow
 
-![Data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/png-data-flow.png)
+![Encoder data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/docs/data-flow-write.png)
+
+![Decoder data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/docs/data-flow-read.png)
 
 # Dependencies
 
