@@ -18,15 +18,49 @@ I was also inspired by an experimental C++/OpenMP project called `png-parallel` 
 
 Currently very unfinished, but more or less works. Not yet optimized or made usable.
 
+# Performance
+
+Note that unoptimized debug builds are about 25x slower than optimized release builds. Always run with `--release`!
+
+As of September 2018 with Rust 1.28.0, single-threaded performance is within ~10% of gdk-pixbuf + libpng on the test images in the samples folder. Compression is a bit better than libpng with the dual-4K screenshot, and a bit worse on the arch photo.
+
+Scaling is pretty good up to 8 physical cores.
+
+Times for re-encoding the dual-4K screenshot at default options:
+
+```
+MacBook Pro 13" 2015
+5th-gen Core i7 3.1 GHz
+2 cores + Hyper-Threading
+
+  1 thread  -- 1148 ms
+  2 threads --  600 ms -- 1.9x
+  4 threads --  521 ms -- 2.2x (HT)
+```
+
+```
+Refurbed old Dell workstation
+Xeon E5520 2.26 GHz
+2x 4 cores + Hyper-Threading
+
+  1 thread  -- 2325 ms
+  2 threads -- 1141 ms -- 2.0x
+  4 threads --  586 ms -- 3.9x
+  8 threads --  350 ms -- 6.6x
+ 16 threads --  292 ms -- 7.9x (HT)
+```
+
+# Todos
+
 Immediate todos:
 * benchmark and optimize
 * compare compression tradeoffs for different chunk sizes
 
 Soon todos:
-* compare with the filter heuristics used in libpng
 * allow buffering into a single IDAT chunk if not streaming
 
 In a bit todos:
+* clean up error handling and builder patterns
 * start figuring out a public-facing api
 * publish crate
 * allow blocking on full thread pool to share resources more nicely
