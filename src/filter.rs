@@ -135,14 +135,15 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     }
 }
 
-fn estimate_complexity(data: &[u8]) -> i64 {
+fn estimate_complexity(data: &[u8]) -> i32 {
     let len = data.len();
-    let mut sum = 0i64;
+    // fixme 32-bit can theoretically overflow on super huge lines
+    let mut sum = 0i32;
     for i in 0 .. len {
-        let val = 128 - i64::abs(data[i] as i64 - 128);
+        let val = 128 - i32::abs(data[i] as i32 - 128);
         sum = sum + val;
     }
-    i64::abs(sum)
+    i32::abs(sum)
 }
 
 //
@@ -154,7 +155,7 @@ struct Filterator {
     bpp: usize,
     stride: usize,
     data: Vec<u8>,
-    complexity: i64,
+    complexity: i32,
 }
 
 impl Filterator {
@@ -184,7 +185,7 @@ impl Filterator {
         &self.data
     }
 
-    fn get_complexity(&self) -> i64 {
+    fn get_complexity(&self) -> i32 {
         self.complexity
     }
 }
