@@ -44,23 +44,51 @@ pub enum FilterMode {
     Fixed(FilterType),
 }
 
+//
+// Using runtime bpp variable in the inner loop slows things down;
+// specialize the filter functions for each possible constant size.
+//
+macro_rules! filter_specialize {
+    ( $filter_macro:ident, $bpp:expr, $prev:expr, $src:expr, $dest:expr ) => {
+        {
+            match $bpp {
+                1 => $filter_macro!(1, $prev, $src, $dest), // indexed, greyscale@8
+                2 => $filter_macro!(2, $prev, $src, $dest), // greyscale@16, greyscale+alpha*8
+                3 => $filter_macro!(3, $prev, $src, $dest), // truecolor@8
+                4 => $filter_macro!(4, $prev, $src, $dest), // truecolor@8, greyscale+alpha@16
+                6 => $filter_macro!(6, $prev, $src, $dest), // truecolor@16
+                8 => $filter_macro!(8, $prev, $src, $dest), // truecolor+alpha@16
+                _ => panic!("Invalid bpp, should never happen."),
+            }
+        }
+    }
+}
+
 fn filter_none(_bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = FilterType::None as u8;
     dest[1 ..].clone_from_slice(src);
 }
 
-fn filter_sub(bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
-    dest[0] = FilterType::Sub as u8;
+macro_rules! filter_sub {
+    ( $bpp:expr, $prev:expr, $src:expr, $dest:expr ) => {
+        {
+            $dest[0] = FilterType::Sub as u8;
 
-    let out = &mut dest[1 ..];
-    for i in 0 .. bpp {
-        out[i] = src[i];
-    }
+            let out = &mut $dest[1 ..];
+            for i in 0 .. $bpp {
+                out[i] = $src[i];
+            }
 
-    let len = src.len();
-    for i in bpp .. len {
-        out[i] = src[i].wrapping_sub(src[i - bpp]);
+            let len = $src.len();
+            for i in $bpp .. len {
+                out[i] = $src[i].wrapping_sub($src[i - $bpp]);
+            }
+        }
     }
+}
+
+fn filter_sub(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
+    filter_specialize!(filter_sub, bpp, prev, src, dest);
 }
 
 fn filter_up(_bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
@@ -73,23 +101,31 @@ fn filter_up(_bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     }
 }
 
+macro_rules! filter_average {
+    ( $bpp:expr, $prev:expr, $src:expr, $dest:expr ) => {
+        {
+            $dest[0] = FilterType::Average as u8;
+
+            let out = &mut $dest[1 ..];
+            for i in 0 .. $bpp {
+                let above = $prev[i];
+                let avg = (above as u32 / 2) as u8;
+                out[i] = $src[i].wrapping_sub(avg);
+            }
+
+            let len = $src.len();
+            for i in $bpp .. len {
+                let left = $src[i - $bpp];
+                let above = $prev[i];
+                let avg = ((left as u32 + above as u32) / 2) as u8;
+                out[i] = $src[i].wrapping_sub(avg);
+            }
+        }
+    }
+}
+
 fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
-    dest[0] = FilterType::Average as u8;
-
-    let out = &mut dest[1 ..];
-    for i in 0 .. bpp {
-        let above = prev[i];
-        let avg = (above as u32 / 2) as u8;
-        out[i] = src[i].wrapping_sub(avg);
-    }
-
-    let len = src.len();
-    for i in bpp .. len {
-        let left = src[i - bpp];
-        let above = prev[i];
-        let avg = ((left as u32 + above as u32) / 2) as u8;
-        out[i] = src[i].wrapping_sub(avg);
-    }
+    filter_specialize!(filter_average, bpp, prev, src, dest);
 }
 
 // From the PNG standard
@@ -113,26 +149,34 @@ fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
     }
 }
 
+macro_rules! filter_paeth {
+    ( $bpp:expr, $prev:expr, $src:expr, $dest:expr ) => {
+        {
+            $dest[0] = FilterType::Paeth as u8;
+
+            let out = &mut $dest[1 ..];
+            for i in 0 .. $bpp {
+                let left = 0;
+                let above = $prev[i];
+                let upper_left = 0;
+                let predict = paeth_predictor(left, above, upper_left);
+                out[i] = $src[i].wrapping_sub(predict);
+            }
+
+            let len = $src.len();
+            for i in $bpp .. len {
+                let left = $src[i - $bpp];
+                let above = $prev[i];
+                let upper_left = $prev[i - $bpp];
+                let predict = paeth_predictor(left, above, upper_left);
+                out[i] = $src[i].wrapping_sub(predict);
+            }
+        }
+    }
+}
+
 fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
-    dest[0] = FilterType::Paeth as u8;
-
-    let out = &mut dest[1 ..];
-    for i in 0 .. bpp {
-        let left = 0;
-        let above = prev[i];
-        let upper_left = 0;
-        let predict = paeth_predictor(left, above, upper_left);
-        out[i] = src[i].wrapping_sub(predict);
-    }
-
-    let len = src.len();
-    for i in bpp .. len {
-        let left = src[i - bpp];
-        let above = prev[i];
-        let upper_left = prev[i - bpp];
-        let predict = paeth_predictor(left, above, upper_left);
-        out[i] = src[i].wrapping_sub(predict);
-    }
+    filter_specialize!(filter_paeth, bpp, prev, src, dest);
 }
 
 fn estimate_complexity(data: &[u8]) -> i32 {
