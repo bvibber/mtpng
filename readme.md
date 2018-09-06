@@ -35,11 +35,12 @@ MacBook Pro 13" 2015
 5th-gen Core i7 3.1 GHz
 2 cores + Hyper-Threading
 
-libgd + libpng     --  974 ms (target!)
+macOS x86_64:
+- libgd     + libpng --  974 ms (target to beat)
 
-mtpng @  1 thread  -- 1011 ms -- 1.0x
-mtpng @  2 threads --  526 ms -- 1.9x
-mtpng @  4 threads --  453 ms -- 2.2x (HT)
+- mtpng @  1 thread  -- 1011 ms (close!)
+- mtpng @  2 threads --  526 ms -- 1.9x
+- mtpng @  4 threads --  453 ms -- 2.2x (HT)
 ```
 
 ```
@@ -47,15 +48,34 @@ Refurbed old Dell workstation
 Xeon E5520 2.26 GHz
 2x 4 cores + Hyper-Threading
 
-libgd + libpng     -- 1695 ms (target!)
-gdkpixbuf + libpng -- 2308 ms (why slower?)
+Linux x86_64:
+- gdkpixbuf + libpng -- 2308 ms (slowdown fixed upstream)
+- libgd     + libpng -- 1695 ms (target to beat)
 
-mtpng @  1 thread  -- 2068 ms -- 1.0x
-mtpng @  2 threads -- 1028 ms -- 2.0x
-mtpng @  4 threads --  528 ms -- 3.9x
-mtpng @  8 threads --  302 ms -- 6.8x
-mtpng @ 16 threads --  272 ms -- 7.6x (HT)
+- mtpng @  1 thread  -- 2068 ms (still slower...)
+- mtpng @  2 threads -- 1028 ms -- 2.0x
+- mtpng @  4 threads --  528 ms -- 3.9x
+- mtpng @  8 threads --  302 ms -- 6.8x
+- mtpng @ 16 threads --  272 ms -- 7.6x (HT)
+
+Windows 10 x86_64:
+- mtpng @  1 thread  -- 2265 ms
+- mtpng @  2 threads -- 1172 ms -- 1.9x
+- mtpng @  4 threads --  615 ms -- 3.7x
+- mtpng @  8 threads --  446 ms -- 5.1x
+- mtpng @ 16 threads --  295 ms -- 7.7x (HT)
+
+Windows 10 i686:
+- mtpng @  1 thread  -- 2647 ms
+- mtpng @  2 threads -- 1313 ms -- 2.0x
+- mtpng @  4 threads --  700 ms -- 3.8x
+- mtpng @  8 threads --  473 ms -- 5.6x
+- mtpng @ 16 threads --  307 ms -- 8.6x
 ```
+
+Windows seems a little slower than Linux on the same machine; this may be system overhead or CPU throttling configuration or something rather than the generated code. (Trying the Linux binary under WSL runs about the same speed as the Windows native binary.)
+
+32-bit builds are a bit slower still, but I don't have a native libpng comparison handy.
 
 # Todos
 
@@ -63,19 +83,16 @@ Immediate todos:
 * benchmark and optimize
 * compare compression tradeoffs for different chunk sizes
 
-Soon todos:
-* allow buffering into a single IDAT chunk if not streaming
-
 In a bit todos:
 * clean up error handling and builder patterns
 * start figuring out a public-facing api
 * publish crate
-* allow blocking on full thread pool to share resources more nicely
 
 Someday todos:
-* helpers for packing pixels from non-native formats
-* interlacing support
 * reading support with two-thread pipeline (see data flow diagram below)
+
+See the [projects list on GitHub](https://github.com/brion/mtpng/projects) for active details.
+
 
 # Data flow
 
