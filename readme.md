@@ -22,7 +22,7 @@ Currently very unfinished, but more or less works. Not yet optimized or made usa
 
 Note that unoptimized debug builds are about 25x slower than optimized release builds. Always run with `--release`!
 
-As of September 5, 2018 with Rust 1.28.0, single-threaded performance is ~20% faster than gdk-pixbuf + libpng on the test images in the samples folder, but ~60% slower than php + gd + libpng saving the same images.
+As of September 5, 2018 with Rust 1.28.0, single-threaded performance is ~20% faster than gdk-pixbuf + libpng on the test images in the samples folder, but ~20% slower than php + gd + libpng saving the same images.
 
 Compression is a bit better than libpng with the dual-4K screenshot, and a bit worse on the arch photo.
 
@@ -35,9 +35,11 @@ MacBook Pro 13" 2015
 5th-gen Core i7 3.1 GHz
 2 cores + Hyper-Threading
 
-  1 thread  -- 1011 ms
-  2 threads --  526 ms -- 1.9x
-  4 threads --  453 ms -- 2.2x (HT)
+libgd + libpng     --  974 ms (target!)
+
+mtpng @  1 thread  -- 1011 ms -- 1.0x
+mtpng @  2 threads --  526 ms -- 1.9x
+mtpng @  4 threads --  453 ms -- 2.2x (HT)
 ```
 
 ```
@@ -45,11 +47,14 @@ Refurbed old Dell workstation
 Xeon E5520 2.26 GHz
 2x 4 cores + Hyper-Threading
 
-  1 thread  -- 2068 ms
-  2 threads -- 1028 ms -- 2.0x
-  4 threads --  528 ms -- 3.9x
-  8 threads --  302 ms -- 6.8x
- 16 threads --  272 ms -- 7.6x (HT)
+libgd + libpng     -- 1695 ms (target!)
+gdkpixbuf + libpng -- 2308 ms (why slower?)
+
+mtpng @  1 thread  -- 2068 ms -- 1.0x
+mtpng @  2 threads -- 1028 ms -- 2.0x
+mtpng @  4 threads --  528 ms -- 3.9x
+mtpng @  8 threads --  302 ms -- 6.8x
+mtpng @ 16 threads --  272 ms -- 7.6x (HT)
 ```
 
 # Todos
