@@ -52,11 +52,11 @@ Linux x86_64:
 - gdkpixbuf + libpng -- 2308 ms (slowdown fixed upstream)
 - libgd     + libpng -- 1695 ms (target to beat)
 
-- mtpng @  1 thread  -- 2068 ms (still slower...)
-- mtpng @  2 threads -- 1028 ms -- 2.0x
-- mtpng @  4 threads --  528 ms -- 3.9x
-- mtpng @  8 threads --  302 ms -- 6.8x
-- mtpng @ 16 threads --  272 ms -- 7.6x (HT)
+- mtpng @  1 thread  -- 2045 ms (still slower...)
+- mtpng @  2 threads -- 1034 ms -- 2.0x
+- mtpng @  4 threads --  531 ms -- 3.9x
+- mtpng @  8 threads --  282 ms -- 7.3x
+- mtpng @ 16 threads --  255 ms -- 8.0x (HT)
 
 Windows 10 x86_64:
 - mtpng @  1 thread  -- 2265 ms
