@@ -35,10 +35,17 @@ MacBook Pro 13" 2015
 5th-gen Core i7 3.1 GHz
 2 cores + Hyper-Threading
 
-macOS x86_64:
-- libgd     + libpng --  974 ms (target to beat)
+Linux x86_64:
+- libgd     + libpng --  850 ms (target to beat)
 
-- mtpng @  1 thread  --  907 ms (beating target!)
+- mtpng @  1 thread  --  921 ms -- 1.0x (getting close!)
+- mtpng @  2 threads --  480 ms -- 1.9x
+- mtpng @  4 threads --  435 ms -- 2.1x (HT)
+
+macOS x86_64:
+- libgd     + libpng --  974 ms (why slower than Linux?)
+
+- mtpng @  1 thread  --  907 ms -- 1.0x
 - mtpng @  2 threads --  480 ms -- 1.9x
 - mtpng @  4 threads --  438 ms -- 2.2x (HT)
 ```
@@ -53,26 +60,28 @@ Linux x86_64:
 - gdkpixbuf + libpng -- 2308 ms (slowdown fixed upstream)
 - libgd     + libpng -- 1695 ms (target to beat)
 
-- mtpng @  1 thread  -- 1802 ms (getting close!)
+- mtpng @  1 thread  -- 1802 ms -- 1.0x (getting close!)
 - mtpng @  2 threads --  948 ms -- 1.9x
 - mtpng @  4 threads --  488 ms -- 3.7x
 - mtpng @  8 threads --  264 ms -- 6.8x
 - mtpng @ 16 threads --  229 ms -- 7.8x (HT)
 
 Windows 10 x86_64:
-- mtpng @  1 thread  -- 2128 ms
+- mtpng @  1 thread  -- 2128 ms -- 1.0x
 - mtpng @  2 threads -- 1063 ms -- 2.0x
 - mtpng @  4 threads --  550 ms -- 3.7x
 - mtpng @  8 threads --  297 ms -- 7.2x
 - mtpng @ 16 threads --  253 ms -- 8.4x (HT)
 
 Windows 10 i686:
-- mtpng @  1 thread  -- 2402 ms
+- mtpng @  1 thread  -- 2402 ms -- 1.0x
 - mtpng @  2 threads -- 1211 ms -- 2.0x
 - mtpng @  4 threads --  634 ms -- 3.8x
 - mtpng @  8 threads --  340 ms -- 7.1x
 - mtpng @ 16 threads --  280 ms -- 8.6x
 ```
+
+macOS and Linux x86_64 perform about the same on the same machine, but libpng is much slower on macOS than on Linux. Don't know why, may be a gcc vs clang thing.
 
 Windows seems a little slower than Linux on the same machine, not quite sure why. The Linux build runs on Windows 10's WSL compatibility layer slightly slower than native Linux but faster than native Windows.
 
