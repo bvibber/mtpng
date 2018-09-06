@@ -38,9 +38,9 @@ MacBook Pro 13" 2015
 macOS x86_64:
 - libgd     + libpng --  974 ms (target to beat)
 
-- mtpng @  1 thread  -- 1011 ms (close!)
-- mtpng @  2 threads --  526 ms -- 1.9x
-- mtpng @  4 threads --  453 ms -- 2.2x (HT)
+- mtpng @  1 thread  --  907 ms (beating target!)
+- mtpng @  2 threads --  480 ms -- 1.9x
+- mtpng @  4 threads --  438 ms -- 2.2x (HT)
 ```
 
 ```
@@ -53,11 +53,11 @@ Linux x86_64:
 - gdkpixbuf + libpng -- 2308 ms (slowdown fixed upstream)
 - libgd     + libpng -- 1695 ms (target to beat)
 
-- mtpng @  1 thread  -- 2045 ms (still slower...)
-- mtpng @  2 threads -- 1034 ms -- 2.0x
-- mtpng @  4 threads --  531 ms -- 3.9x
-- mtpng @  8 threads --  282 ms -- 7.3x
-- mtpng @ 16 threads --  255 ms -- 8.0x (HT)
+- mtpng @  1 thread  -- 1802 ms (getting close!)
+- mtpng @  2 threads --  948 ms -- 1.9x
+- mtpng @  4 threads --  488 ms -- 3.7x
+- mtpng @  8 threads --  264 ms -- 6.8x
+- mtpng @ 16 threads --  229 ms -- 7.8x (HT)
 
 Windows 10 x86_64:
 - mtpng @  1 thread  -- 2240 ms
