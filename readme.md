@@ -47,6 +47,7 @@ macOS x86_64:
 Refurbed old Dell workstation
 Xeon E5520 2.26 GHz
 2x 4 cores + Hyper-Threading
+configured for SMP (NUMA disabled)
 
 Linux x86_64:
 - gdkpixbuf + libpng -- 2308 ms (slowdown fixed upstream)
@@ -59,18 +60,18 @@ Linux x86_64:
 - mtpng @ 16 threads --  255 ms -- 8.0x (HT)
 
 Windows 10 x86_64:
-- mtpng @  1 thread  -- 2265 ms
-- mtpng @  2 threads -- 1172 ms -- 1.9x
-- mtpng @  4 threads --  615 ms -- 3.7x
-- mtpng @  8 threads --  446 ms -- 5.1x
-- mtpng @ 16 threads --  295 ms -- 7.7x (HT)
+- mtpng @  1 thread  -- 2240 ms
+- mtpng @  2 threads -- 1148 ms -- 2.0x
+- mtpng @  4 threads --  595 ms -- 3.8x
+- mtpng @  8 threads --  321 ms -- 7.0x
+- mtpng @ 16 threads --  275 ms -- 8.2x (HT)
 
 Windows 10 i686:
-- mtpng @  1 thread  -- 2647 ms
-- mtpng @  2 threads -- 1313 ms -- 2.0x
-- mtpng @  4 threads --  700 ms -- 3.8x
-- mtpng @  8 threads --  473 ms -- 5.6x
-- mtpng @ 16 threads --  307 ms -- 8.6x
+- mtpng @  1 thread  -- 2631 ms
+- mtpng @  2 threads -- 1315 ms -- 2.0x
+- mtpng @  4 threads --  684 ms -- 3.8x
+- mtpng @  8 threads --  359 ms -- 7.3x
+- mtpng @ 16 threads --  295 ms -- 8.9x
 ```
 
 Windows seems a little slower than Linux on the same machine; this may be system overhead or CPU throttling configuration or something rather than the generated code. (Trying the Linux binary under WSL runs about the same speed as the Windows native binary.)
