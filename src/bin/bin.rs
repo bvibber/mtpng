@@ -130,17 +130,26 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
                                        .unwrap();
     eprintln!("Using {} threads", pool.current_num_threads());
 
+    let reps = match matches.value_of("repeat") {
+        Some(s) => {
+            s.parse::<usize>().unwrap()
+        },
+        None => 1,
+    };
+
     let infile = matches.value_of("input").unwrap();
     let outfile = matches.value_of("output").unwrap();
 
     println!("{} -> {}", infile, outfile);
     let (header, data) = read_png(&infile)?;
 
-    let start_time = precise_time_s();
-    write_png(&outfile, header, options, &pool, &data)?;
-    let delta = precise_time_s() - start_time;
+    for _i in 0 .. reps {
+        let start_time = precise_time_s();
+        write_png(&outfile, header, options, &pool, &data)?;
+        let delta = precise_time_s() - start_time;
 
-    println!("Done in {} ms", (delta * 1000.0).round());
+        println!("Done in {} ms", (delta * 1000.0).round());
+    }
 
     Ok(())
 }
@@ -171,6 +180,10 @@ pub fn main() {
             .long("threads")
             .value_name("threads")
             .help("Override default number of threads."))
+        .arg(Arg::with_name("repeat")
+            .long("repeat")
+            .value_name("n")
+            .help("Run conversion n times, as load benchmarking helper."))
         .arg(Arg::with_name("input")
             .help("Input filename, must be another PNG.")
             .required(true)
