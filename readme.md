@@ -22,7 +22,7 @@ Currently very unfinished, but more or less works. Not yet optimized or made usa
 
 Note that unoptimized debug builds are about 25x slower than optimized release builds. Always run with `--release`!
 
-As of September 6, 2018 with Rust 1.28.0, single-threaded performance on Linux x86_64 is ~10% slower than libpng saving the same dual-4K screenshot sample image, and about 10% faster than libpng on macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
+As of September 6, 2018 with Rust 1.28.0, single-threaded performance on Linux x86_64 is ~5% slower than libpng saving the same dual-4K screenshot sample image, and ~10% faster than libpng on macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
 
 Compression is a bit better than libpng with the dual-4K screenshot, and a bit worse on the arch photo.
 
@@ -36,15 +36,15 @@ MacBook Pro 13" 2015
 Linux x86_64:
 - libpng gcc         --  850 ms (target to beat)
 - libpng clang       --  900 ms
-- mtpng @  1 thread  --  921 ms -- 1.0x (getting close!)
-- mtpng @  2 threads --  480 ms -- 1.9x
-- mtpng @  4 threads --  435 ms -- 2.1x (HT)
+- mtpng @  1 thread  --  891 ms -- 1.0x (getting close!)
+- mtpng @  2 threads --  461 ms -- 1.9x
+- mtpng @  4 threads --  419 ms -- 2.1x (HT)
 
 macOS x86_64:
-- libpng clang       --  974 ms (slower than Linux/gcc)
-- mtpng @  1 thread  --  907 ms -- 1.0x
-- mtpng @  2 threads --  480 ms -- 1.9x
-- mtpng @  4 threads --  438 ms -- 2.2x (HT)
+- libpng clang       --  943 ms (slower than Linux/gcc)
+- mtpng @  1 thread  --  868 ms -- 1.0x (nice!)
+- mtpng @  2 threads --  458 ms -- 1.9x
+- mtpng @  4 threads --  410 ms -- 2.1x (HT)
 ```
 
 ```
