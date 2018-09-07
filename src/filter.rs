@@ -258,12 +258,21 @@ impl AdaptiveFilter {
     }
 
     fn filter_adaptive(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
-
-        self.filter_none.filter(prev, src);
-        let mut min = self.filter_none.get_complexity();
+        //
+        // Note the "none" filter is often good for things like
+        // line-art diagrams and screenshots that have lots of
+        // sharp pixel edges and long runs of solid colors.
+        //
+        // The adaptive filter algorithm doesn't work on it, however,
+        // since it measures accumulated filter prediction offets and
+        // that gives useless results on absolute color magnitudes.
+        //
+        // Compression could be improved for some files if a heuristic
+        // can be devised to check if the none filter will work well.
+        //
 
         self.filter_sub.filter(prev, src);
-        min = cmp::min(min, self.filter_sub.get_complexity());
+        let mut min = self.filter_sub.get_complexity();
 
         self.filter_up.filter(prev, src);
         min = cmp::min(min, self.filter_up.get_complexity());
@@ -280,10 +289,8 @@ impl AdaptiveFilter {
             self.filter_average.get_data()
         } else if min == self.filter_up.get_complexity() {
             self.filter_up.get_data()
-        } else if min == self.filter_sub.get_complexity() {
+        } else /*if min == self.filter_sub.get_complexity() */ {
             self.filter_sub.get_data()
-        } else {
-            self.filter_none.get_data()
         }
     }
 
