@@ -55,11 +55,11 @@ configured for SMP (NUMA disabled)
 
 Linux x86_64:
 - libpng gcc         -- 1695 ms (target to beat)
-- mtpng @  1 thread  -- 1802 ms -- 1.0x (getting close!)
-- mtpng @  2 threads --  948 ms -- 1.9x
-- mtpng @  4 threads --  488 ms -- 3.7x
-- mtpng @  8 threads --  264 ms -- 6.8x
-- mtpng @ 16 threads --  229 ms -- 7.8x (HT)
+- mtpng @  1 thread  -- 1758 ms -- 1.0x (getting close!)
+- mtpng @  2 threads --  911 ms -- 1.9x
+- mtpng @  4 threads --  473 ms -- 3.7x
+- mtpng @  8 threads --  257 ms -- 6.8x
+- mtpng @ 16 threads --  225 ms -- 7.8x (HT)
 
 Windows 10 x86_64:
 - mtpng @  1 thread  -- 2128 ms -- 1.0x
