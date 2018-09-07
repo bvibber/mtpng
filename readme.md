@@ -62,18 +62,18 @@ Linux x86_64:
 - mtpng @ 16 threads --  225 ms -- 7.8x (HT)
 
 Windows 10 x86_64:
-- mtpng @  1 thread  -- 2128 ms -- 1.0x
-- mtpng @  2 threads -- 1063 ms -- 2.0x
-- mtpng @  4 threads --  550 ms -- 3.7x
-- mtpng @  8 threads --  297 ms -- 7.2x
-- mtpng @ 16 threads --  253 ms -- 8.4x (HT)
+- mtpng @  1 thread  -- 2075 ms -- 1.0x
+- mtpng @  2 threads -- 1035 ms -- 2.0x
+- mtpng @  4 threads --  531 ms -- 3.9x
+- mtpng @  8 threads --  275 ms -- 7.5x
+- mtpng @ 16 threads --  239 ms -- 8.7x (HT)
 
 Windows 10 i686:
-- mtpng @  1 thread  -- 2402 ms -- 1.0x
-- mtpng @  2 threads -- 1211 ms -- 2.0x
-- mtpng @  4 threads --  634 ms -- 3.8x
-- mtpng @  8 threads --  340 ms -- 7.1x
-- mtpng @ 16 threads --  280 ms -- 8.6x
+- mtpng @  1 thread  -- 2315 ms -- 1.0x
+- mtpng @  2 threads -- 1163 ms -- 2.0x
+- mtpng @  4 threads --  605 ms -- 3.8x
+- mtpng @  8 threads --  317 ms -- 7.3x
+- mtpng @ 16 threads --  264 ms -- 8.8x
 ```
 
 macOS and Linux x86_64 perform about the same on the same machine, but libpng on macOS is built with clang, which seems to optimize libpng's filters worse than gcc does. This means we beat libpng on macOS but not on Linux, where it's usually built with gcc.
