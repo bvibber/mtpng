@@ -22,11 +22,9 @@ Currently very unfinished, but more or less works. Not yet optimized or made usa
 
 Note that unoptimized debug builds are about 25x slower than optimized release builds. Always run with `--release`!
 
-As of September 5, 2018 with Rust 1.28.0, single-threaded performance is ~20% faster than gdk-pixbuf + libpng on the test images in the samples folder, but ~20% slower than php + gd + libpng saving the same images.
+As of September 6, 2018 with Rust 1.28.0, single-threaded performance on Linux x86_64 is ~10% slower than libpng saving the same dual-4K screenshot sample image, and about 10% faster than libpng on macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
 
 Compression is a bit better than libpng with the dual-4K screenshot, and a bit worse on the arch photo.
-
-Scaling is pretty good up to 8 physical cores.
 
 Times for re-encoding the dual-4K screenshot at default options:
 
@@ -36,15 +34,14 @@ MacBook Pro 13" 2015
 2 cores + Hyper-Threading
 
 Linux x86_64:
-- libgd     + libpng --  850 ms (target to beat)
-
+- libpng gcc         --  850 ms (target to beat)
+- libpng clang       --  900 ms
 - mtpng @  1 thread  --  921 ms -- 1.0x (getting close!)
 - mtpng @  2 threads --  480 ms -- 1.9x
 - mtpng @  4 threads --  435 ms -- 2.1x (HT)
 
 macOS x86_64:
-- libgd     + libpng --  974 ms (why slower than Linux?)
-
+- libpng clang       --  974 ms (slower than Linux/gcc)
 - mtpng @  1 thread  --  907 ms -- 1.0x
 - mtpng @  2 threads --  480 ms -- 1.9x
 - mtpng @  4 threads --  438 ms -- 2.2x (HT)
@@ -57,9 +54,7 @@ Xeon E5520 2.26 GHz
 configured for SMP (NUMA disabled)
 
 Linux x86_64:
-- gdkpixbuf + libpng -- 2308 ms (slowdown fixed upstream)
-- libgd     + libpng -- 1695 ms (target to beat)
-
+- libpng gcc         -- 1695 ms (target to beat)
 - mtpng @  1 thread  -- 1802 ms -- 1.0x (getting close!)
 - mtpng @  2 threads --  948 ms -- 1.9x
 - mtpng @  4 threads --  488 ms -- 3.7x
@@ -81,11 +76,11 @@ Windows 10 i686:
 - mtpng @ 16 threads --  280 ms -- 8.6x
 ```
 
-macOS and Linux x86_64 perform about the same on the same machine, but libpng is much slower on macOS than on Linux. Don't know why, may be a gcc vs clang thing.
+macOS and Linux x86_64 perform about the same on the same machine, but libpng on macOS is built with clang, which seems to optimize libpng's filters worse than gcc does. This means we beat libpng on macOS but not on Linux, where it's usually built with gcc.
 
 Windows seems a little slower than Linux on the same machine, not quite sure why. The Linux build runs on Windows 10's WSL compatibility layer slightly slower than native Linux but faster than native Windows.
 
-32-bit builds are a bit slower still, but I don't have a native libpng comparison handy.
+32-bit builds are a bit slower still, but I don't have a Windows libpng comparison handy.
 
 # Todos
 
