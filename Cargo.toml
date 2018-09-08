@@ -11,5 +11,7 @@ png = "0.12.0"
 clap = "2.32.0"
 time = "0.1.40"
 
-[profile.dev]
-opt-level = 1
+[profile.release]
+# Unoptimized debug builds are too slow to profile
+# having debug info doesn't hurt perf for now
+debug = true
