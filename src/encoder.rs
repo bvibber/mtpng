@@ -170,11 +170,6 @@ impl FilterChunk {
         }
     }
 
-    // Return ref to all data
-    fn get_data(&self) -> &[u8] {
-        return &self.data;
-    }
-
     // Return the last up-to-32kib, used as an input dictionary
     // for the next chunk's deflate job.
     fn get_trailer(&self) -> &[u8] {
@@ -221,8 +216,6 @@ impl FilterChunk {
 // Takes filter chunks as input and accumulates compressed output.
 struct DeflateChunk {
     index: usize,
-    start_row: usize,
-    end_row: usize,
     is_start: bool,
     is_end: bool,
 
@@ -252,8 +245,6 @@ impl DeflateChunk {
 
         DeflateChunk {
             index: input.index,
-            start_row: input.start_row,
-            end_row: input.end_row,
             is_start: input.is_start,
             is_end: input.is_end,
 
@@ -796,7 +787,7 @@ mod tests {
             }
             encoder.finish()
         } {
-            Ok(writer) => {},
+            Ok(_writer) => {},
             Err(e) => assert!(false, "Error {}", e),
         }
     }

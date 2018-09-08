@@ -23,10 +23,8 @@
 //
 
 use std::cmp;
-use std::io::Write;
 
 use super::Header;
-use super::ColorType;
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
@@ -87,7 +85,7 @@ macro_rules! filter_sub {
     }
 }
 
-fn filter_sub(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
+fn filter_sub(bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(filter_sub, bpp, prev, src, dest);
 }
 
@@ -197,7 +195,6 @@ fn estimate_complexity(data: &[u8]) -> i32 {
 struct Filterator {
     filter: FilterType,
     bpp: usize,
-    stride: usize,
     data: Vec<u8>,
     complexity: i32,
 }
@@ -207,7 +204,6 @@ impl Filterator {
         Filterator {
             filter: filter,
             bpp: bpp,
-            stride: stride,
             data: vec![0u8; stride + 1],
             complexity: 0,
         }

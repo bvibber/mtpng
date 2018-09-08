@@ -26,11 +26,9 @@ use crc::crc32;
 use crc::Hasher32;
 
 use std::io;
-use std::io::{Error, ErrorKind};
 use std::io::Write;
 
 use super::Header;
-use super::ColorType;
 
 use super::utils::*;
 
@@ -151,7 +149,6 @@ impl<W: Write> Writer<W> {
 #[cfg(test)]
 mod tests {
     use std::io;
-    use std::io::Write;
 
     use super::Writer;
     use super::IoResult;

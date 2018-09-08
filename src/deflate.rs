@@ -23,7 +23,6 @@
 //
 
 use std::io;
-use std::io::{Error, ErrorKind};
 use std::io::Write;
 
 use std::mem;
@@ -118,11 +117,6 @@ pub enum Flush {
     Trees = Z_TREES as isize,
 }
 
-enum Output {
-    Write,
-    Discard,
-}
-
 pub struct Deflate<W: Write> {
     output: W,
     options: Options,
@@ -185,10 +179,10 @@ impl<W: Write> Deflate<W> {
         }
     }
 
-    fn deflate(&mut self, data: &[u8], flush: Flush, output: Output) -> IoResult {
+    fn deflate(&mut self, data: &[u8], flush: Flush) -> IoResult {
         self.init()?;
         let buffer = [0u8; 128 * 1024];
-        let mut stream = &mut *self.stream;
+        let stream = &mut *self.stream;
         unsafe {
             stream.next_in = char_ptr(&data[0]);
             stream.avail_in = data.len() as c_uint;
@@ -202,15 +196,8 @@ impl<W: Write> Deflate<W> {
             };
             match ret {
                 Z_OK | Z_STREAM_END => {
-                    match output {
-                        Output::Write => {
-                            let end = buffer.len() - stream.avail_out as usize;
-                            self.output.write_all(&buffer[0 .. end])?;
-                        },
-                        Output::Discard => {
-                            // ignore it
-                        },
-                    }
+                    let end = buffer.len() - stream.avail_out as usize;
+                    self.output.write_all(&buffer[0 .. end])?;
                     match ret {
                         Z_OK => {
                             if stream.avail_out == 0 {
@@ -241,7 +228,7 @@ impl<W: Write> Deflate<W> {
 
     pub fn write(&mut self, data: &[u8], flush: Flush) -> IoResult {
         self.init()?;
-        self.deflate(data, flush, Output::Write)
+        self.deflate(data, flush)
     }
 
     //

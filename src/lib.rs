@@ -32,13 +32,7 @@ pub mod encoder;
 pub mod utils;
 pub mod writer;
 
-use rayon::ThreadPool;
-
-use std::cmp;
-
 use std::io;
-use std::io::Write;
-type IoResult = io::Result<()>;
 
 use deflate::Strategy;
 use filter::FilterMode;
