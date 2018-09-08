@@ -207,8 +207,8 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 fn estimate_complexity(data: &[u8]) -> i32 {
     // fixme 32-bit can theoretically overflow on super huge lines
     let mut sum = 0i32;
-    for i in 0 .. data.len() {
-        let val = 128 - i32::abs(data[i] as i32 - 128);
+    for iter in data.iter() {
+        let val = 128 - i32::abs(*iter as i32 - 128);
         sum = sum + val;
     }
     i32::abs(sum)
