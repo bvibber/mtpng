@@ -89,8 +89,7 @@ fn filter_sub(bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
             out[i] = src[i];
         }
 
-        let len = src.len();
-        for i in bpp .. len {
+        for i in bpp .. src.len() {
             out[i] = src[i].wrapping_sub(src[i - bpp]);
         }
     });
@@ -131,8 +130,7 @@ fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
             out[i] = src[i].wrapping_sub(avg);
         }
 
-        let len = src.len();
-        for i in bpp .. len {
+        for i in bpp .. src.len() {
             let left = src[i - bpp];
             let above = prev[i];
             let avg = ((left as u32 + above as u32) / 2) as u8;
@@ -190,8 +188,7 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
             out[i] = src[i].wrapping_sub(predict);
         }
 
-        let len = src.len();
-        for i in bpp .. len {
+        for i in bpp .. src.len() {
             let left = src[i - bpp];
             let above = prev[i];
             let upper_left = prev[i - bpp];
@@ -201,11 +198,16 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     });
 }
 
+//
+// Complexity/compressibility heuristic recommended by the PNG spec
+// and used in libpng as well.
+//
+// Note this doesn't produce useful results on the "none" filter
+//
 fn estimate_complexity(data: &[u8]) -> i32 {
-    let len = data.len();
     // fixme 32-bit can theoretically overflow on super huge lines
     let mut sum = 0i32;
-    for i in 0 .. len {
+    for i in 0 .. data.len() {
         let val = 128 - i32::abs(data[i] as i32 - 128);
         sum = sum + val;
     }
