@@ -62,11 +62,24 @@ macro_rules! filter_specialize {
     }
 }
 
+//
+// "None" filter copies the untouched source data.
+// Good for indexed color where there's no relation between pixel values.
+//
+// https://www.w3.org/TR/PNG/#9Filter-types
+//
 fn filter_none(_bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
+    // Does not need specialization.
     dest[0] = FilterType::None as u8;
     dest[1 ..].clone_from_slice(src);
 }
 
+//
+// "Sub" filter diffs each byte against its neighbor one pixel to the left.
+// Good for lines that smoothly vary, like horizontal gradients.
+//
+// https://www.w3.org/TR/PNG/#9Filter-types
+//
 fn filter_sub(bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(bpp, |bpp| {
         dest[0] = FilterType::Sub as u8;
@@ -83,7 +96,15 @@ fn filter_sub(bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
     });
 }
 
+//
+// "Up" filter diffs the pixel against its upper neighbor from prev row.
+// Good for vertical gradients and lines that are similar to their
+// predecessors.
+//
+// https://www.w3.org/TR/PNG/#9Filter-types
+//
 fn filter_up(_bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
+    // Does not need specialization.
     dest[0] = FilterType::Up as u8;
 
     let out = &mut dest[1 ..];
@@ -93,6 +114,12 @@ fn filter_up(_bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     }
 }
 
+//
+// "Average" filter diffs the pixel against the average of its left and
+// upper neighbors. Good for smoothly varying tonal and photographic images.
+//
+// https://www.w3.org/TR/PNG/#9Filter-type-3-Average
+//
 fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(bpp, |bpp| {
         dest[0] = FilterType::Average as u8;
@@ -114,7 +141,12 @@ fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     });
 }
 
-// From the PNG standard
+//
+// Predictor function for the "Paeth" filter.
+// The order of comparisons is important; use the PNG standard's reference.
+//
+// https://www.w3.org/TR/PNG/#9Filter-type-4-Paeth
+//
 fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
     let a = left as i32;
     let b = above as i32;
@@ -135,6 +167,16 @@ fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
     }
 }
 
+//
+// The "Paeth" filter diffs each byte against the nearest one of its
+// neighbor pixels, to the left, above, and upper-left.
+//
+// Good for photographic images and such.
+//
+// Note this is the most expensive filter to calculate.
+//
+// https://www.w3.org/TR/PNG/#9Filter-type-4-Paeth
+//
 fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(bpp, |bpp| {
         dest[0] = FilterType::Paeth as u8;
