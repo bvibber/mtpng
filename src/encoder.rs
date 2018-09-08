@@ -187,7 +187,7 @@ impl FilterChunk {
     //
     fn run(&mut self) -> IoResult {
         let mut filter = AdaptiveFilter::new(self.input.header, self.filter_mode);
-        let zero = vec![0u8; self.stride];
+        let zero = vec![0u8; self.stride - 1];
         for i in self.start_row .. self.end_row {
             let prior = if i == self.start_row {
                 match self.prior_input {

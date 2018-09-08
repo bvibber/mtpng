@@ -63,6 +63,45 @@ macro_rules! filter_specialize {
 }
 
 //
+// Iterator helper for the filter functions.
+//
+// Filters are all byte-wise, and accept four input pixels:
+// val (current pixel), left, above, and upper_left.
+//
+// They return an offset value which is used to reconstruct
+// the original pixels on decode based on the pixels decoded
+// so far plus the offset.
+//
+fn filter_iter<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
+    where F : Fn(&u8, &u8, &u8, &u8) -> u8
+{
+    //
+    // Warning: these are LOAD-BEARING LENGTH CHECKS. Do not remove!
+    //
+    // They permit the LLVM optimizer to remove a LOT of redundant
+    // bounds checks operating inside the inner loop by guaranteeing
+    // all the slices are the same length.
+    //
+    if out.len() < bpp {
+        panic!("Invalid out buffer, should never happen");
+    }
+    if prev.len() != out.len() {
+        panic!("Invalid prev buffer, should never happen");
+    }
+    if src.len() != out.len() {
+        panic!("Invalid src buffer, should never happen");
+    }
+
+    for i in 0 .. bpp {
+        let zero = 0u8;
+        out[i] = func(&src[i], &zero, &prev[i], &zero);
+    }
+    for i in bpp .. out.len() {
+        out[i] = func(&src[i], &src[i - bpp], &prev[i], &prev[i - bpp]);
+    }
+}
+
+//
 // "None" filter copies the untouched source data.
 // Good for indexed color where there's no relation between pixel values.
 //
@@ -80,19 +119,14 @@ fn filter_none(_bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
 //
 // https://www.w3.org/TR/PNG/#9Filter-types
 //
-fn filter_sub(bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
+fn filter_sub(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(bpp, |bpp| {
         dest[0] = FilterType::Sub as u8;
 
-        let out = &mut dest[1 ..];
-        for i in 0 .. bpp {
-            out[i] = src[i];
-        }
-
-        for i in bpp .. src.len() {
-            out[i] = src[i].wrapping_sub(src[i - bpp]);
-        }
-    });
+        filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, _above, _upper_left| -> u8 {
+            val.wrapping_sub(*left)
+        })
+    })
 }
 
 //
@@ -102,15 +136,13 @@ fn filter_sub(bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
 //
 // https://www.w3.org/TR/PNG/#9Filter-types
 //
-fn filter_up(_bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
+fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     // Does not need specialization.
     dest[0] = FilterType::Up as u8;
 
-    let out = &mut dest[1 ..];
-    let len = src.len();
-    for i in 0 .. len {
-        out[i] = src[i].wrapping_sub(prev[i]);
-    }
+    filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, _left, above, _upper_left| -> u8 {
+        val.wrapping_sub(*above)
+    })
 }
 
 //
@@ -123,20 +155,11 @@ fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(bpp, |bpp| {
         dest[0] = FilterType::Average as u8;
 
-        let out = &mut dest[1 ..];
-        for i in 0 .. bpp {
-            let above = prev[i];
-            let avg = (above as u32 / 2) as u8;
-            out[i] = src[i].wrapping_sub(avg);
-        }
-
-        for i in bpp .. src.len() {
-            let left = src[i - bpp];
-            let above = prev[i];
-            let avg = ((left as u32 + above as u32) / 2) as u8;
-            out[i] = src[i].wrapping_sub(avg);
-        }
-    });
+        filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
+            let avg = ((*left as u32 + *above as u32) / 2) as u8;
+            val.wrapping_sub(avg)
+        })
+    })
 }
 
 //
@@ -179,23 +202,10 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(bpp, |bpp| {
         dest[0] = FilterType::Paeth as u8;
 
-        let out = &mut dest[1 ..];
-        for i in 0 .. bpp {
-            let left = 0;
-            let above = prev[i];
-            let upper_left = 0;
-            let predict = paeth_predictor(left, above, upper_left);
-            out[i] = src[i].wrapping_sub(predict);
-        }
-
-        for i in bpp .. src.len() {
-            let left = src[i - bpp];
-            let above = prev[i];
-            let upper_left = prev[i - bpp];
-            let predict = paeth_predictor(left, above, upper_left);
-            out[i] = src[i].wrapping_sub(predict);
-        }
-    });
+        filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, upper_left| -> u8 {
+            val.wrapping_sub(paeth_predictor(*left, *above, *upper_left))
+        })
+    })
 }
 
 //
