@@ -51,7 +51,7 @@ macro_rules! filter_specialize {
         {
             match $bpp {
                 1 => $filter_closure(1), // indexed, greyscale@8
-                2 => $filter_closure(2), // greyscale@16, greyscale+alpha*8
+                2 => $filter_closure(2), // greyscale@16, greyscale+alpha@8
                 3 => $filter_closure(3), // truecolor@8
                 4 => $filter_closure(4), // truecolor@8, greyscale+alpha@16
                 6 => $filter_closure(6), // truecolor@16
