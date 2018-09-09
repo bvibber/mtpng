@@ -73,7 +73,7 @@ macro_rules! filter_specialize {
 // so far plus the offset.
 //
 fn filter_iter<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
-    where F : Fn(&u8, &u8, &u8, &u8) -> u8
+    where F : Fn(u8, u8, u8, u8) -> u8
 {
     //
     // Warning: these are LOAD-BEARING LENGTH CHECKS. Do not remove!
@@ -94,10 +94,10 @@ fn filter_iter<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
 
     for i in 0 .. bpp {
         let zero = 0u8;
-        out[i] = func(&src[i], &zero, &prev[i], &zero);
+        out[i] = func(src[i], zero, prev[i], zero);
     }
     for i in bpp .. out.len() {
-        out[i] = func(&src[i], &src[i - bpp], &prev[i], &prev[i - bpp]);
+        out[i] = func(src[i], src[i - bpp], prev[i], prev[i - bpp]);
     }
 }
 
@@ -124,7 +124,7 @@ fn filter_sub(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
         dest[0] = FilterType::Sub as u8;
 
         filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, _above, _upper_left| -> u8 {
-            val.wrapping_sub(*left)
+            val.wrapping_sub(left)
         })
     })
 }
@@ -141,7 +141,7 @@ fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = FilterType::Up as u8;
 
     filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, _left, above, _upper_left| -> u8 {
-        val.wrapping_sub(*above)
+        val.wrapping_sub(above)
     })
 }
 
@@ -156,7 +156,7 @@ fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
         dest[0] = FilterType::Average as u8;
 
         filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
-            let avg = ((*left as u32 + *above as u32) / 2) as u8;
+            let avg = ((left as u32 + above as u32) / 2) as u8;
             val.wrapping_sub(avg)
         })
     })
@@ -203,7 +203,7 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
         dest[0] = FilterType::Paeth as u8;
 
         filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, upper_left| -> u8 {
-            val.wrapping_sub(paeth_predictor(*left, *above, *upper_left))
+            val.wrapping_sub(paeth_predictor(left, above, upper_left))
         })
     })
 }
