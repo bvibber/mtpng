@@ -20,7 +20,7 @@ Creates correct RGB and RGBA files; no support for indexed yet. Reasonably optim
 
 # Performance
 
-Note that unoptimized debug builds are about 25x slower than optimized release builds. Always run with `--release`!
+Note that unoptimized debug builds are about 50x slower than optimized release builds. Always run with `--release`!
 
 As of September 8, 2018 with Rust 1.28.0, single-threaded performance on Linux x86_64 is ~15-20% faster than libpng saving the same [dual-4K screenshot sample image](https://raw.githubusercontent.com/brion/mtpng/master/samples/dual-4k-sample.png) on Linux and macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
 
