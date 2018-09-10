@@ -208,20 +208,69 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     })
 }
 
+
+//
+// For the complexity/compressibility heuristic. Absolute value
+// of the byte treated as a signed value, extended to a u32.
+//
+// Note this doesn't produce useful results on the "none" filter,
+// as it's expecting, well, a filter delta. :D
+//
+fn filter_complexity_delta(val: u8) -> u32 {
+    i32::abs(val as i8 as i32) as u32
+}
+
+//
+// The maximum complexity heuristic value that can be represented
+// without overflow.
+//
+fn complexity_max() -> u32 {
+    u32::max_value() - 256
+}
+
+//
+// Any row with this number of bytes needs to check for overflow
+// of the complexity heuristic.
+//
+fn complexity_big_row(len: usize) -> bool {
+    len >= (1 << 24)
+}
+
 //
 // Complexity/compressibility heuristic recommended by the PNG spec
 // and used in libpng as well.
 //
 // Note this doesn't produce useful results on the "none" filter
 //
-fn estimate_complexity(data: &[u8]) -> i32 {
-    // fixme 32-bit can theoretically overflow on super huge lines
-    let mut sum = 0i32;
-    for iter in data.iter() {
-        let val = i32::abs((*iter as i8) as i32);
-        sum = sum + val;
+// libpng tries to do this inline with the filter with a clever
+// early return if "too complex", but I find that's slower on large
+// files than just running the whole filter.
+//
+fn estimate_complexity(data: &[u8]) -> u32 {
+    let mut sum = 0u32;
+
+    //
+    // Very long rows could overflow the 32-bit complexity heuristic's
+    // accumulator, but it doesn't trigger until tens of millions
+    // of bytes per row. :)
+    //
+    // The check slows down the inner loop on more realistic sizes
+    // (say, ~31k bytes for a 7680 wide RGBA image) so we skip it.
+    //
+    if complexity_big_row(data.len()) {
+        for iter in data.iter() {
+            sum = sum + filter_complexity_delta(*iter);
+            if sum > complexity_max() {
+                return complexity_max();
+            }
+        }
+    } else {
+        for iter in data.iter() {
+            sum = sum + filter_complexity_delta(*iter);
+        }
     }
-    i32::abs(sum)
+
+    sum
 }
 
 //
@@ -232,7 +281,7 @@ struct Filterator {
     filter: FilterType,
     bpp: usize,
     data: Vec<u8>,
-    complexity: i32,
+    complexity: u32,
 }
 
 impl Filterator {
@@ -261,7 +310,7 @@ impl Filterator {
         &self.data
     }
 
-    fn get_complexity(&self) -> i32 {
+    fn get_complexity(&self) -> u32 {
         self.complexity
     }
 }
