@@ -43,8 +43,9 @@ use time::precise_time_s;
 // Hey that's us!
 extern crate mtpng;
 use mtpng::{ColorType, CompressionLevel, Encoder, Header, Options};
+use mtpng::Mode::{Adaptive, Fixed};
 use mtpng::deflate::Strategy;
-use mtpng::filter::{FilterMode, Filter};
+use mtpng::filter::Filter;
 
 pub fn err(payload: &str) -> Error
 {
@@ -94,12 +95,12 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
 
     match matches.value_of("filter") {
         None             => {},
-        Some("adaptive") => options.set_filter_mode(FilterMode::Adaptive),
-        Some("none")     => options.set_filter_mode(FilterMode::Fixed(Filter::None)),
-        Some("up")       => options.set_filter_mode(FilterMode::Fixed(Filter::Up)),
-        Some("sub")      => options.set_filter_mode(FilterMode::Fixed(Filter::Sub)),
-        Some("average")  => options.set_filter_mode(FilterMode::Fixed(Filter::Average)),
-        Some("paeth")    => options.set_filter_mode(FilterMode::Fixed(Filter::Paeth)),
+        Some("adaptive") => options.set_filter_mode(Adaptive),
+        Some("none")     => options.set_filter_mode(Fixed(Filter::None)),
+        Some("up")       => options.set_filter_mode(Fixed(Filter::Up)),
+        Some("sub")      => options.set_filter_mode(Fixed(Filter::Sub)),
+        Some("average")  => options.set_filter_mode(Fixed(Filter::Average)),
+        Some("paeth")    => options.set_filter_mode(Fixed(Filter::Paeth)),
         _                => return Err(err("Unsupported filter type")),
     }
 

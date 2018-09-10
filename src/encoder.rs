@@ -35,11 +35,14 @@ use std::sync::Arc;
 use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
 
-use super::Header;
-use super::Options;
 use super::CompressionLevel;
+use super::Header;
+use super::Mode;
+use super::Mode::{Adaptive, Fixed};
+use super::Options;
+
 use super::filter::AdaptiveFilter;
-use super::filter::FilterMode;
+use super::filter::Filter;
 use super::writer::Writer;
 
 use super::deflate;
@@ -132,7 +135,7 @@ struct FilterChunk {
     is_end: bool,
 
     stride: usize,
-    filter_mode: FilterMode,
+    filter_mode: Mode<Filter>,
 
     // The input pixels for chunk n-1
     // Needed for its last row only.
@@ -148,7 +151,7 @@ struct FilterChunk {
 impl FilterChunk {
     fn new(prior_input: Option<Arc<PixelChunk>>,
            input: Arc<PixelChunk>,
-           filter_mode: FilterMode) -> FilterChunk
+           filter_mode: Mode<Filter>) -> FilterChunk
     {
         // Prepend one byte for the filter selector.
         let stride = input.stride + 1;

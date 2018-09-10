@@ -25,6 +25,8 @@
 use std::cmp;
 
 use super::Header;
+use super::Mode;
+use super::Mode::{Adaptive, Fixed};
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
@@ -34,12 +36,6 @@ pub enum Filter {
     Up = 2,
     Average = 3,
     Paeth = 4,
-}
-
-#[derive(Copy, Clone)]
-pub enum FilterMode {
-    Adaptive,
-    Fixed(Filter),
 }
 
 //
@@ -316,7 +312,7 @@ impl Filterator {
 }
 
 pub struct AdaptiveFilter {
-    mode: FilterMode,
+    mode: Mode<Filter>,
     filter_none: Filterator,
     filter_up: Filterator,
     filter_sub: Filterator,
@@ -325,7 +321,7 @@ pub struct AdaptiveFilter {
 }
 
 impl AdaptiveFilter {
-    pub fn new(header: Header, mode: FilterMode) -> AdaptiveFilter {
+    pub fn new(header: Header, mode: Mode<Filter>) -> AdaptiveFilter {
         let stride = header.stride();
         let bpp = header.bytes_per_pixel();
         AdaptiveFilter {
@@ -377,12 +373,12 @@ impl AdaptiveFilter {
 
     pub fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
         match self.mode {
-            FilterMode::Fixed(Filter::None)    => self.filter_none.filter(prev, src),
-            FilterMode::Fixed(Filter::Sub)     => self.filter_sub.filter(prev, src),
-            FilterMode::Fixed(Filter::Up)      => self.filter_up.filter(prev, src),
-            FilterMode::Fixed(Filter::Average) => self.filter_average.filter(prev, src),
-            FilterMode::Fixed(Filter::Paeth)   => self.filter_paeth.filter(prev, src),
-            FilterMode::Adaptive               => self.filter_adaptive(prev, src),
+            Fixed(Filter::None)    => self.filter_none.filter(prev, src),
+            Fixed(Filter::Sub)     => self.filter_sub.filter(prev, src),
+            Fixed(Filter::Up)      => self.filter_up.filter(prev, src),
+            Fixed(Filter::Average) => self.filter_average.filter(prev, src),
+            Fixed(Filter::Paeth)   => self.filter_paeth.filter(prev, src),
+            Adaptive               => self.filter_adaptive(prev, src),
         }
     }
 }
@@ -390,14 +386,14 @@ impl AdaptiveFilter {
 #[cfg(test)]
 mod tests {
     use super::AdaptiveFilter;
-    use super::FilterMode;
+    use super::Mode;
     use super::super::Header;
     use super::super::ColorType;
 
     #[test]
     fn it_works() {
         let header = Header::with_color(1024, 768, ColorType::Truecolor);
-        let mut filter = AdaptiveFilter::new(header, FilterMode::Adaptive);
+        let mut filter = AdaptiveFilter::new(header, Mode::Adaptive);
 
         let prev = vec![0u8; header.stride()];
         let row = vec![0u8; header.stride()];
@@ -408,7 +404,7 @@ mod tests {
     #[test]
     fn it_works_16() {
         let header = Header::with_depth(1024, 768, ColorType::Truecolor, 16);
-        let mut filter = AdaptiveFilter::new(header, FilterMode::Adaptive);
+        let mut filter = AdaptiveFilter::new(header, Mode::Adaptive);
 
         let prev = vec![0u8; header.stride()];
         let row = vec![0u8; header.stride()];

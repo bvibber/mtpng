@@ -35,8 +35,18 @@ pub mod writer;
 use std::io;
 
 use deflate::Strategy;
-use filter::FilterMode;
+use filter::Filter;
 use utils::other;
+
+//
+// Like Option, but more specific. :D
+//
+#[derive(Copy, Clone)]
+pub enum Mode<T> {
+    Adaptive,
+    Fixed(T),
+}
+use Mode::{Adaptive, Fixed};
 
 #[derive(Copy, Clone)]
 #[repr(u8)]
@@ -185,7 +195,7 @@ pub struct Options {
     compression_level: CompressionLevel,
     strategy: Strategy,
     streaming: bool,
-    filter_mode: FilterMode,
+    filter_mode: Mode<Filter>,
 }
 
 impl Options {
@@ -199,7 +209,7 @@ impl Options {
             // Default works better for the none filter, which should be
             // used for indexed images in general...
             strategy: Strategy::Filtered,
-            filter_mode: FilterMode::Adaptive,
+            filter_mode: Adaptive,
 
             streaming: true,
         }
@@ -213,7 +223,7 @@ impl Options {
         self.compression_level = level;
     }
 
-    pub fn set_filter_mode(&mut self, filter_mode: FilterMode) {
+    pub fn set_filter_mode(&mut self, filter_mode: Mode<Filter>) {
         self.filter_mode = filter_mode;
     }
 
