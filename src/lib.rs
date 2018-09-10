@@ -193,9 +193,9 @@ pub enum CompressionLevel {
 pub struct Options {
     chunk_size: usize,
     compression_level: CompressionLevel,
-    strategy: Strategy,
-    streaming: bool,
+    strategy_mode: Mode<Strategy>,
     filter_mode: Mode<Filter>,
+    streaming: bool,
 }
 
 impl Options {
@@ -204,13 +204,8 @@ impl Options {
         Options {
             chunk_size: 128 * 1024,
             compression_level: CompressionLevel::Default,
-
-            // @fixme make these depend on the input type!
-            // Default works better for the none filter, which should be
-            // used for indexed images in general...
-            strategy: Strategy::Filtered,
+            strategy_mode: Adaptive,
             filter_mode: Adaptive,
-
             streaming: true,
         }
     }
@@ -227,8 +222,8 @@ impl Options {
         self.filter_mode = filter_mode;
     }
 
-    pub fn set_strategy(&mut self, strategy: Strategy) {
-        self.strategy = strategy;
+    pub fn set_strategy_mode(&mut self, strategy_mode: Mode<Strategy>) {
+        self.strategy_mode = strategy_mode;
     }
 
     pub fn set_streaming(&mut self, streaming: bool) {

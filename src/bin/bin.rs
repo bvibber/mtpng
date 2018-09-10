@@ -114,11 +114,12 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
 
     match matches.value_of("strategy") {
         None             => {},
-        Some("default")  => options.set_strategy(Strategy::Default),
-        Some("filtered") => options.set_strategy(Strategy::Filtered),
-        Some("huffman")  => options.set_strategy(Strategy::HuffmanOnly),
-        Some("rle")      => options.set_strategy(Strategy::RLE),
-        Some("fixed")    => options.set_strategy(Strategy::Fixed),
+        Some("auto")     => options.set_strategy_mode(Adaptive),
+        Some("default")  => options.set_strategy_mode(Fixed(Strategy::Default)),
+        Some("filtered") => options.set_strategy_mode(Fixed(Strategy::Filtered)),
+        Some("huffman")  => options.set_strategy_mode(Fixed(Strategy::HuffmanOnly)),
+        Some("rle")      => options.set_strategy_mode(Fixed(Strategy::RLE)),
+        Some("fixed")    => options.set_strategy_mode(Fixed(Strategy::Fixed)),
         _                => return Err(err("Invalid compression strategy mode")),
     }
 

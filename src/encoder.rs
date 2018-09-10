@@ -35,6 +35,7 @@ use std::sync::Arc;
 use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
 
+use super::ColorType;
 use super::CompressionLevel;
 use super::Header;
 use super::Mode;
@@ -592,6 +593,26 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
+    fn filter_mode(&self) -> Mode<Filter> {
+        match self.options.filter_mode {
+            Fixed(s) => Fixed(s),
+            Adaptive => match self.header.color_type {
+                ColorType::IndexedColor => Fixed(Filter::None),
+                _                       => Adaptive,
+            }
+        }
+    }
+
+    fn compression_strategy(&self) -> Strategy {
+        match self.options.strategy_mode {
+            Fixed(s) => s,
+            Adaptive => match self.filter_mode() {
+                Fixed(Filter::None) => Strategy::Default,
+                _                   => Strategy::Filtered,
+            },
+        }
+    }
+
     fn dispatch(&mut self, mode: DispatchMode) -> IoResult {
         // See if anything interesting happened on the threads.
         let mut blocking_mode = mode;
@@ -655,7 +676,7 @@ impl<'a, W: Write> Encoder<'a, W> {
                 Some((previous, current)) => {
                     // Prepare to dispatch the deflate job:
                     let level = self.options.compression_level;
-                    let strategy = self.options.strategy;
+                    let strategy = self.compression_strategy();
                     self.deflate_chunks.advance();
                     self.dispatch_func(move |tx| {
                         let mut deflate = DeflateChunk::new(level, strategy, previous.clone(), current.clone());
@@ -677,7 +698,7 @@ impl<'a, W: Write> Encoder<'a, W> {
                 Some((previous, current)) => {
                     // Prepare to dispatch the filter job:
                     self.filter_chunks.advance();
-                    let filter_mode = self.options.filter_mode;
+                    let filter_mode = self.filter_mode();
                     self.dispatch_func(move |tx| {
                         let mut filter = FilterChunk::new(previous.clone(),
                                                           current.clone(),
