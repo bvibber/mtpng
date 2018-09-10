@@ -85,44 +85,47 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
     let mut options = Options::new();
 
     match matches.value_of("chunk-size") {
+        None    => {},
         Some(s) => {
-            options.chunk_size = s.parse::<usize>().unwrap()
+            let n = s.parse::<usize>().unwrap();
+            options.set_chunk_size(n);
         },
-        None => {},
     }
 
-    options.filter_mode = match matches.value_of("filter") {
-        None             => FilterMode::Adaptive,
-        Some("adaptive") => FilterMode::Adaptive,
-        Some("none")     => FilterMode::Fixed(Filter::None),
-        Some("up")       => FilterMode::Fixed(Filter::Up),
-        Some("sub")      => FilterMode::Fixed(Filter::Sub),
-        Some("average")  => FilterMode::Fixed(Filter::Average),
-        Some("paeth")    => FilterMode::Fixed(Filter::Paeth),
+    match matches.value_of("filter") {
+        None             => {},
+        Some("adaptive") => options.set_filter_mode(FilterMode::Adaptive),
+        Some("none")     => options.set_filter_mode(FilterMode::Fixed(Filter::None)),
+        Some("up")       => options.set_filter_mode(FilterMode::Fixed(Filter::Up)),
+        Some("sub")      => options.set_filter_mode(FilterMode::Fixed(Filter::Sub)),
+        Some("average")  => options.set_filter_mode(FilterMode::Fixed(Filter::Average)),
+        Some("paeth")    => options.set_filter_mode(FilterMode::Fixed(Filter::Paeth)),
         _                => return Err(err("Unsupported filter type")),
-    };
+    }
 
-     options.compression_level = match matches.value_of("level") {
-        None      => CompressionLevel::Default,
-        Some("1") => CompressionLevel::Fast,
-        Some("9") => CompressionLevel::High,
-        _         => return Err(err("Unsuppored compression level (try 1 or 9)")),
-    };
+    match matches.value_of("level") {
+        None            => {},
+        Some("default") => options.set_compression_level(CompressionLevel::Default),
+        Some("1")       => options.set_compression_level(CompressionLevel::Fast),
+        Some("9")       => options.set_compression_level(CompressionLevel::High),
+        _               => return Err(err("Unsupported compression level (try default, 1, or 9)")),
+    }
 
-    options.strategy = match matches.value_of("strategy") {
-        None             => Strategy::Default,
-        Some("filtered") => Strategy::Filtered,
-        Some("huffman")  => Strategy::HuffmanOnly,
-        Some("rle")      => Strategy::RLE,
-        Some("fixed")    => Strategy::Fixed,
+    match matches.value_of("strategy") {
+        None             => {},
+        Some("default")  => options.set_strategy(Strategy::Default),
+        Some("filtered") => options.set_strategy(Strategy::Filtered),
+        Some("huffman")  => options.set_strategy(Strategy::HuffmanOnly),
+        Some("rle")      => options.set_strategy(Strategy::RLE),
+        Some("fixed")    => options.set_strategy(Strategy::Fixed),
         _                => return Err(err("Invalid compression strategy mode")),
-    };
+    }
 
     let threads = match matches.value_of("threads") {
+        None    => 0, // Means default
         Some(s) => {
             s.parse::<usize>().unwrap()
         },
-        None => 0, // means default
     };
 
     let pool = ThreadPoolBuilder::new().num_threads(threads)
