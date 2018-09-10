@@ -28,7 +28,7 @@ use super::Header;
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
-pub enum FilterType {
+pub enum Filter {
     None = 0,
     Sub = 1,
     Up = 2,
@@ -39,7 +39,7 @@ pub enum FilterType {
 #[derive(Copy, Clone)]
 pub enum FilterMode {
     Adaptive,
-    Fixed(FilterType),
+    Fixed(Filter),
 }
 
 //
@@ -109,7 +109,7 @@ fn filter_iter<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
 //
 fn filter_none(_bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
     // Does not need specialization.
-    dest[0] = FilterType::None as u8;
+    dest[0] = Filter::None as u8;
     dest[1 ..].clone_from_slice(src);
 }
 
@@ -121,7 +121,7 @@ fn filter_none(_bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
 //
 fn filter_sub(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(bpp, |bpp| {
-        dest[0] = FilterType::Sub as u8;
+        dest[0] = Filter::Sub as u8;
 
         filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, _above, _upper_left| -> u8 {
             val.wrapping_sub(left)
@@ -138,7 +138,7 @@ fn filter_sub(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 //
 fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     // Does not need specialization.
-    dest[0] = FilterType::Up as u8;
+    dest[0] = Filter::Up as u8;
 
     filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, _left, above, _upper_left| -> u8 {
         val.wrapping_sub(above)
@@ -153,7 +153,7 @@ fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 //
 fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(bpp, |bpp| {
-        dest[0] = FilterType::Average as u8;
+        dest[0] = Filter::Average as u8;
 
         filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
             let avg = ((left as u32 + above as u32) / 2) as u8;
@@ -200,7 +200,7 @@ fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
 //
 fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     filter_specialize!(bpp, |bpp| {
-        dest[0] = FilterType::Paeth as u8;
+        dest[0] = Filter::Paeth as u8;
 
         filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, upper_left| -> u8 {
             val.wrapping_sub(paeth_predictor(left, above, upper_left))
@@ -278,14 +278,14 @@ fn estimate_complexity(data: &[u8]) -> u32 {
 // Can be reused.
 //
 struct Filterator {
-    filter: FilterType,
+    filter: Filter,
     bpp: usize,
     data: Vec<u8>,
     complexity: u32,
 }
 
 impl Filterator {
-    fn new(filter: FilterType, bpp: usize, stride: usize) -> Filterator {
+    fn new(filter: Filter, bpp: usize, stride: usize) -> Filterator {
         Filterator {
             filter: filter,
             bpp: bpp,
@@ -296,11 +296,11 @@ impl Filterator {
 
     fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
         match self.filter {
-            FilterType::None    => filter_none(self.bpp, prev, src, &mut self.data),
-            FilterType::Sub     => filter_sub(self.bpp, prev, src, &mut self.data),
-            FilterType::Up      => filter_up(self.bpp, prev, src, &mut self.data),
-            FilterType::Average => filter_average(self.bpp, prev, src, &mut self.data),
-            FilterType::Paeth   => filter_paeth(self.bpp, prev, src, &mut self.data),
+            Filter::None    => filter_none(self.bpp, prev, src, &mut self.data),
+            Filter::Sub     => filter_sub(self.bpp, prev, src, &mut self.data),
+            Filter::Up      => filter_up(self.bpp, prev, src, &mut self.data),
+            Filter::Average => filter_average(self.bpp, prev, src, &mut self.data),
+            Filter::Paeth   => filter_paeth(self.bpp, prev, src, &mut self.data),
         }
         self.complexity = estimate_complexity(&self.data[1..]);
         &self.data
@@ -330,11 +330,11 @@ impl AdaptiveFilter {
         let bpp = header.bytes_per_pixel();
         AdaptiveFilter {
             mode: mode,
-            filter_none:    Filterator::new(FilterType::None,    bpp, stride),
-            filter_up:      Filterator::new(FilterType::Up,      bpp, stride),
-            filter_sub:     Filterator::new(FilterType::Sub,     bpp, stride),
-            filter_average: Filterator::new(FilterType::Average, bpp, stride),
-            filter_paeth:   Filterator::new(FilterType::Paeth,   bpp, stride),
+            filter_none:    Filterator::new(Filter::None,    bpp, stride),
+            filter_up:      Filterator::new(Filter::Up,      bpp, stride),
+            filter_sub:     Filterator::new(Filter::Sub,     bpp, stride),
+            filter_average: Filterator::new(Filter::Average, bpp, stride),
+            filter_paeth:   Filterator::new(Filter::Paeth,   bpp, stride),
         }
     }
 
@@ -377,12 +377,12 @@ impl AdaptiveFilter {
 
     pub fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
         match self.mode {
-            FilterMode::Fixed(FilterType::None)    => self.filter_none.filter(prev, src),
-            FilterMode::Fixed(FilterType::Sub)     => self.filter_sub.filter(prev, src),
-            FilterMode::Fixed(FilterType::Up)      => self.filter_up.filter(prev, src),
-            FilterMode::Fixed(FilterType::Average) => self.filter_average.filter(prev, src),
-            FilterMode::Fixed(FilterType::Paeth)   => self.filter_paeth.filter(prev, src),
-            FilterMode::Adaptive                   => self.filter_adaptive(prev, src),
+            FilterMode::Fixed(Filter::None)    => self.filter_none.filter(prev, src),
+            FilterMode::Fixed(Filter::Sub)     => self.filter_sub.filter(prev, src),
+            FilterMode::Fixed(Filter::Up)      => self.filter_up.filter(prev, src),
+            FilterMode::Fixed(Filter::Average) => self.filter_average.filter(prev, src),
+            FilterMode::Fixed(Filter::Paeth)   => self.filter_paeth.filter(prev, src),
+            FilterMode::Adaptive               => self.filter_adaptive(prev, src),
         }
     }
 }

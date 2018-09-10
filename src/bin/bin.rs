@@ -44,7 +44,7 @@ use time::precise_time_s;
 extern crate mtpng;
 use mtpng::{ColorType, CompressionLevel, Encoder, Header, Options};
 use mtpng::deflate::Strategy;
-use mtpng::filter::{FilterMode, FilterType};
+use mtpng::filter::{FilterMode, Filter};
 
 pub fn err(payload: &str) -> Error
 {
@@ -94,11 +94,11 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
     options.filter_mode = match matches.value_of("filter") {
         None             => FilterMode::Adaptive,
         Some("adaptive") => FilterMode::Adaptive,
-        Some("none")     => FilterMode::Fixed(FilterType::None),
-        Some("up")       => FilterMode::Fixed(FilterType::Up),
-        Some("sub")      => FilterMode::Fixed(FilterType::Sub),
-        Some("average")  => FilterMode::Fixed(FilterType::Average),
-        Some("paeth")    => FilterMode::Fixed(FilterType::Paeth),
+        Some("none")     => FilterMode::Fixed(Filter::None),
+        Some("up")       => FilterMode::Fixed(Filter::Up),
+        Some("sub")      => FilterMode::Fixed(Filter::Sub),
+        Some("average")  => FilterMode::Fixed(Filter::Average),
+        Some("paeth")    => FilterMode::Fixed(Filter::Paeth),
         _                => return Err(err("Unsupported filter type")),
     };
 
