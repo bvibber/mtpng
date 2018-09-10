@@ -218,7 +218,7 @@ fn estimate_complexity(data: &[u8]) -> i32 {
     // fixme 32-bit can theoretically overflow on super huge lines
     let mut sum = 0i32;
     for iter in data.iter() {
-        let val = 128 - i32::abs(*iter as i32 - 128);
+        let val = i32::abs((*iter as i8) as i32);
         sum = sum + val;
     }
     i32::abs(sum)
