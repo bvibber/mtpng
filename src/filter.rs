@@ -72,21 +72,15 @@ fn filter_iter<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
     where F : Fn(u8, u8, u8, u8) -> u8
 {
     //
-    // Warning: these are LOAD-BEARING LENGTH CHECKS. Do not remove!
+    // Warning: these are LOAD-BEARING ASSERTIONS. Do not remove!
     //
     // They permit the LLVM optimizer to remove a LOT of redundant
     // bounds checks operating inside the inner loop by guaranteeing
     // all the slices are the same length.
     //
-    if out.len() < bpp {
-        panic!("Invalid out buffer, should never happen");
-    }
-    if prev.len() != out.len() {
-        panic!("Invalid prev buffer, should never happen");
-    }
-    if src.len() != out.len() {
-        panic!("Invalid src buffer, should never happen");
-    }
+    assert!(out.len() >= bpp);
+    assert!(prev.len() == out.len());
+    assert!(src.len() == out.len());
 
     for i in 0 .. bpp {
         let zero = 0u8;
