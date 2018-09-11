@@ -10,6 +10,7 @@ libz-sys = "1.0.20"
 png = "0.12.0"
 clap = "2.32.0"
 time = "0.1.40"
+itertools = "0.7.8"
 
 [profile.release]
 # Unoptimized debug builds are too slow to profile

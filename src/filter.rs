@@ -72,22 +72,27 @@ fn filter_iter<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
     where F : Fn(u8, u8, u8, u8) -> u8
 {
     //
-    // Warning: these are LOAD-BEARING ASSERTIONS. Do not remove!
+    // The izip! macro merges multiple iterators together.
+    // Performs _slightly_ better than a for loop with indexing
+    // and the bounds checks mostly factored out by careful
+    // optimization, and doesn't require the voodoo assertions.
     //
-    // They permit the LLVM optimizer to remove a LOT of redundant
-    // bounds checks operating inside the inner loop by guaranteeing
-    // all the slices are the same length.
-    //
-    assert!(out.len() >= bpp);
-    assert!(prev.len() == out.len());
-    assert!(src.len() == out.len());
 
-    for i in 0 .. bpp {
-        let zero = 0u8;
-        out[i] = func(src[i], zero, prev[i], zero);
+    for (dest, cur, up) in
+        izip!(&mut out[0 .. bpp],
+              &src[0 .. bpp],
+              &prev[0 .. bpp]) {
+        *dest = func(*cur, 0, *up, 0);
     }
-    for i in bpp .. out.len() {
-        out[i] = func(src[i], src[i - bpp], prev[i], prev[i - bpp]);
+
+    let len = out.len();
+    for (dest, cur, left, up, above_left) in
+        izip!(&mut out[bpp .. len],
+              &src[bpp .. len],
+              &src[0 .. len - bpp],
+              &prev[bpp .. len],
+              &prev[0 .. len - bpp]) {
+        *dest = func(*cur, *left, *up, *above_left);
     }
 }
 

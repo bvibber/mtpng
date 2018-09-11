@@ -117,6 +117,8 @@ Decoding cannot; it must be run as a stream, but can pipeline.
 
 [libz-sys](https://crates.io/crates/libz-sys) is used to wrap libz for the deflate compression. I briefly looked at pure-Rust implementations but couldn't find any supporting raw stream output, dictionary setting, and flushing to byte boundaries without closing the stream.
 
+[itertools](https://crates.io/crates/itertools) is used to manage iteration in the filters.
+
 [png](https://crates.io/crates/png) is used by the CLI tool to load input files to recompress for testing.
 
 [clap](https://crates.io/crates/clap) is used by the CLI tool to handle option parsing and help display.
