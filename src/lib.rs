@@ -27,6 +27,11 @@ extern crate crc;
 extern crate libz_sys;
 #[macro_use] extern crate itertools;
 
+// @fixme use a feature flag or?
+extern crate libc;
+mod capi;
+pub use capi::*;
+
 pub mod deflate;
 pub mod filter;
 pub mod encoder;
@@ -58,6 +63,7 @@ pub enum ColorType {
     GreyscaleAlpha = 4,
     TruecolorAlpha = 6,
 }
+use ColorType::*;
 
 impl ColorType {
     pub fn from_u8(val: u8) -> io::Result<ColorType> {
@@ -68,6 +74,23 @@ impl ColorType {
             4 => Ok(ColorType::GreyscaleAlpha),
             6 => Ok(ColorType::TruecolorAlpha),
             _ => Err(other("Inalid color type value")),
+        }
+    }
+
+    pub fn is_depth_valid(&self, depth: u8) -> bool {
+        match *self {
+            Greyscale => match depth {
+                1 | 2 | 4 | 8 | 16 => true,
+                _ => false,
+            },
+            GreyscaleAlpha | Truecolor | TruecolorAlpha => match depth {
+                8 | 16 => true,
+                _ => false,
+            },
+            IndexedColor => match depth {
+                1 | 2 | 4 | 8 => true,
+                _ => false,
+            },
         }
     }
 }
@@ -122,6 +145,10 @@ impl Header {
 
     pub fn with_color(width: u32, height: u32, color_type: ColorType) -> Header {
         Header::with_depth(width, height, color_type, 8)
+    }
+
+    pub fn default() -> Header {
+        Header::with_color(0, 0, ColorType::TruecolorAlpha)
     }
 
     // @todo return errors gracefully
@@ -191,7 +218,7 @@ pub enum CompressionLevel {
 }
 
 #[derive(Copy, Clone)]
-pub struct Options {
+struct Options {
     chunk_size: usize,
     compression_level: CompressionLevel,
     strategy_mode: Mode<Strategy>,
@@ -210,30 +237,4 @@ impl Options {
             streaming: true,
         }
     }
-
-    pub fn set_chunk_size(&mut self, chunk_size: usize) {
-        self.chunk_size = chunk_size;
-    }
-
-    pub fn set_compression_level(&mut self, level: CompressionLevel) {
-        self.compression_level = level;
-    }
-
-    pub fn set_filter_mode(&mut self, filter_mode: Mode<Filter>) {
-        self.filter_mode = filter_mode;
-    }
-
-    pub fn set_strategy_mode(&mut self, strategy_mode: Mode<Strategy>) {
-        self.strategy_mode = strategy_mode;
-    }
-
-    pub fn set_streaming(&mut self, streaming: bool) {
-        self.streaming = streaming;
-    }
 }
-
-//
-// Republish the Encoder type!
-//
-pub type Encoder<'a, W> = encoder::Encoder<'a, W>;
-

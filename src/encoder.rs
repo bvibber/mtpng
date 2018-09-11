@@ -452,10 +452,12 @@ enum DispatchMode {
 }
 
 pub struct Encoder<'a, W: Write> {
-    header: Header,
-    options: Options,
     writer: Writer<W>,
     thread_pool: Option<&'a ThreadPool>,
+
+    header: Header,
+    options: Options,
+    started: bool,
 
     rows_per_chunk: usize,
     chunks_total: usize,
@@ -479,39 +481,22 @@ pub struct Encoder<'a, W: Write> {
 }
 
 impl<'a, W: Write> Encoder<'a, W> {
-    fn new_encoder(header: Header, options: Options, write: W, thread_pool: Option<&'a ThreadPool>) -> Encoder<'a, W> {
-        let stride = header.stride() + 1;
-        let height = header.height as usize;
-
-        let full_rows = options.chunk_size / stride;
-        let extra_pixels = options.chunk_size % stride;
-        let rows_per_chunk = cmp::min(height, full_rows + if extra_pixels > 0 {
-            1
-        } else {
-            0
-        });
-
-        let full_chunks = height / rows_per_chunk;
-        let extra_lines = height % rows_per_chunk;
-        let chunks_total = full_chunks + if extra_lines > 0 {
-            1
-        } else {
-            0
-        };
-
+    fn new_encoder(write: W, thread_pool: Option<&'a ThreadPool>) -> Encoder<'a, W> {
         let (tx, rx) = mpsc::channel();
-
         Encoder {
-            header: header,
-            options: options,
+            header: Header::default(),
+            options: Options::new(),
             writer: Writer::new(write),
             thread_pool: thread_pool,
 
-            rows_per_chunk: rows_per_chunk,
-            chunks_total: chunks_total,
+            started: false,
+
+            rows_per_chunk: 0,
+            chunks_total: 0,
             chunks_output: 0,
 
-            pixel_accumulator: Arc::new(PixelChunk::new(header, 0, 0, rows_per_chunk)),
+            // hack, clean this up later
+            pixel_accumulator: Arc::new(PixelChunk::new(Header::default(), 0, 0, 0)),
             pixel_index: 0,
 
             pixel_chunks: ChunkMap::new(),
@@ -529,15 +514,87 @@ impl<'a, W: Write> Encoder<'a, W> {
     // Create a new encoder using default thread pool.
     // Consumes the Write target, but you can get it back via Encoder::close()
     //
-    pub fn new(header: Header, options: Options, writer: W) -> Encoder<'static, W> {
-        Encoder::new_encoder(header, options, writer, None)
+    pub fn new(writer: W) -> Encoder<'static, W> {
+        Encoder::new_encoder(writer, None)
     }
 
     //
     // Create a new encoder state using given thread pool
     //
-    pub fn with_thread_pool(header: Header, options: Options, writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
-        Encoder::new_encoder(header, options, writer, Some(thread_pool))
+    pub fn with_thread_pool(writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
+        Encoder::new_encoder(writer, Some(thread_pool))
+    }
+
+    pub fn set_size(&mut self, width: u32, height: u32) -> IoResult {
+        if self.started {
+            Err(invalid_input("cannot change image size after starting output"))
+        } else if width == 0 {
+            Err(invalid_input("width cannot be 0"))
+        } else if height == 0 {
+            Err(invalid_input("height canno tbe 0"))
+        } else {
+            self.header.width = width;
+            self.header.height = height;
+            Ok(())
+        }
+    }
+
+    pub fn set_color(&mut self, color_type: ColorType, depth: u8) -> IoResult {
+        if self.started {
+            Err(invalid_input("cannot change color type or depth after starting output"))
+        } else if !color_type.is_depth_valid(depth) {
+            Err(invalid_input("invalid color depth for this color type"))
+        } else {
+            self.header.color_type = color_type;
+            Ok(())
+        }
+    }
+
+    pub fn set_chunk_size(&mut self, chunk_size: usize) -> IoResult {
+        if self.started {
+            Err(invalid_input("cannot change chunk size after starting output"))
+        } else if chunk_size < 32768 {
+            Err(invalid_input("chunk size must be at least 32768"))
+        } else {
+            self.options.chunk_size = chunk_size;
+            Ok(())
+        }
+    }
+
+    pub fn set_compression_level(&mut self, level: CompressionLevel) -> IoResult {
+        if self.started {
+            Err(invalid_input("cannot change compression level after starting output"))
+        } else {
+            self.options.compression_level = level;
+            Ok(())
+        }
+    }
+
+    pub fn set_filter_mode(&mut self, filter_mode: Mode<Filter>) -> IoResult {
+        if self.started {
+            Err(invalid_input("cannot change filter mode after starting output"))
+        } else {
+            self.options.filter_mode = filter_mode;
+            Ok(())
+        }
+    }
+
+    pub fn set_strategy_mode(&mut self, strategy_mode: Mode<Strategy>) -> IoResult {
+        if self.started {
+            Err(invalid_input("cannot change compression strategy after starting output"))
+        } else {
+            self.options.strategy_mode = strategy_mode;
+            Ok(())
+        }
+    }
+
+    pub fn set_streaming(&mut self, streaming: bool) -> IoResult {
+        if self.started {
+            Err(invalid_input("cannot change streaming mode after starting output"))
+        } else {
+            self.options.streaming = streaming;
+            Ok(())
+        }
     }
 
     //
@@ -723,6 +780,33 @@ impl<'a, W: Write> Encoder<'a, W> {
     // Must be done before anything else is output.
     //
     pub fn write_header(&mut self) -> IoResult {
+        if self.started {
+            return Err(invalid_input("cannot write header after starting output"));
+        }
+
+        let stride = self.header.stride() + 1;
+        let height = self.header.height as usize;
+
+        let full_rows = self.options.chunk_size / stride;
+        let extra_pixels = self.options.chunk_size % stride;
+        self.rows_per_chunk = cmp::min(height, full_rows + if extra_pixels > 0 {
+            1
+        } else {
+            0
+        });
+
+        let full_chunks = height / self.rows_per_chunk;
+        let extra_lines = height % self.rows_per_chunk;
+        self.chunks_total = full_chunks + if extra_lines > 0 {
+            1
+        } else {
+            0
+        };
+
+        self.pixel_accumulator = Arc::new(PixelChunk::new(self.header, 0, 0, self.rows_per_chunk));
+
+        self.started = true;
+
         self.writer.write_signature()?;
         self.writer.write_header(self.header)
     }
@@ -799,12 +883,10 @@ mod tests {
         where F: Fn(&mut Encoder<Vec<u8>>) -> IoResult
     {
         match {
-            let header = Header::with_color(width,
-                                            height,
-                                            ColorType::Truecolor);
-            let options = Options::new();
             let writer = Vec::<u8>::new();
-            let mut encoder = Encoder::new(header, options, writer);
+            let mut encoder = Encoder::new(writer);
+            encoder.set_size(width, height).unwrap();
+            encoder.set_color(ColorType::Truecolor, 8).unwrap();
             match func(&mut encoder) {
                 Ok(()) => {},
                 Err(e) => assert!(false, "Error during test: {}", e),

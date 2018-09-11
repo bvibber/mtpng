@@ -1,7 +1,8 @@
 /target
 **/*.rs.bk
 Cargo.lock
-out
+/out
 .DS_Store
 cachegrind.out.*
 perf.*
+/build

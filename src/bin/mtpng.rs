@@ -42,8 +42,9 @@ use time::precise_time_s;
 
 // Hey that's us!
 extern crate mtpng;
-use mtpng::{ColorType, CompressionLevel, Encoder, Header, Options};
+use mtpng::{ColorType, CompressionLevel, Header};
 use mtpng::Mode::{Adaptive, Fixed};
+use mtpng::encoder::Encoder;
 use mtpng::deflate::Strategy;
 use mtpng::filter::Filter;
 
@@ -66,12 +67,58 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>)> {
     Ok((header, data))
 }
 
-fn write_png(filename: &str, header: Header, options: Options, pool: &ThreadPool, data: &[u8]) -> io::Result<()> {
+fn write_png(pool: &ThreadPool, args: &ArgMatches,
+             filename: &str, header: Header, data: &[u8])
+   -> io::Result<()>
+{
     let writer = try!(File::create(filename));
-    let mut encoder = Encoder::with_thread_pool(header, options, writer, &pool);
-    //let mut encoder = Encoder::new(header, options, writer);
 
+    let mut encoder = Encoder::with_thread_pool(writer, pool);
+
+    // Encoding options
+    match args.value_of("chunk-size") {
+        None    => {},
+        Some(s) => {
+            let n = s.parse::<usize>().unwrap();
+            encoder.set_chunk_size(n)?;
+        },
+    }
+
+    match args.value_of("filter") {
+        None             => {},
+        Some("adaptive") => encoder.set_filter_mode(Adaptive)?,
+        Some("none")     => encoder.set_filter_mode(Fixed(Filter::None))?,
+        Some("up")       => encoder.set_filter_mode(Fixed(Filter::Up))?,
+        Some("sub")      => encoder.set_filter_mode(Fixed(Filter::Sub))?,
+        Some("average")  => encoder.set_filter_mode(Fixed(Filter::Average))?,
+        Some("paeth")    => encoder.set_filter_mode(Fixed(Filter::Paeth))?,
+        _                => return Err(err("Unsupported filter type")),
+    }
+
+    match args.value_of("level") {
+        None            => {},
+        Some("default") => encoder.set_compression_level(CompressionLevel::Default)?,
+        Some("1")       => encoder.set_compression_level(CompressionLevel::Fast)?,
+        Some("9")       => encoder.set_compression_level(CompressionLevel::High)?,
+        _               => return Err(err("Unsupported compression level (try default, 1, or 9)")),
+    }
+
+    match args.value_of("strategy") {
+        None             => {},
+        Some("auto")     => encoder.set_strategy_mode(Adaptive)?,
+        Some("default")  => encoder.set_strategy_mode(Fixed(Strategy::Default))?,
+        Some("filtered") => encoder.set_strategy_mode(Fixed(Strategy::Filtered))?,
+        Some("huffman")  => encoder.set_strategy_mode(Fixed(Strategy::HuffmanOnly))?,
+        Some("rle")      => encoder.set_strategy_mode(Fixed(Strategy::RLE))?,
+        Some("fixed")    => encoder.set_strategy_mode(Fixed(Strategy::Fixed))?,
+        _                => return Err(err("Invalid compression strategy mode"))?,
+    }
+
+    // Image data
+    encoder.set_size(header.width, header.height)?;
+    encoder.set_color(header.color_type, header.depth)?;
     encoder.write_header()?;
+
     for i in 0 .. header.height as usize {
         let start = header.stride() * i;
         let end = start + header.stride();
@@ -82,48 +129,8 @@ fn write_png(filename: &str, header: Header, options: Options, pool: &ThreadPool
     Ok(())
 }
 
-fn doit(matches: ArgMatches) -> io::Result<()> {
-    let mut options = Options::new();
-
-    match matches.value_of("chunk-size") {
-        None    => {},
-        Some(s) => {
-            let n = s.parse::<usize>().unwrap();
-            options.set_chunk_size(n);
-        },
-    }
-
-    match matches.value_of("filter") {
-        None             => {},
-        Some("adaptive") => options.set_filter_mode(Adaptive),
-        Some("none")     => options.set_filter_mode(Fixed(Filter::None)),
-        Some("up")       => options.set_filter_mode(Fixed(Filter::Up)),
-        Some("sub")      => options.set_filter_mode(Fixed(Filter::Sub)),
-        Some("average")  => options.set_filter_mode(Fixed(Filter::Average)),
-        Some("paeth")    => options.set_filter_mode(Fixed(Filter::Paeth)),
-        _                => return Err(err("Unsupported filter type")),
-    }
-
-    match matches.value_of("level") {
-        None            => {},
-        Some("default") => options.set_compression_level(CompressionLevel::Default),
-        Some("1")       => options.set_compression_level(CompressionLevel::Fast),
-        Some("9")       => options.set_compression_level(CompressionLevel::High),
-        _               => return Err(err("Unsupported compression level (try default, 1, or 9)")),
-    }
-
-    match matches.value_of("strategy") {
-        None             => {},
-        Some("auto")     => options.set_strategy_mode(Adaptive),
-        Some("default")  => options.set_strategy_mode(Fixed(Strategy::Default)),
-        Some("filtered") => options.set_strategy_mode(Fixed(Strategy::Filtered)),
-        Some("huffman")  => options.set_strategy_mode(Fixed(Strategy::HuffmanOnly)),
-        Some("rle")      => options.set_strategy_mode(Fixed(Strategy::RLE)),
-        Some("fixed")    => options.set_strategy_mode(Fixed(Strategy::Fixed)),
-        _                => return Err(err("Invalid compression strategy mode")),
-    }
-
-    let threads = match matches.value_of("threads") {
+fn doit(args: ArgMatches) -> io::Result<()> {
+    let threads = match args.value_of("threads") {
         None    => 0, // Means default
         Some(s) => {
             s.parse::<usize>().unwrap()
@@ -135,22 +142,22 @@ fn doit(matches: ArgMatches) -> io::Result<()> {
                                        .unwrap();
     eprintln!("Using {} threads", pool.current_num_threads());
 
-    let reps = match matches.value_of("repeat") {
+    let reps = match args.value_of("repeat") {
         Some(s) => {
             s.parse::<usize>().unwrap()
         },
         None => 1,
     };
 
-    let infile = matches.value_of("input").unwrap();
-    let outfile = matches.value_of("output").unwrap();
+    let infile = args.value_of("input").unwrap();
+    let outfile = args.value_of("output").unwrap();
 
     println!("{} -> {}", infile, outfile);
     let (header, data) = read_png(&infile)?;
 
     for _i in 0 .. reps {
         let start_time = precise_time_s();
-        write_png(&outfile, header, options, &pool, &data)?;
+        write_png(&pool, &args, &outfile, header, &data)?;
         let delta = precise_time_s() - start_time;
 
         println!("Done in {} ms", (delta * 1000.0).round());
