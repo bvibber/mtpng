@@ -23,10 +23,10 @@ run : all
 test : run
 
 $(EXE) : $(SOURCES) $(HEADERS) $(LIB)
-	mkdir -p build && \
 	$(CC) -L$(RLIBDIR) -lmtpng -o $(EXE) $(SOURCES)
 
 $(LIB) : $(RLIB)
+	mkdir -p build && \
 	cp $(RLIB) $(LIB)
 
 $(RLIB) : Cargo.toml src/*.rs
