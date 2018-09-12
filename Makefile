@@ -36,6 +36,7 @@ clean :
 	cargo clean
 
 run : all
+	mkdir -p out && \
 	$(CDYLIB_PATHVAR) ./$(EXE)
 
 test : run
