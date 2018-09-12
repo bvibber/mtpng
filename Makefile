@@ -12,12 +12,12 @@ ifeq ($(OS),Windows_NT)
 else
   UNAME_S=$(shell uname -s)
   ifeq ($(UNAME_S),Linux)
-    CDYLUB_EXT=so
-	CDYLIB_PATHVAR=LD_LIBRARY_PATH=build
+    CDYLIB_EXT=so
+    CDYLIB_PATHVAR=LD_LIBRARY_PATH=build
   endif
   ifeq ($(UNAME_S),Darwin)
     CDYLIB_EXT=dylib
-	CDYLIB_PATHVAR=
+    CDYLIB_PATHVAR=
   endif
 endif
 
@@ -26,7 +26,7 @@ RUSTLIB=$(RUSTLIBDIR)/libmtpng.$(CDYLIB_EXT)
 SOURCES=c/sample.c
 HEADERS=c/mtpng.h
 EXE=build/sample
-LIB=build/libmtpng.so
+LIB=build/libmtpng.$(CDYLIB_EXT)
 
 all : $(EXE)
 
@@ -41,7 +41,7 @@ run : all
 test : run
 
 $(EXE) : $(SOURCES) $(HEADERS) $(LIB)
-	$(CC) -L$(RUSTLIBDIR) -lmtpng -o $(EXE) $(SOURCES)
+	$(CC) -L./build -lmtpng -o $(EXE) $(SOURCES)
 
 $(LIB) : $(RUSTLIB)
 	mkdir -p build && \
