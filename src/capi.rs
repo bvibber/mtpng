@@ -1,5 +1,5 @@
 //
-// encoder - multithreaded parallel PNG image encoder
+// C API - multithreaded parallel PNG image encoder
 //
 // Copyright (c) 2018 Brion Vibber
 //
