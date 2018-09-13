@@ -6,7 +6,7 @@ by Brion Vibber <brion@pobox.com>
 
 # Background
 
-Compressing PNG files is a relatively slow operation at large image sizes, and can take from half a second to over a second for 4K resolution and beyond.
+Compressing PNG files is a relatively slow operation at large image sizes, and can take from half a second to over a second for 4K resolution and beyond. See [my blog post series on the subject](https://brionv.com/log/2018/08/29/parallelizing-png-compression-part-1/) for more details.
 
 The biggest CPU costs in traditional libpng seem to be the filtering, which is easy to parallelize, and the deflate compression, which can be parallelized in chunks at a slight loss of compression between block boundaries.
 
@@ -16,7 +16,30 @@ I was also inspired by an experimental C++/OpenMP project called `png-parallel` 
 
 # State
 
-Creates correct RGB and RGBA files; no support for indexed yet. Reasonably optimized for large files, but needs work for small files. No API stability yet!
+Creates correct RGB and RGBA files; no support for indexed yet. Performs well on large files, but needs work for small files. No API stability yet!
+
+# Goals
+
+Performance:
+* ☑️ MUST be faster than libpng when multi-threaded
+* ☑️ SHOULD be as fast as or faster than libpng when single-threaded
+
+Functionality:
+* MUST support all standard color types and depths
+* ☑️ MUST support all standard filter modes
+* ☑️ MUST compress within a few percent as well as libpng
+* MAY achieve better compression than libpng, but MUST NOT do so at the cost of performance
+* ☑️ SHOULD support streaming output
+* MAY support interlacing
+
+Compatibility:
+* MUST have a good Rust API
+* MUST have a good C API
+* ☑️ MUST work on Linux x86, x86_64
+* MUST work on Linux arm, arm64 (untested)
+* ☑️ SHOULD work on macOS x86_64
+* ☑️ SHOULD work on Windows x86, x86_64
+* SHOULD work on Windows arm, arm64 (untested)
 
 # Performance
 
@@ -84,20 +107,7 @@ Windows seems a little slower than Linux on the same machine, not quite sure why
 
 # Todos
 
-Immediate todos:
-* benchmark and optimize
-* compare compression tradeoffs for different chunk sizes
-
-In a bit todos:
-* clean up error handling and builder patterns
-* start figuring out a public-facing api
-* publish crate
-
-Someday todos:
-* reading support with two-thread pipeline (see data flow diagram below)
-
 See the [projects list on GitHub](https://github.com/brion/mtpng/projects) for active details.
-
 
 # Data flow
 
