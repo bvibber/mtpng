@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     printf("hello\n");
 
     int retval = 0;
-    FILE *out = fopen("out/csample.png", "w");
+    FILE *out = fopen("out/csample.png", "wb");
 
     size_t const threads = MTPNG_THREADS_DEFAULT;
 

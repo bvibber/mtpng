@@ -60,8 +60,8 @@ typedef enum mtpng_color_t {
 //
 // Opaque structs for the threadpool and encoder.
 //
-typedef struct mtpng_threadpool_struct {} mtpng_threadpool;
-typedef struct mtpng_encoder_struct {} mtpng_encoder;
+typedef struct mtpng_threadpool_struct mtpng_threadpool;
+typedef struct mtpng_encoder_struct mtpng_encoder;
 
 #pragma mark Function types
 
