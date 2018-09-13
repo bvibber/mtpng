@@ -42,7 +42,7 @@ run : all
 test : run
 
 $(EXE) : $(SOURCES) $(HEADERS) $(LIB)
-	$(CC) -g -L./build -lmtpng -o $(EXE) $(SOURCES)
+	$(CC) -g -o $(EXE) $(SOURCES) -L./build -lmtpng
 
 $(LIB) : $(RUSTLIB)
 	mkdir -p build && \
