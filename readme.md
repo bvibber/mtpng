@@ -18,7 +18,7 @@ I was also inspired by an experimental C++/OpenMP project called `png-parallel` 
 
 Creates correct RGB and RGBA files; no support for indexed yet. Performs well on large files, but needs work for small files. No API stability yet!
 
-# Goals
+## Goals
 
 Performance:
 * ☑️ MUST be faster than libpng when multi-threaded
@@ -41,7 +41,7 @@ Compatibility:
 * ☑️ SHOULD work on Windows x86, x86_64
 * SHOULD work on Windows arm, arm64 (untested)
 
-# Performance
+## Performance
 
 Note that unoptimized debug builds are about 50x slower than optimized release builds. Always run with `--release`!
 
@@ -105,7 +105,7 @@ Windows seems a little slower than Linux on the same machine, not quite sure why
 
 32-bit builds are a bit slower still, but I don't have a Windows libpng comparison handy.
 
-# Todos
+## Todos
 
 See the [projects list on GitHub](https://github.com/brion/mtpng/projects) for active details.
 
