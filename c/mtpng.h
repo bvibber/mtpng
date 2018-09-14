@@ -33,21 +33,40 @@
 
 #pragma mark Consts and enums
 
+//
+// Pass to mtpng_threadpool_new() as number of threads to
+// use the default, which is the detected number of logical
+// CPU cores on the system.
+//
 #define MTPNG_THREADS_DEFAULT 0
 
+//
+// Return type for mtpng functions.
+// Always check the return value, errors are real!
+//
 typedef enum mtpng_result_t {
     MTPNG_RESULT_OK = 0,
     MTPNG_RESULT_ERR = 1
 } mtpng_result;
 
+//
+// Filter types for mtpng_encoder_set_filter_mode().
+//
+// MTPNG_FILTER_ADAPTIVE is the default behavior, which uses
+// a heuristic to try to guess the best compressing filter.
+//
 typedef enum mtpng_filter_t {
     MTPNG_FILTER_NONE = 0,
     MTPNG_FILTER_SUB = 1,
     MTPNG_FILTER_UP = 2,
     MTPNG_FILTER_AVERAGE = 3,
-    MTPNG_FILTER_PAETH = 4
+    MTPNG_FILTER_PAETH = 4,
+    MTPNG_FILTER_ADAPTIVE = 256
 } mtpng_filter;
 
+//
+// Color types for mtpng_encoder_set_color().
+//
 typedef enum mtpng_color_t {
     MTPNG_COLOR_GREYSCALE = 0,
     MTPNG_COLOR_TRUECOLOR = 2,
@@ -59,73 +78,157 @@ typedef enum mtpng_color_t {
 #pragma mark Structs
 
 //
-// Opaque structs for the threadpool and encoder.
+// Represents a thread pool, which may be shared between
+// multiple encoders at once or over time.
+//
+// The contents are private; you will only ever use pointers.
 //
 typedef struct mtpng_threadpool_struct mtpng_threadpool;
+
+//
+// Represents a PNG encoder instance, which can encode a single
+// image and then must be released. Multiple encoders may share
+// a single thread pool.
+//
+// The contents are private; you will only ever use pointers.
+//
 typedef struct mtpng_encoder_struct mtpng_encoder;
 
 #pragma mark Function types
 
-typedef size_t (*mtpng_write_func)(void* user_data, const uint8_t* bytes, size_t len);
+//
+// Write callback type for mtpng_encoder_new().
+//
+// When output data is available from the decoder, it is sent to this
+// callback where you may write it to a file, network socket, memory
+// buffer, etc.
+//
+// Return the number of bytes written, or less on failure.
+//
+// Callbacks must report all provided data written to be considered
+// successful; failure will propagate to abort the encoding process.
+//
+typedef size_t (*mtpng_write_func)(void* user_data,
+                                   const uint8_t* p_bytes,
+                                   size_t len);
 
+//
+// Flush callback type for mtpng_encoder_new().
+//
+// If buffering output to a socket or file, you should flush it
+// at this point.
+//
+// This may be called when streaming output at block boundaries,
+// allowing a realtime consumer of the data to see and decode
+// the additional data.
+//
+// Return true on success, or false on failure; failure will
+// propagate to  abort the encoding process.
+//
 typedef bool (*mtpng_flush_func)(void* user_data);
 
 #pragma mark ThreadPool
 
 //
-// Creates a new threadpool with the given number
-// of threads. MTPNG_THREADS_DEFAULT (0) means to
-// auto-detect the number of logical processors.
+// Creates a new thread pool with the given number of threads.
+// MTPNG_THREADS_DEFAULT (0) means to auto-detect the number of
+// logical processors.
+//
+// On input, *pp_pool must be NULL.
+// On output, *pp_pool will be a pointer to a thread pool instance
+// if successful, or remain unchanged in case of error.
+//
+// If you do not create a thread pool, a default global one will
+// be created when you first create an encoder.
+//
+// A thread pool may be used with multiple encoders, but caller
+// is responsible for ensuring that the pool lives longer than
+// all the encoders using it.
+//
+// Check the return value for errors.
 //
 extern mtpng_result
-mtpng_threadpool_new(mtpng_threadpool** pool,
+mtpng_threadpool_new(mtpng_threadpool** pp_pool,
                      size_t threads);
 
 //
 // Releases the pool's memory and clears the pointer.
 //
+// On input, *pp_pool must be a valid instance pointer.
+// On output, *pp_pool will be NULL on success or remain unchanged
+// in case of failure.
+//
+// Caller's responsibility to ensure that no encoders are using
+// the pool.
+//
+// Check the return value for errors.
+//
 extern mtpng_result
-mtpng_threadpool_release(mtpng_threadpool** pool);
+mtpng_threadpool_release(mtpng_threadpool** pp_pool);
 
 #pragma mark Encoder
 
 //
 // Create a new PNG encoder instance.
 //
-// The write and flush functions are required, and must not be NULL.
+// On input, *pp_encoder must be NULL.
+// On output, *pp_encoder will be an instance pointer on success,
+// or remain unchanged in case of failure.
+//
+// The write_func and flush_func callbacks are required,
+// and must not be NULL.
 // @fixme enforce that
 //
 // user_data is passed to the write and flush functions, and may
 // be any value such as a private object pointer or NULL.
 //
 // p_pool may be NULL, in which case a default global thread pool
-// will be used.
+// will be used. If a thread pool is provided, it is the caller's
+// responsibility to keep the thread pool alive until all encoders
+// using it have been released.
+//
+// Check the return values for errors.
 //
 extern mtpng_result
 mtpng_encoder_new(mtpng_encoder** pp_encoder,
                   mtpng_write_func write_func,
                   mtpng_flush_func flush_func,
-                  void* const  user_data,
-                  mtpng_threadpool *p_pool);
+                  void* const user_data,
+                  mtpng_threadpool* p_pool);
 
 //
 // Releases the encoder's memory and clears the pointer.
+//
+// This need only be used if aborting encoding early due to
+// errors etc; normally the call to mtpng_encoder_finish()
+// at the end of encoding will consume the instance and
+// release its memory.
+//
+// On input, *pp_encoder must be a valid instance pointer.
+// On output, *pp_encoder will be NULL on success, or remain
+// unchanged in case of failure.
 //
 // If using a threadpool, must be called before releasing the
 // threadpool!
 //
 // If the encoder is still in use, this may explode.
 //
+// Check the return value for errors.
+//
 extern mtpng_result
 mtpng_encoder_release(mtpng_encoder** pp_encoder);
 
 //
-// Set the color type and depth for the image.
+// Set the image size in pixels. The given width and height
+// values must not be 0, but are not otherwise limited.
 //
-// If you do not specify, you'll get truecolor with alpha
-// at 8-bit depth.
+// Caller is responsible for ensuring that at least one row
+// of image data copied a few times fits in memory, or you're
+// gonna have a bad time.
 //
-// Must be called before mtpng_encoder_write_header().
+// Required before calling mtpng_encoder_write_header().
+//
+// Check the return value for errors.
 //
 extern mtpng_result
 mtpng_encoder_set_size(mtpng_encoder* p_encoder,
@@ -135,10 +238,15 @@ mtpng_encoder_set_size(mtpng_encoder* p_encoder,
 //
 // Set the color type and depth for the image.
 //
-// If you do not specify, you'll get truecolor with alpha
-// at 8-bit depth.
+// Any valid combination of color type and depth is accepted;
+// see https://www.w3.org/TR/PNG/#table111 for the specs.
+//
+// If you do not call this function, mtpng will assume you want
+// truecolor with alpha at 8-bit depth.
 //
 // Must be called before mtpng_encoder_write_header().
+//
+// Check the return value for errors.
 //
 extern mtpng_result
 mtpng_encoder_set_color(mtpng_encoder* p_encoder,
@@ -164,6 +272,8 @@ mtpng_encoder_set_color(mtpng_encoder* p_encoder,
 //
 // Must be called before mtpng_encoder_write_header().
 //
+// Check the return value for errors.
+//
 extern mtpng_result
 mtpng_encoder_set_chunk_size(mtpng_encoder* p_encoder,
                              size_t chunk_size);
@@ -174,6 +284,8 @@ mtpng_encoder_set_chunk_size(mtpng_encoder* p_encoder,
 //
 // Must be called before mtpng_encoder_append_row() or
 // mtpng_encoder_finish().
+//
+// Check the return value for errors.
 //
 extern mtpng_result
 mtpng_encoder_write_header(mtpng_encoder *p_encoder);
@@ -190,6 +302,11 @@ mtpng_encoder_write_header(mtpng_encoder *p_encoder);
 // Image data must be pre-packed in the correct bit depth and
 // chanel order.
 //
+// p_bytes must be a valid pointer, and len must match the
+// expected stride for the color type, depth, and width.
+//
+// Check the return value for errors.
+//
 extern mtpng_result
 mtpng_encoder_append_row(mtpng_encoder* p_encoder,
                          uint8_t* p_bytes,
@@ -202,11 +319,17 @@ mtpng_encoder_append_row(mtpng_encoder* p_encoder,
 // Must be called after all rows have been appended with
 // mtpng_encoder_append_row().
 //
+// On input, *pp_encoder must be a valid instance pointer.
+// On output, *pp_encoder will be NULL on success, or remain
+// unchanged in case of failure.
+//
 // You do not need to call mtpng_encoder_release after
 // this returns, and should not try.
 //
 // If using a threadpool, must be called before releasing
 // the threadpool!
+//
+// Check the return value for errors.
 //
 extern mtpng_result
 mtpng_encoder_finish(mtpng_encoder** pp_encoder);
