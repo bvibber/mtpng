@@ -1,3 +1,7 @@
+# Run all the sample files at given options
+# reads input from samples/*.png
+# creates output in out/*.png
+
 mkdir -p out && \
 cd samples && \
 for x in *.png

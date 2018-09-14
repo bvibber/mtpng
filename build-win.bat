@@ -1,4 +1,8 @@
+@echo off
 setlocal
+
+rem C API build script for Windows. Having trouble making it work
+rem for x86 on an x64 machine at the moment.
 
 if "x%VSCMD_ARG_TGT_ARCH%"=="x" (
     echo Must run from inside a Visual Studio tools command prompt.

@@ -1,5 +1,6 @@
 //
 // mtpng - a multithreaded parallel PNG encoder in Rust
+// mtpng.h - C API header
 //
 // Copyright (c) 2018 Brion Vibber
 //

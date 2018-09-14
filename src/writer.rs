@@ -1,5 +1,6 @@
 //
-// writer - low-level PNG stream writer
+// mtpng - a multithreaded parallel PNG encoder in Rust
+// writer.rs - low-level PNG chunk writer
 //
 // Copyright (c) 2018 Brion Vibber
 //

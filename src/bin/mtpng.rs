@@ -1,5 +1,6 @@
 //
-// mtpng - CLI utility for testing the parallel PNG encoder
+// mtpng - a multithreaded parallel PNG encoder in Rust
+// mtpng.rs - CLI utility for testing and Rust API example
 //
 // Copyright (c) 2018 Brion Vibber
 //

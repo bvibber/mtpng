@@ -1,5 +1,6 @@
 //
-// utils - misc bits
+// mtpng - a multithreaded parallel PNG encoder in Rust
+// utils.rs - misc bits
 //
 // Copyright (c) 2018 Brion Vibber
 //

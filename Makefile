@@ -1,3 +1,5 @@
+# C API sample file build for Unix (Linux and macOS)
+
 .FAKE : test run all clean
 
 CC=cc

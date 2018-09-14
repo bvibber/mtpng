@@ -1,6 +1,11 @@
 @echo off
 setlocal
 
+rem Run all the sample files at given options
+rem reads input from samples\*.png
+rem creates output in out\*.png
+rem Provide "x86" or "x64" as first param to set target.
+
 if not exist out mkdir out
 
 rem no really, this is how you look this up

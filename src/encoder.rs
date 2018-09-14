@@ -1,5 +1,6 @@
 //
-// encoder - multithreaded parallel PNG image encoder
+// mtpng - a multithreaded parallel PNG encoder in Rust
+// encoder.rs - implements the public encoder interface & internals
 //
 // Copyright (c) 2018 Brion Vibber
 //

@@ -1,6 +1,11 @@
 @echo off
 setlocal
 
+rem Run one sample file at given options
+rem reads input from samples\%1
+rem creates output in out\%1
+rem Provide "x86" or "x64" as first param to set target.
+
 if not exist out mkdir out
 
 rem no really, this is how you look this up

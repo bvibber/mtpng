@@ -1,5 +1,6 @@
 //
 // mtpng - a multithreaded parallel PNG encoder in Rust
+// lib.rs - library crate main file & public structs
 //
 // Copyright (c) 2018 Brion Vibber
 //

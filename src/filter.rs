@@ -1,5 +1,6 @@
 //
-// filter - adaptive pixel filtering for PNG encoding
+// mtpng - a multithreaded parallel PNG encoder in Rust
+// filter.rs - adaptive pixel filtering for PNG encoding
 //
 // Copyright (c) 2018 Brion Vibber
 //

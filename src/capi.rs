@@ -1,5 +1,6 @@
 //
-// C API - multithreaded parallel PNG image encoder
+// mtpng - a multithreaded parallel PNG encoder in Rust
+// capi.rs - C API implementation
 //
 // Copyright (c) 2018 Brion Vibber
 //
