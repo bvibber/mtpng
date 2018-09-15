@@ -33,8 +33,6 @@ use std::io;
 use std::io::Read;
 use std::io::Write;
 
-use std::slice;
-
 use std::sync::Arc;
 use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
