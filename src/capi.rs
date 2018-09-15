@@ -30,7 +30,6 @@ use std::io;
 use std::io::Read;
 use std::io::Write;
 
-use std::slice;
 use std::ptr;
 
 use libc::{c_void, c_int, size_t, uint8_t, uint32_t};
@@ -193,8 +192,8 @@ fn mtpng_threadpool_release(pp_pool: *mut PThreadPool)
 #[no_mangle]
 pub unsafe extern "C"
 fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
-                     write_func: CWriteFunc,
-                     flush_func: CFlushFunc,
+                     write_func: Option<CWriteFunc>,
+                     flush_func: Option<CFlushFunc>,
                      user_data: *const c_void,
                      p_pool: PThreadPool)
 -> CResult
@@ -202,15 +201,22 @@ fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
     if pp_encoder.is_null() {
         CResult::Err
     } else {
-        let writer = CWriter::new(write_func, flush_func, user_data);
-        if p_pool.is_null() {
-            let encoder = Encoder::new(writer);
-            *pp_encoder = Box::into_raw(Box::new(encoder));
-            CResult::Ok
-        } else {
-            let encoder = Encoder::with_thread_pool(writer, &*p_pool);
-            *pp_encoder = Box::into_raw(Box::new(encoder));
-            CResult::Ok
+        match (write_func, flush_func) {
+            (Some(wf), Some(ff)) => {
+                let writer = CWriter::new(wf, ff, user_data);
+                if p_pool.is_null() {
+                    let encoder = Encoder::new(writer);
+                    *pp_encoder = Box::into_raw(Box::new(encoder));
+                    CResult::Ok
+                } else {
+                    let encoder = Encoder::with_thread_pool(writer, &*p_pool);
+                    *pp_encoder = Box::into_raw(Box::new(encoder));
+                    CResult::Ok
+                }
+            },
+            _ => {
+                CResult::Err
+            }
         }
     }
 }
@@ -240,9 +246,13 @@ fn mtpng_encoder_set_size(p_encoder: PEncoder,
                           height: uint32_t)
 -> CResult
 {
-    match (*p_encoder).set_size(width, height) {
-        Ok(()) => CResult::Ok,
-        Err(_) => CResult::Err,
+    if p_encoder.is_null() {
+        CResult::Err
+    } else {
+        match (*p_encoder).set_size(width, height) {
+            Ok(()) => CResult::Ok,
+            Err(_) => CResult::Err,
+        }
     }
 }
 
@@ -253,7 +263,9 @@ fn mtpng_encoder_set_color(p_encoder: PEncoder,
                            depth: uint8_t)
 -> CResult
 {
-    if color_type < 0 || color_type > u8::max_value() as c_int {
+    if p_encoder.is_null() {
+        CResult::Err
+    } else if color_type < 0 || color_type > u8::max_value() as c_int {
         CResult::Err
     } else {
         match ColorType::from_u8(color_type as u8) {
@@ -272,9 +284,13 @@ fn mtpng_encoder_set_chunk_size(p_encoder: PEncoder,
                                 chunk_size: size_t)
 -> CResult
 {
-    match (*p_encoder).set_chunk_size(chunk_size) {
-        Ok(()) => CResult::Ok,
-        Err(_) => CResult::Err,
+    if p_encoder.is_null() {
+        CResult::Err
+    } else {
+        match (*p_encoder).set_chunk_size(chunk_size) {
+            Ok(()) => CResult::Ok,
+            Err(_) => CResult::Err,
+        }
     }
 }
 
@@ -284,9 +300,13 @@ fn mtpng_encoder_set_filter_mode(p_encoder: PEncoder,
                                 chunk_size: size_t)
 -> CResult
 {
-    match (*p_encoder).set_chunk_size(chunk_size) {
-        Ok(()) => CResult::Ok,
-        Err(_) => CResult::Err,
+    if p_encoder.is_null() {
+        CResult::Err
+    } else {
+        match (*p_encoder).set_chunk_size(chunk_size) {
+            Ok(()) => CResult::Ok,
+            Err(_) => CResult::Err,
+        }
     }
 }
 
@@ -296,26 +316,37 @@ pub unsafe extern "C"
 fn mtpng_encoder_write_header(p_encoder: PEncoder)
 -> CResult
 {
-    match (*p_encoder).write_header() {
-        Ok(()) => CResult::Ok,
-        Err(_) => CResult::Err,
+    if p_encoder.is_null() {
+        CResult::Err
+    } else {
+        match (*p_encoder).write_header() {
+            Ok(()) => CResult::Ok,
+            Err(_) => CResult::Err,
+        }
     }
 }
 
 #[no_mangle]
 pub unsafe extern "C"
 fn mtpng_encoder_write_image(p_encoder: PEncoder,
-                             read_func: CReadFunc,
+                             read_func: Option<CReadFunc>,
                              user_data: *const c_void)
 -> CResult
 {
     if p_encoder.is_null() {
         CResult::Err
     } else {
-        let mut reader = CReader::new(read_func, user_data);
-        match (*p_encoder).write_image(&mut reader) {
-            Ok(()) => CResult::Ok,
-            Err(_) => CResult::Err,
+        match read_func {
+            Some(rf) => {
+                let mut reader = CReader::new(rf, user_data);
+                match (*p_encoder).write_image(&mut reader) {
+                    Ok(()) => CResult::Ok,
+                    Err(_) => CResult::Err,
+                }
+            },
+            _ => {
+                CResult::Err
+            }
         }
     }
 }

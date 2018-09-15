@@ -193,7 +193,6 @@ mtpng_threadpool_release(mtpng_threadpool** pp_pool);
 //
 // The write_func and flush_func callbacks are required, and must
 // not be NULL.
-// @fixme enforce that
 //
 // user_data is passed to the callback functions, and may be any
 // value such as a private object pointer or NULL.
