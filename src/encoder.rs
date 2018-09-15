@@ -98,7 +98,9 @@ impl PixelChunk {
         self.rows.len() == (self.end_row - self.start_row)
     }
 
-    fn read_row(&mut self, reader: &mut Read) -> io::Result<usize> {
+    fn read_row<R>(&mut self, reader: &mut R) -> io::Result<usize>
+        where R: Read
+    {
         /*
         // To skip zeroing of memory can try:
         // But this doesn't do much and is dangerous.
@@ -452,6 +454,11 @@ enum DispatchMode {
     NonBlocking,
 }
 
+enum RowStatus {
+    Continue,
+    Done,
+}
+
 pub struct Encoder<'a, W: Write> {
     writer: Writer<W>,
     thread_pool: Option<&'a ThreadPool>,
@@ -467,6 +474,7 @@ pub struct Encoder<'a, W: Write> {
     // Accumulates input rows until enough are ready to fire off a filter job.
     pixel_accumulator: Arc<PixelChunk>,
     pixel_index: usize,
+    current_row: u32,
 
     // Accumulates completed output from pixel input, filter, and deflate jobs.
     pixel_chunks: ChunkMap<PixelChunk>,
@@ -499,6 +507,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             // hack, clean this up later
             pixel_accumulator: Arc::new(PixelChunk::new(Header::default(), 0, 0, 0)),
             pixel_index: 0,
+            current_row: 0,
 
             pixel_chunks: ChunkMap::new(),
             filter_chunks: ChunkMap::new(),
@@ -817,12 +826,11 @@ impl<'a, W: Write> Encoder<'a, W> {
     // Copy a row's pixel data into buffers for async compression.
     // Returns immediately after copying.
     //
-    fn process_row<R>(&mut self, reader: &mut R) -> IoResult
-    where R:Read
+    fn process_row<R>(&mut self, reader: &mut R) -> io::Result<RowStatus>
+        where R:Read
     {
         if self.pixel_index >= self.chunks_total {
-            // @todo use Err
-            panic!("Tried to append beyond end of image");
+            return Err(other("invalid internal state"));
         }
 
         Arc::get_mut(&mut self.pixel_accumulator).unwrap().read_row(reader)?;
@@ -844,7 +852,13 @@ impl<'a, W: Write> Encoder<'a, W> {
             // Dispatch any available async tasks and output.
             self.dispatch(DispatchMode::NonBlocking)?;
         }
-        Ok(())
+
+        self.current_row = self.current_row + 1;
+        if self.current_row == self.header.height {
+            Ok(RowStatus::Done)
+        } else {
+            Ok(RowStatus::Continue)
+        }
     }
 
     //
@@ -857,11 +871,35 @@ impl<'a, W: Write> Encoder<'a, W> {
     // or too little data per row will cause failure.
     //
     pub fn write_image<R>(&mut self, reader: &mut R) -> IoResult
-    where R: Read {
+        where R: Read
+    {
         for _y in 0 .. self.header.height {
             self.process_row(reader)?;
         }
         Ok(())
+    }
+
+    //
+    // Encode and compress the given image data and write to output.
+    //
+    // An integral number of rows must be provided at once.
+    //
+    // If not all of the image rows are provided, multiple calls are
+    // required to finish out the data.
+    //
+    // This is a convenience function so it can take an immutable
+    // shared slice reference as parameter.
+    //
+    pub fn write_image_rows(&mut self, buf: &[u8]) -> IoResult {
+        let stride = self.header.stride();
+        if buf.len() % stride != 0 {
+            Err(invalid_input("Buffer must be an integral number of rows"))
+        } else {
+            for row in buf.chunks(stride) {
+                self.process_row(&mut &*row)?;
+            }
+            Ok(())
+        }
     }
 
     //

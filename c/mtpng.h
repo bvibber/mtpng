@@ -317,14 +317,15 @@ extern mtpng_result
 mtpng_encoder_write_header(mtpng_encoder *p_encoder);
 
 //
-// Encode, compress, and write an image to the output stream.
+// Encode, compress, and write an image to the output stream
+// using pixel data provided by a callback in a "pull" manner.
 //
-// Must be called after mtpng_encoder_write_header and before
+// Must be called after mtpng_encoder_write_header() and before
 // mtpng_encoder_finish(). The read_func callback will be called
 // once for each row of the image data.
 //
 // Image data must be pre-packed in the correct bit depth and
-// chanel order.
+// channel order.
 //
 // Check the return value for errors.
 //
@@ -332,6 +333,28 @@ extern mtpng_result
 mtpng_encoder_write_image(mtpng_encoder* p_encoder,
                           mtpng_read_func read_func,
                           void* user_data);
+
+//
+// Load one or more rows of input data into the encoder, to be
+// filtered and compressed as data is provided.
+//
+// Use this in preference to mtpng_encoder_write_image() to drive
+// the encoder in a "push" manner, or if all data is conveniently
+// available in a buffer ahead of time.
+//
+// Must be called after mtpng_encoder_write_header() and before
+// mtpng_encoder_finish().
+//
+// Image data must be pre-packed in the correct bit depth and
+// channel order. If not all rows are provided before calling
+// mtpng_encoder_finish(), failure will result.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_write_image_rows(mtpng_encoder* p_encoder,
+                               const uint8_t* p_bytes,
+                               size_t len);
 
 //
 // Wait for any outstanding work blocks, flush output,

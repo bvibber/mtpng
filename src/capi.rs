@@ -362,6 +362,26 @@ fn mtpng_encoder_write_image(p_encoder: PEncoder,
 
 #[no_mangle]
 pub unsafe extern "C"
+fn mtpng_encoder_write_image_rows(p_encoder: PEncoder,
+                                  p_bytes: *const uint8_t,
+                                  len: size_t)
+-> CResult
+{
+    if p_encoder.is_null() {
+        CResult::Err
+    } else if p_bytes.is_null() {
+        CResult::Err
+    } else {
+        let slice = ::std::slice::from_raw_parts(p_bytes, len);
+        match (*p_encoder).write_image_rows(slice) {
+            Ok(()) => CResult::Ok,
+            Err(_) => CResult::Err,
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C"
 fn mtpng_encoder_finish(pp_encoder: *mut PEncoder)
 -> CResult
 {

@@ -118,13 +118,7 @@ fn write_png(pool: &ThreadPool, args: &ArgMatches,
     encoder.set_size(header.width, header.height)?;
     encoder.set_color(header.color_type, header.depth)?;
     encoder.write_header()?;
-
-    //
-    // I know this _looks weird_ but we have to get a mutable clone
-    // of the immutable input slice so it can be incremented as a reader
-    //
-    encoder.write_image(&mut data.clone())?;
-
+    encoder.write_image_rows(data)?;
     encoder.finish()?;
 
     Ok(())
