@@ -92,6 +92,11 @@ int main(int argc, char **argv) {
                           pool));
 
     //
+    // Set some encoding options
+    //
+    TRY(mtpng_encoder_set_chunk_size(encoder, 200000));
+
+    //
     // Set up the PNG image state
     //
     TRY(mtpng_encoder_set_size(encoder, 1024, 768));

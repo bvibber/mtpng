@@ -26,22 +26,18 @@
 use rayon::ThreadPoolBuilder;
 use rayon::ThreadPool;
 
-use std::ffi::CString;
-
 use std::io;
 use std::io::Write;
 
 use std::slice;
 use std::ptr;
 
-use libc::{c_char, c_void, c_int, size_t, uint32_t};
+use libc::{c_void, c_int, size_t, uint8_t, uint32_t};
 
 use super::ColorType;
 use super::CompressionLevel;
-use super::Header;
 use super::Mode;
 use super::Mode::{Adaptive, Fixed};
-use super::Options;
 
 use super::encoder::Encoder;
 
@@ -49,7 +45,7 @@ use super::filter::Filter;
 
 use super::deflate::Strategy;
 
-use super::utils::{invalid_input, other};
+use super::utils::other;
 
 #[repr(C)]
 pub enum CResult {
@@ -58,7 +54,7 @@ pub enum CResult {
 }
 
 pub type CWriteFunc = unsafe extern "C"
-    fn(*const c_void, *const u8, size_t) -> size_t;
+    fn(*const c_void, *const uint8_t, size_t) -> size_t;
 
 pub type CFlushFunc = unsafe extern "C"
     fn(*const c_void) -> bool;
@@ -93,7 +89,7 @@ impl Write for CWriter {
                                    &buf[0],
                                    buf.len())
         };
-        if ret > 0 {
+        if ret == buf.len() {
             Ok(ret)
         } else {
             Err(other("mtpng write callback returned failure"))
@@ -169,11 +165,11 @@ fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
     } else {
         let writer = CWriter::new(write_func, flush_func, user_data);
         if p_pool.is_null() {
-            let mut encoder = Encoder::new(writer);
+            let encoder = Encoder::new(writer);
             *pp_encoder = Box::into_raw(Box::new(encoder));
             CResult::Ok
         } else {
-            let mut encoder = Encoder::with_thread_pool(writer, &*p_pool);
+            let encoder = Encoder::with_thread_pool(writer, &*p_pool);
             *pp_encoder = Box::into_raw(Box::new(encoder));
             CResult::Ok
         }
@@ -201,8 +197,8 @@ fn mtpng_encoder_release(pp_encoder: *mut PEncoder)
 #[no_mangle]
 pub unsafe extern "C"
 fn mtpng_encoder_set_size(p_encoder: PEncoder,
-                          width: u32,
-                          height: u32)
+                          width: uint32_t,
+                          height: uint32_t)
 -> CResult
 {
     match (*p_encoder).set_size(width, height) {
@@ -215,14 +211,30 @@ fn mtpng_encoder_set_size(p_encoder: PEncoder,
 pub unsafe extern "C"
 fn mtpng_encoder_set_color(p_encoder: PEncoder,
                            color_type: c_int,
-                           depth: u8)
+                           depth: uint8_t)
 -> CResult
 {
-    match ColorType::from_u8(color_type as u8) {
-        Ok(color) => match (*p_encoder).set_color(color, depth) {
-            Ok(()) => CResult::Ok,
+    if color_type < 0 || color_type > u8::max_value() as c_int {
+        CResult::Err
+    } else {
+        match ColorType::from_u8(color_type as u8) {
+            Ok(color) => match (*p_encoder).set_color(color, depth) {
+                Ok(()) => CResult::Ok,
+                Err(_) => CResult::Err,
+            },
             Err(_) => CResult::Err,
-        },
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_set_chunk_size(p_encoder: PEncoder,
+                                chunk_size: size_t)
+-> CResult
+{
+    match (*p_encoder).set_chunk_size(chunk_size) {
+        Ok(()) => CResult::Ok,
         Err(_) => CResult::Err,
     }
 }
@@ -242,7 +254,7 @@ fn mtpng_encoder_write_header(p_encoder: PEncoder)
 #[no_mangle]
 pub unsafe extern "C"
 fn mtpng_encoder_append_row(p_encoder: PEncoder,
-                            p_bytes: *const u8,
+                            p_bytes: *const uint8_t,
                             len: size_t)
 -> CResult
 {
