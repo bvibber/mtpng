@@ -191,8 +191,8 @@ mtpng_threadpool_release(mtpng_threadpool** pp_pool);
 // On output, *pp_encoder will be an instance pointer on success,
 // or remain unchanged in case of failure.
 //
-// The read_func, write_func and flush_func callbacks are required,
-// and must not be NULL.
+// The write_func and flush_func callbacks are required, and must
+// not be NULL.
 // @fixme enforce that
 //
 // user_data is passed to the callback functions, and may be any
@@ -207,7 +207,6 @@ mtpng_threadpool_release(mtpng_threadpool** pp_pool);
 //
 extern mtpng_result
 mtpng_encoder_new(mtpng_encoder** pp_encoder,
-                  mtpng_read_func read_func,
                   mtpng_write_func write_func,
                   mtpng_flush_func flush_func,
                   void* const user_data,
@@ -308,26 +307,21 @@ extern mtpng_result
 mtpng_encoder_write_header(mtpng_encoder *p_encoder);
 
 //
-// Append a row of data. Must be called after the call to
-// mtpng_encoder_write_header() and before the call to
-// mtpng_encoder_finish().
+// Encode, compress, and write an image to the output stream.
 //
 // Must be called after mtpng_encoder_write_header and before
-// mtpng_encoder_apend_row() or mtpng_encoder_finish(). Call
+// mtpng_encoder_finish(). The read_func callback will be called
 // once for each row of the image data.
 //
 // Image data must be pre-packed in the correct bit depth and
 // chanel order.
 //
-// p_bytes must be a valid pointer, and len must match the
-// expected stride for the color type, depth, and width.
-//
 // Check the return value for errors.
 //
 extern mtpng_result
-mtpng_encoder_append_row(mtpng_encoder* p_encoder,
-                         uint8_t* p_bytes,
-                         size_t len);
+mtpng_encoder_write_image(mtpng_encoder* p_encoder,
+                          mtpng_read_func read_func,
+                          void* user_data);
 
 //
 // Wait for any outstanding work blocks, flush output,

@@ -454,8 +454,7 @@ enum DispatchMode {
     NonBlocking,
 }
 
-pub struct Encoder<'a, R: Read, W: Write> {
-    reader: R,
+pub struct Encoder<'a, W: Write> {
     writer: Writer<W>,
     thread_pool: Option<&'a ThreadPool>,
 
@@ -484,11 +483,10 @@ pub struct Encoder<'a, R: Read, W: Write> {
     rx: Receiver<ThreadMessage>,
 }
 
-impl<'a, R: Read, W: Write> Encoder<'a, R, W> {
-    fn new_encoder(read: R, write: W, thread_pool: Option<&'a ThreadPool>) -> Encoder<'a, R, W> {
+impl<'a, W: Write> Encoder<'a, W> {
+    fn new_encoder(write: W, thread_pool: Option<&'a ThreadPool>) -> Encoder<'a, W> {
         let (tx, rx) = mpsc::channel();
         Encoder {
-            reader: read,
             writer: Writer::new(write),
             thread_pool: thread_pool,
 
@@ -519,16 +517,16 @@ impl<'a, R: Read, W: Write> Encoder<'a, R, W> {
     // Create a new encoder using default thread pool.
     // Consumes the Write target, but you can get it back via finish()
     //
-    pub fn new(reader: R, writer: W) -> Encoder<'static, R, W> {
-        Encoder::new_encoder(reader, writer, None)
+    pub fn new(writer: W) -> Encoder<'static, W> {
+        Encoder::new_encoder(writer, None)
     }
 
     //
     // Create a new encoder state using given thread pool
     // Consumes the Write target, but you can get it back via finish()
     //
-    pub fn with_thread_pool(reader: R, writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, R, W> {
-        Encoder::new_encoder(reader, writer, Some(thread_pool))
+    pub fn with_thread_pool(writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
+        Encoder::new_encoder(writer, Some(thread_pool))
     }
 
     pub fn set_size(&mut self, width: u32, height: u32) -> IoResult {
@@ -821,13 +819,15 @@ impl<'a, R: Read, W: Write> Encoder<'a, R, W> {
     // Copy a row's pixel data into buffers for async compression.
     // Returns immediately after copying.
     //
-    fn process_row(&mut self) -> IoResult {
+    fn process_row<R>(&mut self, reader: &mut R) -> IoResult
+    where R:Read
+    {
         if self.pixel_index >= self.chunks_total {
             // @todo use Err
             panic!("Tried to append beyond end of image");
         }
 
-        Arc::get_mut(&mut self.pixel_accumulator).unwrap().read_row(&mut self.reader)?;
+        Arc::get_mut(&mut self.pixel_accumulator).unwrap().read_row(reader)?;
 
         if self.pixel_accumulator.is_full() {
             // Move the item off to the completed stack...
@@ -849,9 +849,19 @@ impl<'a, R: Read, W: Write> Encoder<'a, R, W> {
         Ok(())
     }
 
-    pub fn write_image(&mut self) -> IoResult {
-        for y in 0 .. self.header.height {
-            self.process_row()?;
+    //
+    // Encode and compress the given image data and write to output.
+    //
+    // Input data must be packed in the correct format for the given
+    // color type and depth, with no padding at the end of rows.
+    //
+    // Data will be requested one row at a time; returning too much
+    // or too little data per row will cause failure.
+    //
+    pub fn write_image<R>(&mut self, reader: &mut R) -> IoResult
+    where R: Read {
+        for _y in 0 .. self.header.height {
+            self.process_row(reader)?;
         }
         Ok(())
     }
@@ -894,12 +904,12 @@ mod tests {
     use super::IoResult;
 
     struct RowProvider {
-        width: u32,
+        // no fields needed atm
     }
     impl RowProvider {
-        fn new(width: u32) -> RowProvider {
+        fn new() -> RowProvider {
             RowProvider {
-                width: width,
+                // whee
             }
         }
     }
@@ -913,15 +923,17 @@ mod tests {
     }
 
     fn test_encoder<F>(width: u32, height: u32, func: F)
-        where F: Fn(&mut Encoder<RowProvider, Vec<u8>>) -> IoResult
+        where F: Fn(&mut Encoder<Vec<u8>>, &mut RowProvider) -> IoResult
     {
         match {
-            let reader = RowProvider::new(width);
+            let mut reader = RowProvider::new();
             let writer = Vec::<u8>::new();
-            let mut encoder = Encoder::new(reader, writer);
+
+            let mut encoder = Encoder::new(writer);
             encoder.set_size(width, height).unwrap();
             encoder.set_color(ColorType::Truecolor, 8).unwrap();
-            match func(&mut encoder) {
+
+            match func(&mut encoder, &mut reader) {
                 Ok(()) => {},
                 Err(e) => assert!(false, "Error during test: {}", e),
             }
@@ -934,14 +946,14 @@ mod tests {
 
     #[test]
     fn create_and_state() {
-        test_encoder(1920, 1080, |encoder| {
+        test_encoder(1920, 1080, |encoder, data| {
             encoder.write_header()?;
 
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
 
             // We must finish out the file or it'll whinge.
-            encoder.write_image();
+            encoder.write_image(data)?;
 
             Ok(())
         });
@@ -949,13 +961,13 @@ mod tests {
 
     #[test]
     fn test_rows() {
-        test_encoder(1920, 1080, |encoder| {
+        test_encoder(1920, 1080, |encoder, data| {
             encoder.write_header()?;
 
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
 
-            encoder.write_image();
+            encoder.write_image(data)?;
 
             // Should trigger all blocks!
             encoder.flush()?;

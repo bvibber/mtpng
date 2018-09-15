@@ -148,7 +148,7 @@ impl Write for CWriter {
 }
 
 // Cheat on the lifetimes?
-type CEncoder = Encoder<'static, CReader, CWriter>;
+type CEncoder = Encoder<'static, CWriter>;
 
 pub type PThreadPool = *mut ThreadPool;
 pub type PEncoder = *mut CEncoder;
@@ -193,7 +193,6 @@ fn mtpng_threadpool_release(pp_pool: *mut PThreadPool)
 #[no_mangle]
 pub unsafe extern "C"
 fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
-                     read_func: CReadFunc,
                      write_func: CWriteFunc,
                      flush_func: CFlushFunc,
                      user_data: *const c_void,
@@ -203,14 +202,13 @@ fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
     if pp_encoder.is_null() {
         CResult::Err
     } else {
-        let reader = CReader::new(read_func, user_data);
         let writer = CWriter::new(write_func, flush_func, user_data);
         if p_pool.is_null() {
-            let encoder = Encoder::new(reader, writer);
+            let encoder = Encoder::new(writer);
             *pp_encoder = Box::into_raw(Box::new(encoder));
             CResult::Ok
         } else {
-            let encoder = Encoder::with_thread_pool(reader, writer, &*p_pool);
+            let encoder = Encoder::with_thread_pool(writer, &*p_pool);
             *pp_encoder = Box::into_raw(Box::new(encoder));
             CResult::Ok
         }
@@ -306,13 +304,16 @@ fn mtpng_encoder_write_header(p_encoder: PEncoder)
 
 #[no_mangle]
 pub unsafe extern "C"
-fn mtpng_encoder_write_image(p_encoder: PEncoder)
+fn mtpng_encoder_write_image(p_encoder: PEncoder,
+                             read_func: CReadFunc,
+                             user_data: *const c_void)
 -> CResult
 {
     if p_encoder.is_null() {
         CResult::Err
     } else {
-        match (*p_encoder).write_image() {
+        let mut reader = CReader::new(read_func, user_data);
+        match (*p_encoder).write_image(&mut reader) {
             Ok(()) => CResult::Ok,
             Err(_) => CResult::Err,
         }

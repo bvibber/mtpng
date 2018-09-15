@@ -39,7 +39,7 @@ static size_t read_func(void* user_data, uint8_t* bytes, size_t len)
 {
     main_state* state = (main_state*)user_data;
     for (size_t x = 0; x < state->width; x++) {
-        size_t i = state->stride * state->y + x * state->bpp;
+        size_t i = x * state->bpp;
         bytes[i] = (x + state->y) % 256;
         bytes[i + 1] = (2 * x + state->y) % 256;
         bytes[i + 2] = (x + 2 * state->y) % 256;
@@ -104,10 +104,9 @@ int main(int argc, char **argv) {
 
     mtpng_encoder* encoder;
     TRY(mtpng_encoder_new(&encoder,
-                          read_func,
                           write_func,
                           flush_func,
-                          (void *)&state,
+                          (void*)&state,
                           pool));
 
     //
@@ -125,7 +124,7 @@ int main(int argc, char **argv) {
     // Write the data!
     //
     TRY(mtpng_encoder_write_header(encoder));
-    TRY(mtpng_encoder_write_image_data());
+    TRY(mtpng_encoder_write_image(encoder, read_func, (void*)&state));
     TRY(mtpng_encoder_finish(&encoder));
 
 cleanup:
