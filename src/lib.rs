@@ -53,7 +53,7 @@ pub enum Mode<T> {
     Adaptive,
     Fixed(T),
 }
-use Mode::{Adaptive, Fixed};
+use Mode::Adaptive;
 
 #[derive(Copy, Clone)]
 #[repr(u8)]

@@ -24,10 +24,13 @@
 //
 
 use std::cmp;
+use std::io;
 
 use super::Header;
 use super::Mode;
 use super::Mode::{Adaptive, Fixed};
+
+use super::utils::invalid_input;
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
@@ -37,6 +40,19 @@ pub enum Filter {
     Up = 2,
     Average = 3,
     Paeth = 4,
+}
+
+impl Filter {
+    pub fn from_u8(val: u8) -> io::Result<Filter> {
+        match val {
+            0 => Ok(Filter::None),
+            1 => Ok(Filter::Sub),
+            2 => Ok(Filter::Up),
+            3 => Ok(Filter::Average),
+            4 => Ok(Filter::Paeth),
+            _ => Err(invalid_input("Invalid filter constant value")),
+        }
+    }
 }
 
 //

@@ -119,6 +119,7 @@ int main(int argc, char **argv) {
     //
     TRY(mtpng_encoder_set_size(encoder, 1024, 768));
     TRY(mtpng_encoder_set_color(encoder, color_type, depth));
+    TRY(mtpng_encoder_set_filter(encoder, MTPNG_FILTER_ADAPTIVE));
 
     //
     // Write the data!

@@ -280,6 +280,32 @@ fn mtpng_encoder_set_color(p_encoder: PEncoder,
 
 #[no_mangle]
 pub unsafe extern "C"
+fn mtpng_encoder_set_filter(p_encoder: PEncoder,
+                            filter_mode: c_int)
+-> CResult
+{
+    if p_encoder.is_null() {
+        CResult::Err
+    } else if filter_mode > u8::max_value() as c_int {
+        CResult::Err
+    } else {
+        let mode = if filter_mode < 0 {
+            Adaptive
+        } else {
+            match Filter::from_u8(filter_mode as u8) {
+                Ok(f) => Fixed(f),
+                Err(_) => return CResult::Err,
+            }
+        };
+        match (*p_encoder).set_filter_mode(mode) {
+            Ok(()) => CResult::Ok,
+            Err(_) => CResult::Err,
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C"
 fn mtpng_encoder_set_chunk_size(p_encoder: PEncoder,
                                 chunk_size: size_t)
 -> CResult
@@ -293,23 +319,6 @@ fn mtpng_encoder_set_chunk_size(p_encoder: PEncoder,
         }
     }
 }
-
-#[no_mangle]
-pub unsafe extern "C"
-fn mtpng_encoder_set_filter_mode(p_encoder: PEncoder,
-                                chunk_size: size_t)
--> CResult
-{
-    if p_encoder.is_null() {
-        CResult::Err
-    } else {
-        match (*p_encoder).set_chunk_size(chunk_size) {
-            Ok(()) => CResult::Ok,
-            Err(_) => CResult::Err,
-        }
-    }
-}
-
 
 #[no_mangle]
 pub unsafe extern "C"

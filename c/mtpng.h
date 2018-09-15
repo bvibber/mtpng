@@ -56,12 +56,12 @@ typedef enum mtpng_result_t {
 // a heuristic to try to guess the best compressing filter.
 //
 typedef enum mtpng_filter_t {
+    MTPNG_FILTER_ADAPTIVE = -1,
     MTPNG_FILTER_NONE = 0,
     MTPNG_FILTER_SUB = 1,
     MTPNG_FILTER_UP = 2,
     MTPNG_FILTER_AVERAGE = 3,
-    MTPNG_FILTER_PAETH = 4,
-    MTPNG_FILTER_ADAPTIVE = 256
+    MTPNG_FILTER_PAETH = 4
 } mtpng_filter;
 
 //
@@ -267,6 +267,17 @@ extern mtpng_result
 mtpng_encoder_set_color(mtpng_encoder* p_encoder,
                         mtpng_color color_type,
                         uint8_t depth);
+
+//
+// Override the default PNG filter mode selection.
+//
+// The default is MTPNG_FILTER_NONE for indexed images and
+// MTPNG_FILTER_ADAPTIVE for all others. Some images compress
+// better with a particular filter.
+//
+extern mtpng_result
+mtpng_encoder_set_filter(mtpng_encoder* p_encoder,
+                         mtpng_filter filter_mode);
 
 //
 // Override the default chunk size for parallel encoding
