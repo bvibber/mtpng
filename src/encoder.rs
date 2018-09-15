@@ -30,7 +30,10 @@ use std::cmp;
 use std::collections::HashMap;
 
 use std::io;
+use std::io::Read;
 use std::io::Write;
+
+use std::slice;
 
 use std::sync::Arc;
 use std::sync::mpsc;
@@ -67,23 +70,16 @@ struct PixelChunk {
 
     stride: usize,
 
-    // Pixel data, stride bytes per row
-    data: Vec<u8>,
+    // Rows of pixel data, each with stride bytes per row
+    rows: Vec<Vec<u8>>,
 }
 
 impl PixelChunk {
     fn new(header: Header, index: usize, start_row: usize, end_row: usize) -> PixelChunk {
-        if start_row > end_row {
-            panic!("Invalid start row");
-        }
+        assert!(start_row <= end_row);
 
         let height = header.height as usize;
-        if end_row > height {
-            panic!("Invalid end row");
-        }
-
-        let stride = header.stride();
-        let nbytes = stride * (end_row - start_row);
+        assert!(end_row <= height);
 
         PixelChunk {
             header: header,
@@ -94,25 +90,33 @@ impl PixelChunk {
             is_start: start_row == 0,
             is_end: end_row == height,
 
-            stride: stride as usize,
+            stride: header.stride(),
 
-            data: Vec::with_capacity(nbytes),
+            rows: Vec::with_capacity(end_row - start_row),
         }
     }
 
     fn is_full(&self) -> bool {
-        self.data.len() == self.stride * (self.end_row - self.start_row)
+        self.rows.len() == (self.end_row - self.start_row)
     }
 
-    fn append_row(&mut self, row: &[u8]) {
-        // If shifts or byte swapping are necessary, during copy is a good place.
-        // Otherwise, just copy!
-        if row.len() != self.stride {
-            panic!("Appending row of wrong stride.");
-        } else if self.is_full() {
-            panic!("Appending beyond end of chunk.");
+    fn read_row(&mut self, reader: &mut Read) -> io::Result<usize> {
+        /*
+        // To skip zeroing of memory can try:
+        // But this doesn't do much and is dangerous.
+        let mut row = Vec::<u8>::with_capacity(self.stride);
+        unsafe {
+            row.set_len(self.stride);
+        }
+        */
+        let mut row = vec![0u8; self.stride];
+
+        let nbytes = reader.read(&mut row)?;
+        if nbytes == self.stride {
+            self.rows.push(row);
+            Ok(self.stride)
         } else {
-            self.data.extend_from_slice(row);
+            Err(invalid_input("Unexpected bytes read"))
         }
     }
 
@@ -122,8 +126,7 @@ impl PixelChunk {
         } else if row >= self.end_row {
             panic!("Tried to access row from later chunk: {} >= {}", row, self.end_row);
         } else {
-            let start = self.stride * (row - self.start_row);
-            return &self.data[start .. start + self.stride];
+            return &self.rows[row - self.start_row];
         }
     }
 }
@@ -451,7 +454,8 @@ enum DispatchMode {
     NonBlocking,
 }
 
-pub struct Encoder<'a, W: Write> {
+pub struct Encoder<'a, R: Read, W: Write> {
+    reader: R,
     writer: Writer<W>,
     thread_pool: Option<&'a ThreadPool>,
 
@@ -480,15 +484,16 @@ pub struct Encoder<'a, W: Write> {
     rx: Receiver<ThreadMessage>,
 }
 
-impl<'a, W: Write> Encoder<'a, W> {
-    fn new_encoder(write: W, thread_pool: Option<&'a ThreadPool>) -> Encoder<'a, W> {
+impl<'a, R: Read, W: Write> Encoder<'a, R, W> {
+    fn new_encoder(read: R, write: W, thread_pool: Option<&'a ThreadPool>) -> Encoder<'a, R, W> {
         let (tx, rx) = mpsc::channel();
         Encoder {
-            header: Header::default(),
-            options: Options::new(),
+            reader: read,
             writer: Writer::new(write),
             thread_pool: thread_pool,
 
+            header: Header::default(),
+            options: Options::new(),
             started: false,
 
             rows_per_chunk: 0,
@@ -514,16 +519,16 @@ impl<'a, W: Write> Encoder<'a, W> {
     // Create a new encoder using default thread pool.
     // Consumes the Write target, but you can get it back via finish()
     //
-    pub fn new(writer: W) -> Encoder<'static, W> {
-        Encoder::new_encoder(writer, None)
+    pub fn new(reader: R, writer: W) -> Encoder<'static, R, W> {
+        Encoder::new_encoder(reader, writer, None)
     }
 
     //
     // Create a new encoder state using given thread pool
     // Consumes the Write target, but you can get it back via finish()
     //
-    pub fn with_thread_pool(writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
-        Encoder::new_encoder(writer, Some(thread_pool))
+    pub fn with_thread_pool(reader: R, writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, R, W> {
+        Encoder::new_encoder(reader, writer, Some(thread_pool))
     }
 
     pub fn set_size(&mut self, width: u32, height: u32) -> IoResult {
@@ -816,13 +821,13 @@ impl<'a, W: Write> Encoder<'a, W> {
     // Copy a row's pixel data into buffers for async compression.
     // Returns immediately after copying.
     //
-    pub fn append_row(&mut self, row: &[u8]) -> IoResult {
+    fn process_row(&mut self) -> IoResult {
         if self.pixel_index >= self.chunks_total {
             // @todo use Err
             panic!("Tried to append beyond end of image");
         }
 
-        Arc::get_mut(&mut self.pixel_accumulator).unwrap().append_row(row);
+        Arc::get_mut(&mut self.pixel_accumulator).unwrap().read_row(&mut self.reader)?;
 
         if self.pixel_accumulator.is_full() {
             // Move the item off to the completed stack...
@@ -840,6 +845,13 @@ impl<'a, W: Write> Encoder<'a, W> {
 
             // Dispatch any available async tasks and output.
             self.dispatch(DispatchMode::NonBlocking)?;
+        }
+        Ok(())
+    }
+
+    pub fn write_image(&mut self) -> IoResult {
+        for y in 0 .. self.header.height {
+            self.process_row()?;
         }
         Ok(())
     }
@@ -874,16 +886,39 @@ impl<'a, W: Write> Encoder<'a, W> {
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+    use std::io::Read;
+
     use super::super::ColorType;
     use super::Encoder;
     use super::IoResult;
 
+    struct RowProvider {
+        width: u32,
+    }
+    impl RowProvider {
+        fn new(width: u32) -> RowProvider {
+            RowProvider {
+                width: width,
+            }
+        }
+    }
+    impl Read for RowProvider {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            for (i, byte) in buf.iter_mut().enumerate() {
+                *byte = (i % 255) as u8;
+            }
+            Ok(buf.len())
+        }
+    }
+
     fn test_encoder<F>(width: u32, height: u32, func: F)
-        where F: Fn(&mut Encoder<Vec<u8>>) -> IoResult
+        where F: Fn(&mut Encoder<RowProvider, Vec<u8>>) -> IoResult
     {
         match {
+            let reader = RowProvider::new(width);
             let writer = Vec::<u8>::new();
-            let mut encoder = Encoder::new(writer);
+            let mut encoder = Encoder::new(reader, writer);
             encoder.set_size(width, height).unwrap();
             encoder.set_color(ColorType::Truecolor, 8).unwrap();
             match func(&mut encoder) {
@@ -897,15 +932,6 @@ mod tests {
         }
     }
 
-    fn make_row(width: usize) -> Vec<u8> {
-        let stride = width * 3;
-        let mut row = Vec::<u8>::with_capacity(stride);
-        for i in 0 .. stride {
-            row.push((i % 255) as u8);
-        }
-        row
-    }
-
     #[test]
     fn create_and_state() {
         test_encoder(1920, 1080, |encoder| {
@@ -915,10 +941,7 @@ mod tests {
             assert_eq!(encoder.progress(), 0.0);
 
             // We must finish out the file or it'll whinge.
-            let row = make_row(1920);
-            for _i in 0 .. 1080 {
-                encoder.append_row(&row)?;
-            }
+            encoder.write_image();
 
             Ok(())
         });
@@ -932,30 +955,7 @@ mod tests {
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
 
-            let row = make_row(1920);
-            encoder.append_row(&row)?;
-            encoder.flush()?;
-
-            // A single row should be not enough to trigger
-            // a chunk.
-            assert_eq!(encoder.is_finished(), false);
-            assert_eq!(encoder.progress(), 0.0);
-
-            // Add some more rows to trigger a block of output.
-            for _i in 1 .. 256 {
-                encoder.append_row(&row)?;
-            }
-            encoder.flush()?;
-
-            // Should trigger at least one block
-            // but not enough to finish
-            assert_eq!(encoder.is_finished(), false);
-            assert!(encoder.progress() > 0.0);
-
-            // We must finish out the file or it'll whinge.
-            for _i in 256 .. 1080 {
-                encoder.append_row(&row)?;
-            }
+            encoder.write_image();
 
             // Should trigger all blocks!
             encoder.flush()?;

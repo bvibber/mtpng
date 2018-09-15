@@ -97,6 +97,22 @@ typedef struct mtpng_encoder_struct mtpng_encoder;
 #pragma mark Function types
 
 //
+// Read callback type for mtpng_encoder_new().
+//
+// When an additional input row is required, this callback is given
+// a data buffer to copy into. If data is not yet available, you
+// should block until it is.
+//
+// Return the number of bytes copied, or less on failure.
+//
+// Callbacks must report all bytes copied to be considered successful;
+// failure will propagate to abort the encoding process.
+//
+typedef size_t (*mtpng_read_func)(void* user_data,
+                                  uint8_t* p_bytes,
+                                  size_t len);
+
+//
 // Write callback type for mtpng_encoder_new().
 //
 // When output data is available from the decoder, it is sent to this
@@ -175,12 +191,12 @@ mtpng_threadpool_release(mtpng_threadpool** pp_pool);
 // On output, *pp_encoder will be an instance pointer on success,
 // or remain unchanged in case of failure.
 //
-// The write_func and flush_func callbacks are required,
+// The read_func, write_func and flush_func callbacks are required,
 // and must not be NULL.
 // @fixme enforce that
 //
-// user_data is passed to the write and flush functions, and may
-// be any value such as a private object pointer or NULL.
+// user_data is passed to the callback functions, and may be any
+// value such as a private object pointer or NULL.
 //
 // p_pool may be NULL, in which case a default global thread pool
 // will be used. If a thread pool is provided, it is the caller's
@@ -191,6 +207,7 @@ mtpng_threadpool_release(mtpng_threadpool** pp_pool);
 //
 extern mtpng_result
 mtpng_encoder_new(mtpng_encoder** pp_encoder,
+                  mtpng_read_func read_func,
                   mtpng_write_func write_func,
                   mtpng_flush_func flush_func,
                   void* const user_data,

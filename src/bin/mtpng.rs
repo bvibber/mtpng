@@ -74,7 +74,7 @@ fn write_png(pool: &ThreadPool, args: &ArgMatches,
 {
     let writer = try!(File::create(filename));
 
-    let mut encoder = Encoder::with_thread_pool(writer, pool);
+    let mut encoder = Encoder::with_thread_pool(data, writer, pool);
 
     // Encoding options
     match args.value_of("chunk-size") {
@@ -119,12 +119,7 @@ fn write_png(pool: &ThreadPool, args: &ArgMatches,
     encoder.set_size(header.width, header.height)?;
     encoder.set_color(header.color_type, header.depth)?;
     encoder.write_header()?;
-
-    for i in 0 .. header.height as usize {
-        let start = header.stride() * i;
-        let end = start + header.stride();
-        encoder.append_row(&data[start .. end])?;
-    }
+    encoder.write_image()?;
     encoder.finish()?;
 
     Ok(())

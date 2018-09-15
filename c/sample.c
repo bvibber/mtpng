@@ -27,6 +27,43 @@
 
 #include "mtpng.h"
 
+typedef struct main_state_t {
+    FILE* out;
+    size_t width;
+    size_t bpp;
+    size_t stride;
+    size_t y;
+} main_state;
+
+static size_t read_func(void* user_data, uint8_t* bytes, size_t len)
+{
+    main_state* state = (main_state*)user_data;
+    for (size_t x = 0; x < state->width; x++) {
+        size_t i = state->stride * state->y + x * state->bpp;
+        bytes[i] = (x + state->y) % 256;
+        bytes[i + 1] = (2 * x + state->y) % 256;
+        bytes[i + 2] = (x + 2 * state->y) % 256;
+    }
+    state->y++;
+    return len;
+}
+
+static size_t write_func(void* user_data, const uint8_t* bytes, size_t len)
+{
+    main_state* state = (main_state*)user_data;
+    return fwrite(bytes, 1, len, state->out);
+}
+
+static bool flush_func(void* user_data)
+{
+    main_state* state = (main_state*)user_data;
+    if (fflush(state->out) == 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 #define TRY(ret) { \
     mtpng_result _ret = (ret); \
     if (_ret != MTPNG_RESULT_OK) { \
@@ -36,28 +73,12 @@
     }\
 }
 
-static size_t write_func(void* user_data, const uint8_t* bytes, size_t len)
-{
-    FILE* out = (FILE*)user_data;
-    return fwrite(bytes, 1, len, out);
-}
-
-static bool flush_func(void* user_data)
-{
-    FILE* out = (FILE*)user_data;
-    if (fflush(out) == 0) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-
 int main(int argc, char **argv) {
     printf("hello\n");
 
     int retval = 0;
-    FILE *out = fopen("out/csample.png", "wb");
+    main_state state;
+    state.out = fopen("out/csample.png", "wb");
 
     size_t const threads = MTPNG_THREADS_DEFAULT;
 
@@ -70,15 +91,10 @@ int main(int argc, char **argv) {
     size_t const bpp = channels * depth / 8;
     size_t const stride = width * bpp;
 
-    uint8_t* const data = (uint8_t*)malloc(stride * height);
-    for (size_t y = 0; y < height; y++) {
-        for (size_t x = 0; x < width; x++) {
-            size_t i = stride * y + x * bpp;
-            data[i] = (x + y) % 256;
-            data[i + 1] = (2 * x + y) % 256;
-            data[i + 2] = (x + 2 * y) % 256;
-        }
-    }
+    state.stride = stride;
+    state.width = width;
+    state.bpp = bpp;
+    state.y = 0;
 
     //
     // Create a custom thread pool and the encoder.
@@ -88,7 +104,10 @@ int main(int argc, char **argv) {
 
     mtpng_encoder* encoder;
     TRY(mtpng_encoder_new(&encoder,
-                          write_func, flush_func, (void *)out,
+                          read_func,
+                          write_func,
+                          flush_func,
+                          (void *)&state,
                           pool));
 
     //
@@ -106,9 +125,7 @@ int main(int argc, char **argv) {
     // Write the data!
     //
     TRY(mtpng_encoder_write_header(encoder));
-    for (size_t y = 0; y < height; y++) {
-        TRY(mtpng_encoder_append_row(encoder, &data[y * stride], stride));
-    }
+    TRY(mtpng_encoder_write_image_data());
     TRY(mtpng_encoder_finish(&encoder));
 
 cleanup:
