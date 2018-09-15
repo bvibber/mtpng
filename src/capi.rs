@@ -239,6 +239,18 @@ fn mtpng_encoder_set_chunk_size(p_encoder: PEncoder,
     }
 }
 
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_set_filter_mode(p_encoder: PEncoder,
+                                chunk_size: size_t)
+-> CResult
+{
+    match (*p_encoder).set_chunk_size(chunk_size) {
+        Ok(()) => CResult::Ok,
+        Err(_) => CResult::Err,
+    }
+}
+
 
 #[no_mangle]
 pub unsafe extern "C"

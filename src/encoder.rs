@@ -330,7 +330,6 @@ impl DeflateChunk {
             Ok(data) => {
                 // This seems lame to move the vector back, but it's actually cheap.
                 self.data = data;
-                // @fixme save the adler32 checksums
                 Ok(())
             },
             Err(e) => Err(e)
@@ -513,7 +512,7 @@ impl<'a, W: Write> Encoder<'a, W> {
 
     //
     // Create a new encoder using default thread pool.
-    // Consumes the Write target, but you can get it back via Encoder::close()
+    // Consumes the Write target, but you can get it back via finish()
     //
     pub fn new(writer: W) -> Encoder<'static, W> {
         Encoder::new_encoder(writer, None)
@@ -521,6 +520,7 @@ impl<'a, W: Write> Encoder<'a, W> {
 
     //
     // Create a new encoder state using given thread pool
+    // Consumes the Write target, but you can get it back via finish()
     //
     pub fn with_thread_pool(writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
         Encoder::new_encoder(writer, Some(thread_pool))
@@ -874,9 +874,7 @@ impl<'a, W: Write> Encoder<'a, W> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::Header;
     use super::super::ColorType;
-    use super::super::Options;
     use super::Encoder;
     use super::IoResult;
 
