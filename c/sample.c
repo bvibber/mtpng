@@ -81,11 +81,9 @@ int main(int argc, char **argv) {
 
     uint32_t const width = 1024;
     uint32_t const height = 768;
-    mtpng_color const color_type = MTPNG_COLOR_TRUECOLOR;
-    uint8_t const depth = 8;
 
     size_t const channels = 3;
-    size_t const bpp = channels * depth / 8;
+    size_t const bpp = channels;
     size_t const stride = width * bpp;
 
     read_state state;
@@ -97,16 +95,16 @@ int main(int argc, char **argv) {
     FILE* out = fopen("out/csample.png", "wb");
     if (!out) {
         fprintf(stderr, "Error: failed to open output file\n");
-        goto cleanup;
+        return 1;
     }
 
     //
     // Create a custom thread pool and the encoder.
     //
-    mtpng_threadpool* pool;
+    mtpng_threadpool* pool = NULL;
     TRY(mtpng_threadpool_new(&pool, threads));
 
-    mtpng_encoder* encoder;
+    mtpng_encoder* encoder = NULL;
     TRY(mtpng_encoder_new(&encoder,
                           write_func,
                           flush_func,
@@ -122,7 +120,7 @@ int main(int argc, char **argv) {
     // Set up the PNG image state
     //
     TRY(mtpng_encoder_set_size(encoder, 1024, 768));
-    TRY(mtpng_encoder_set_color(encoder, color_type, depth));
+    TRY(mtpng_encoder_set_color(encoder, MTPNG_COLOR_TRUECOLOR, 8));
     TRY(mtpng_encoder_set_filter(encoder, MTPNG_FILTER_ADAPTIVE));
 
     //

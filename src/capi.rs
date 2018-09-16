@@ -170,7 +170,10 @@ fn mtpng_threadpool_new(pp_pool: *mut PThreadPool, threads: size_t)
 {
     CResult::from(|| -> io::Result<()> {
         if pp_pool.is_null() {
-            return Err(invalid_input("input pointer must not be null"));
+            return Err(invalid_input("pp_pool must not be null"));
+        }
+        if !(*pp_pool).is_null() {
+            return Err(invalid_input("*pp_pool must be null"))
         }
         let pool = ThreadPoolBuilder::new().num_threads(threads)
                                             .build()
@@ -187,7 +190,10 @@ fn mtpng_threadpool_release(pp_pool: *mut PThreadPool)
 {
     CResult::from(|| -> io::Result<()> {
         if pp_pool.is_null() {
-            return Err(invalid_input("Pointer must not be null"));
+            return Err(invalid_input("pp_pool must not be null"));
+        }
+        if (*pp_pool).is_null() {
+            return Err(invalid_input("*pp_pool must not be null"));
         }
         drop(Box::from_raw(*pp_pool));
         *pp_pool = ptr::null_mut();
@@ -209,6 +215,9 @@ fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
     CResult::from(|| -> io::Result<()> {
         if pp_encoder.is_null() {
             return Err(invalid_input("pp_encoder must not be null"));
+        }
+        if !(*pp_encoder).is_null() {
+            return Err(invalid_input("*pp_encoder must be null"));
         }
         let writer = match (write_func, flush_func) {
             (Some(wf), Some(ff)) => CWriter::new(wf, ff, user_data),
