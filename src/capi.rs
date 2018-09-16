@@ -77,12 +77,12 @@ pub type CFlushFunc = unsafe extern "C"
 //
 pub struct CReader {
     read_func: CReadFunc,
-    user_data: *const c_void,
+    user_data: *mut c_void,
 }
 
 impl CReader {
     fn new(read_func: CReadFunc,
-           user_data: *const c_void)
+           user_data: *mut c_void)
     -> CReader
     {
         CReader {
@@ -113,13 +113,13 @@ impl Read for CReader {
 pub struct CWriter {
     write_func: CWriteFunc,
     flush_func: CFlushFunc,
-    user_data: *const c_void,
+    user_data: *mut c_void,
 }
 
 impl CWriter {
     fn new(write_func: CWriteFunc,
            flush_func: CFlushFunc,
-           user_data: *const c_void)
+           user_data: *mut c_void)
     -> CWriter
     {
         CWriter {
@@ -204,7 +204,7 @@ pub unsafe extern "C"
 fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
                      write_func: Option<CWriteFunc>,
                      flush_func: Option<CFlushFunc>,
-                     user_data: *const c_void,
+                     user_data: *mut c_void,
                      p_pool: PThreadPool)
 -> CResult
 {
@@ -342,7 +342,7 @@ fn mtpng_encoder_write_header(p_encoder: PEncoder)
 pub unsafe extern "C"
 fn mtpng_encoder_write_image(p_encoder: PEncoder,
                              read_func: Option<CReadFunc>,
-                             user_data: *const c_void)
+                             user_data: *mut c_void)
 -> CResult
 {
     CResult::from(|| -> io::Result<()> {
