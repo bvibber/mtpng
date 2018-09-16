@@ -118,7 +118,7 @@ fn write_png(pool: &ThreadPool, args: &ArgMatches,
     encoder.set_size(header.width, header.height)?;
     encoder.set_color(header.color_type, header.depth)?;
     encoder.write_header()?;
-    encoder.write_image_rows(data)?;
+    encoder.write_image_rows(&data)?;
     encoder.finish()?;
 
     Ok(())
