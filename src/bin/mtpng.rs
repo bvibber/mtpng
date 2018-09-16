@@ -72,7 +72,7 @@ fn write_png(pool: &ThreadPool, args: &ArgMatches,
              filename: &str, header: Header, data: &[u8])
    -> io::Result<()>
 {
-    let writer = try!(File::create(filename));
+    let writer = File::create(filename)?;
     let mut encoder = Encoder::with_thread_pool(writer, pool);
 
     // Encoding options
@@ -134,7 +134,7 @@ fn doit(args: ArgMatches) -> io::Result<()> {
 
     let pool = ThreadPoolBuilder::new().num_threads(threads)
                                        .build()
-                                       .unwrap();
+                                       .map_err(|e| err(&e.to_string()))?;
     eprintln!("Using {} threads", pool.current_num_threads());
 
     let reps = match args.value_of("repeat") {
@@ -144,6 +144,7 @@ fn doit(args: ArgMatches) -> io::Result<()> {
         None => 1,
     };
 
+    // input and output are guaranteed to be present
     let infile = args.value_of("input").unwrap();
     let outfile = args.value_of("output").unwrap();
 
