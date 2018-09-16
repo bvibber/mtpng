@@ -27,17 +27,16 @@
 
 #include "mtpng.h"
 
-typedef struct main_state_t {
-    FILE* out;
+typedef struct read_state_t {
     size_t width;
     size_t bpp;
     size_t stride;
     size_t y;
-} main_state;
+} read_state;
 
 static size_t read_func(void* user_data, uint8_t* bytes, size_t len)
 {
-    main_state* state = (main_state*)user_data;
+    read_state* state = (read_state*)user_data;
     for (size_t x = 0; x < state->width; x++) {
         size_t i = x * state->bpp;
         bytes[i] = (x + state->y) % 256;
@@ -50,36 +49,34 @@ static size_t read_func(void* user_data, uint8_t* bytes, size_t len)
 
 static size_t write_func(void* user_data, const uint8_t* bytes, size_t len)
 {
-    main_state* state = (main_state*)user_data;
-    return fwrite(bytes, 1, len, state->out);
+    FILE* out = (FILE*)user_data;
+    return fwrite(bytes, 1, len, out);
 }
 
 static bool flush_func(void* user_data)
 {
-    main_state* state = (main_state*)user_data;
-    if (fflush(state->out) == 0) {
+    FILE* out = (FILE*)user_data;
+    if (fflush(out) == 0) {
         return true;
     } else {
         return false;
     }
 }
 
-#define TRY(ret) { \
+//
+// Note that ol' "do/while(0)" trick. Yay C macros!
+// Helps ensure consistency in if statements and stuff.
+//
+#define TRY(ret) \
+do { \
     mtpng_result _ret = (ret); \
     if (_ret != MTPNG_RESULT_OK) { \
         fprintf(stderr, "Error: %d\n", (int)(_ret)); \
-        retval = 1; \
         goto cleanup; \
     }\
-}
+} while (0)
 
 int main(int argc, char **argv) {
-    printf("hello\n");
-
-    int retval = 0;
-    main_state state;
-    state.out = fopen("out/csample.png", "wb");
-
     size_t const threads = MTPNG_THREADS_DEFAULT;
 
     uint32_t const width = 1024;
@@ -91,10 +88,17 @@ int main(int argc, char **argv) {
     size_t const bpp = channels * depth / 8;
     size_t const stride = width * bpp;
 
+    read_state state;
     state.stride = stride;
     state.width = width;
     state.bpp = bpp;
     state.y = 0;
+
+    FILE* out = fopen("out/csample.png", "wb");
+    if (!out) {
+        fprintf(stderr, "Error: failed to open output file\n");
+        goto cleanup;
+    }
 
     //
     // Create a custom thread pool and the encoder.
@@ -106,7 +110,7 @@ int main(int argc, char **argv) {
     TRY(mtpng_encoder_new(&encoder,
                           write_func,
                           flush_func,
-                          (void*)&state,
+                          (void*)out,
                           pool));
 
     //
@@ -127,7 +131,12 @@ int main(int argc, char **argv) {
     TRY(mtpng_encoder_write_header(encoder));
     TRY(mtpng_encoder_write_image(encoder, read_func, (void*)&state));
     TRY(mtpng_encoder_finish(&encoder));
+    TRY(mtpng_threadpool_release(&pool));
 
+    printf("Done.\n");
+    return 0;
+
+    // Error handler for the TRY macros:
 cleanup:
     if (encoder) {
         TRY(mtpng_encoder_release(&encoder));
@@ -136,6 +145,6 @@ cleanup:
         TRY(mtpng_threadpool_release(&pool));
     }
 
-    printf("goodbye\n");
-    return retval;
+    printf("Failed!\n");
+    return 1;
 }
