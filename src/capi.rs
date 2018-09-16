@@ -281,7 +281,7 @@ fn mtpng_encoder_set_color(p_encoder: PEncoder,
         } else if color_type < 0 || color_type > u8::max_value() as c_int {
             Err(invalid_input("Invalid color type"))
         } else {
-            let color = ColorType::from_u8(color_type as u8)?;
+            let color = ColorType::try_from_u8(color_type as u8)?;
             (*p_encoder).set_color(color, depth)
         }
     }())
@@ -302,7 +302,7 @@ fn mtpng_encoder_set_filter(p_encoder: PEncoder,
             let mode = if filter_mode < 0 {
                 Adaptive
             } else {
-                Fixed(Filter::from_u8(filter_mode as u8)?)
+                Fixed(Filter::try_from_u8(filter_mode as u8)?)
             };
             (*p_encoder).set_filter_mode(mode)
         }

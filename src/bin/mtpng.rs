@@ -60,7 +60,7 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>)> {
 
     let header = Header::with_depth(info.width,
                                     info.height,
-                                    ColorType::from_u8(info.color_type as u8)?,
+                                    ColorType::try_from_u8(info.color_type as u8)?,
                                     info.bit_depth as u8);
     let mut data = vec![0u8; info.buffer_size()];
     reader.next_frame(&mut data)?;

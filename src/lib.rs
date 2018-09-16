@@ -67,7 +67,10 @@ pub enum ColorType {
 use ColorType::*;
 
 impl ColorType {
-    pub fn from_u8(val: u8) -> io::Result<ColorType> {
+    //
+    // Todo: use TryFrom trait when it's stable.
+    //
+    pub fn try_from_u8(val: u8) -> io::Result<ColorType> {
         return match val {
             0 => Ok(ColorType::Greyscale),
             2 => Ok(ColorType::Truecolor),

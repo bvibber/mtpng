@@ -43,7 +43,10 @@ pub enum Filter {
 }
 
 impl Filter {
-    pub fn from_u8(val: u8) -> io::Result<Filter> {
+    //
+    // Todo: use TryFrom trait when it's stable.
+    //
+    pub fn try_from_u8(val: u8) -> io::Result<Filter> {
         match val {
             0 => Ok(Filter::None),
             1 => Ok(Filter::Sub),
