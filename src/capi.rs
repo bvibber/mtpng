@@ -170,14 +170,13 @@ fn mtpng_threadpool_new(pp_pool: *mut PThreadPool, threads: size_t)
 {
     CResult::from(|| -> io::Result<()> {
         if pp_pool.is_null() {
-            Err(invalid_input("input pointer must not be null"))
-        } else {
-            let pool = ThreadPoolBuilder::new().num_threads(threads)
-                                               .build()
-                                               .map_err(|err| other(&err.to_string()))?;
-            *pp_pool = Box::into_raw(Box::new(pool));
-            Ok(())
+            return Err(invalid_input("input pointer must not be null"));
         }
+        let pool = ThreadPoolBuilder::new().num_threads(threads)
+                                            .build()
+                                            .map_err(|err| other(&err.to_string()))?;
+        *pp_pool = Box::into_raw(Box::new(pool));
+        Ok(())
     }())
 }
 
@@ -188,12 +187,11 @@ fn mtpng_threadpool_release(pp_pool: *mut PThreadPool)
 {
     CResult::from(|| -> io::Result<()> {
         if pp_pool.is_null() {
-            Err(invalid_input("Pointer must not be null"))
-        } else {
-            drop(Box::from_raw(*pp_pool));
-            *pp_pool = ptr::null_mut();
-            Ok(())
+            return Err(invalid_input("Pointer must not be null"));
         }
+        drop(Box::from_raw(*pp_pool));
+        *pp_pool = ptr::null_mut();
+        Ok(())
     }())
 }
 
@@ -210,25 +208,19 @@ fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
 {
     CResult::from(|| -> io::Result<()> {
         if pp_encoder.is_null() {
-            Err(invalid_input("Pointer to pointer must not be null"))
-        } else {
-            match (write_func, flush_func) {
-                (Some(wf), Some(ff)) => {
-                    let writer = CWriter::new(wf, ff, user_data);
-                    if p_pool.is_null() {
-                        let encoder = Encoder::new(writer);
-                        *pp_encoder = Box::into_raw(Box::new(encoder));
-                    } else {
-                        let encoder = Encoder::with_thread_pool(writer, &*p_pool);
-                        *pp_encoder = Box::into_raw(Box::new(encoder));
-                    }
-                    Ok(())
-                },
-                _ => {
-                    Err(invalid_input("Callbacks must not be null"))
-                }
-            }
+            return Err(invalid_input("pp_encoder must not be null"));
         }
+        let writer = match (write_func, flush_func) {
+            (Some(wf), Some(ff)) => CWriter::new(wf, ff, user_data),
+            _ => return Err(invalid_input("write_func and flush_func must not be null"))
+        };
+        let encoder = if p_pool.is_null() {
+            Encoder::new(writer)
+        } else {
+            Encoder::with_thread_pool(writer, &*p_pool)
+        };
+        *pp_encoder = Box::into_raw(Box::new(encoder));
+        Ok(())
     }())
 }
 
@@ -239,16 +231,14 @@ fn mtpng_encoder_release(pp_encoder: *mut PEncoder)
 {
     CResult::from(|| -> io::Result<()> {
         if pp_encoder.is_null() {
-            Err(invalid_input("Pointer to pointer must not be null"))
-        } else {
-            if (*pp_encoder).is_null() {
-                Err(invalid_input("Pointer must not be null"))
-            } else {
-                drop(Box::from_raw(*pp_encoder));
-                *pp_encoder = ptr::null_mut();
-                Ok(())
-            }
+            return Err(invalid_input("pp_encoder must not be null"))
         }
+        if (*pp_encoder).is_null() {
+            return Err(invalid_input("*pp_encoder must not be null"))
+        }
+        drop(Box::from_raw(*pp_encoder));
+        *pp_encoder = ptr::null_mut();
+        Ok(())
     }())
 }
 
@@ -261,10 +251,9 @@ fn mtpng_encoder_set_size(p_encoder: PEncoder,
 {
     CResult::from(|| -> io::Result<()> {
         if p_encoder.is_null() {
-            Err(invalid_input("Pointer must not be null"))
-        } else {
-            (*p_encoder).set_size(width, height)
+            return Err(invalid_input("p_encoder must not be null"));
         }
+        (*p_encoder).set_size(width, height)
     }())
 }
 
@@ -277,13 +266,13 @@ fn mtpng_encoder_set_color(p_encoder: PEncoder,
 {
     CResult::from(|| -> io::Result<()> {
         if p_encoder.is_null() {
-            Err(invalid_input("Pointer must not be null"))
-        } else if color_type < 0 || color_type > u8::max_value() as c_int {
-            Err(invalid_input("Invalid color type"))
-        } else {
-            let color = ColorType::try_from_u8(color_type as u8)?;
-            (*p_encoder).set_color(color, depth)
+            return Err(invalid_input("p_encoder must not be null"));
         }
+        if color_type < 0 || color_type > u8::max_value() as c_int {
+            return Err(invalid_input("Invalid color type"));
+        }
+        let color = ColorType::try_from_u8(color_type as u8)?;
+        (*p_encoder).set_color(color, depth)
     }())
 }
 
@@ -295,17 +284,17 @@ fn mtpng_encoder_set_filter(p_encoder: PEncoder,
 {
     CResult::from(|| -> io::Result<()> {
         if p_encoder.is_null() {
-            Err(invalid_input("Pointer must not be null"))
-        } else if filter_mode > u8::max_value() as c_int {
-            Err(invalid_input("Invalid filter mode"))
-        } else {
-            let mode = if filter_mode < 0 {
-                Adaptive
-            } else {
-                Fixed(Filter::try_from_u8(filter_mode as u8)?)
-            };
-            (*p_encoder).set_filter_mode(mode)
+            return Err(invalid_input("p_encoder must not be null"));
         }
+        if filter_mode > u8::max_value() as c_int {
+            return Err(invalid_input("Invalid filter mode"));
+        }
+        let mode = if filter_mode < 0 {
+            Adaptive
+        } else {
+            Fixed(Filter::try_from_u8(filter_mode as u8)?)
+        };
+        (*p_encoder).set_filter_mode(mode)
     }())
 }
 
@@ -317,10 +306,9 @@ fn mtpng_encoder_set_chunk_size(p_encoder: PEncoder,
 {
     CResult::from(|| -> io::Result<()> {
         if p_encoder.is_null() {
-            Err(invalid_input("Pointer must not be null"))
-        } else {
-            (*p_encoder).set_chunk_size(chunk_size)
+            return Err(invalid_input("p_encoder must not be null"));
         }
+        (*p_encoder).set_chunk_size(chunk_size)
     }())
 }
 
@@ -331,10 +319,9 @@ fn mtpng_encoder_write_header(p_encoder: PEncoder)
 {
     CResult::from(|| -> io::Result<()> {
         if p_encoder.is_null() {
-            Err(invalid_input("Pointer must not be null"))
-        } else {
-            (*p_encoder).write_header()
+            return Err(invalid_input("p_encoder must not be null"));
         }
+        (*p_encoder).write_header()
     }())
 }
 
@@ -347,18 +334,13 @@ fn mtpng_encoder_write_image(p_encoder: PEncoder,
 {
     CResult::from(|| -> io::Result<()> {
         if p_encoder.is_null() {
-            Err(invalid_input("Pointer must not be null"))
-        } else {
-            match read_func {
-                Some(rf) => {
-                    let mut reader = CReader::new(rf, user_data);
-                    (*p_encoder).write_image(&mut reader)
-                },
-                _ => {
-                    Err(invalid_input("read_func must not be null"))
-                }
-            }
+            return Err(invalid_input("p_encoder must not be null"));
         }
+        let mut reader = match read_func {
+            Some(func) => CReader::new(func, user_data),
+            _ => return Err(invalid_input("read_func must not be null")),
+        };
+        (*p_encoder).write_image(&mut reader)
     }())
 }
 
@@ -371,13 +353,13 @@ fn mtpng_encoder_write_image_rows(p_encoder: PEncoder,
 {
     CResult::from(|| -> io::Result<()> {
         if p_encoder.is_null() {
-            Err(invalid_input("p_encoder must not be null"))
-        } else if p_bytes.is_null() {
-            Err(invalid_input("p_bytes must not be null"))
-        } else {
-            let slice = ::std::slice::from_raw_parts(p_bytes, len);
-            (*p_encoder).write_image_rows(slice)
+            return Err(invalid_input("p_encoder must not be null"));
         }
+        if p_bytes.is_null() {
+            return Err(invalid_input("p_bytes must not be null"));
+        }
+        let slice = ::std::slice::from_raw_parts(p_bytes, len);
+        (*p_encoder).write_image_rows(slice)
     }())
 }
 
@@ -388,14 +370,18 @@ fn mtpng_encoder_finish(pp_encoder: *mut PEncoder)
 {
     CResult::from(|| -> io::Result<()> {
         if pp_encoder.is_null() {
-            Err(invalid_input("pp_encoder must not be null"))
-        } else if (*pp_encoder).is_null() {
-            Err(invalid_input("*pp_encoder must not be null"))
-        } else {
-            let b_encoder = Box::from_raw(*pp_encoder);
-            *pp_encoder = ptr::null_mut();
-            b_encoder.finish()?;
-            Ok(())
+            return Err(invalid_input("pp_encoder must not be null"));
         }
+        if (*pp_encoder).is_null() {
+            return Err(invalid_input("*pp_encoder must not be null"));
+        }
+
+        // Take ownership back from C...
+        let b_encoder = Box::from_raw(*pp_encoder);
+        *pp_encoder = ptr::null_mut();
+
+        // And finish it out.
+        b_encoder.finish()?;
+        Ok(())
     }())
 }
