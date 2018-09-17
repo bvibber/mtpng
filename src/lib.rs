@@ -155,62 +155,50 @@ impl Header {
         Header::with_color(0, 0, ColorType::TruecolorAlpha)
     }
 
-    // @todo return errors gracefully
-    pub fn validate(&self) -> bool {
-        if self.width == 0 {
-            panic!("Zero width");
-        }
-        if self.height == 0 {
-            panic!("Zero height");
-        }
+    pub fn channels(&self) -> usize {
         match self.color_type {
-            ColorType::Greyscale => match self.depth {
-                1 | 2 | 4 | 8 | 16 => {},
-                _ => panic!("Invalid color depth"),
-            },
-            ColorType::Truecolor => match self.depth {
-                8 | 16 => {},
-                _ => panic!("Invalid color depth"),
-            },
-            ColorType::IndexedColor => match self.depth {
-                1 | 2 | 4 | 8 => {},
-                _ => panic!("Invalid color depth"),
-            },
-            ColorType::GreyscaleAlpha => match self.depth {
-                8 | 16 => {},
-                _ => panic!("Invalid color depth"),
-            },
-            ColorType::TruecolorAlpha => match self.depth {
-                8 | 16 => {},
-                _ => panic!("Invalid color depth"),
-            }
-        }
-        match self.filter_method {
-            FilterMethod::Standard => {},
-        }
-        match self.interlace_method {
-            InterlaceMethod::Standard => {},
-            InterlaceMethod::Adam7 => panic!("Interlacing not yet implemented."),
-        }
-        true
-    }
-
-    pub fn bytes_per_pixel(&self) -> usize {
-        return match self.color_type {
             ColorType::Greyscale => 1,
             ColorType::Truecolor => 3,
             ColorType::IndexedColor => 1,
             ColorType::GreyscaleAlpha => 2,
             ColorType::TruecolorAlpha => 4,
-        } * if self.depth > 8 {
+        }
+    }
+
+    //
+    // warning this is specific to the filtering?
+    // rename maybe
+    //
+    pub fn bytes_per_pixel(&self) -> usize {
+        self.channels() * if self.depth > 8 {
             2
         } else {
             1
         }
     }
 
+    //
+    // Get the stride in bytes for the encoded pixel rows
+    // matching the settings in this header.
+    //
+    // Will panic on arithmetic overflow.
+    //
     pub fn stride(&self) -> usize {
-        self.bytes_per_pixel() * self.width as usize
+        let bits_per_pixel = self.channels() * self.depth as usize;
+
+        // Very long line lengths can overflow usize on 32-bit.
+        // If we got this far, let it panic in the unwrap().
+        let stride_bits = bits_per_pixel.checked_mul(self.width as usize)
+                                        .unwrap();
+
+        // And round up to nearest byte.
+        let stride_bytes = stride_bits >> 3;
+        let remainder = stride_bits & 3;
+        if remainder > 0 {
+            stride_bytes + 1
+        } else {
+            stride_bytes
+        }
     }
 }
 
