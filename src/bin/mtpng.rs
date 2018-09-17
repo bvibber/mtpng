@@ -96,7 +96,7 @@ fn write_png(pool: &ThreadPool,
     match args.value_of("chunk-size") {
         None    => {},
         Some(s) => {
-            let n = s.parse::<usize>().unwrap();
+            let n = s.parse::<usize>().map_err(|_e| err("Invalid chunk size"))?;
             encoder.set_chunk_size(n)?;
         },
     }
@@ -153,7 +153,7 @@ fn doit(args: ArgMatches) -> io::Result<()> {
     let threads = match args.value_of("threads") {
         None    => 0, // Means default
         Some(s) => {
-            s.parse::<usize>().unwrap()
+            s.parse::<usize>().map_err(|_e| err("invalid threads"))?
         },
     };
 
@@ -164,7 +164,7 @@ fn doit(args: ArgMatches) -> io::Result<()> {
 
     let reps = match args.value_of("repeat") {
         Some(s) => {
-            s.parse::<usize>().unwrap()
+            s.parse::<usize>().map_err(|_e| err("invalid repeat"))?
         },
         None => 1,
     };

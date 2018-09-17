@@ -846,6 +846,9 @@ impl<'a, W: Write> Encoder<'a, W> {
         if self.wrote_palette {
             return Err(invalid_input("Cannot write palette a second time."));
         }
+        if self.wrote_transparency {
+            return Err(invalid_input("Cannot write palette after transparency."));
+        }
         if self.started_image {
             return Err(invalid_input("Cannot write palette after image data."));
         }
@@ -891,6 +894,9 @@ impl<'a, W: Write> Encoder<'a, W> {
                 }
             },
             ColorType::IndexedColor => {
+                if !self.wrote_palette {
+                    return Err(invalid_input("Cannot write transparency before palette."));
+                }
                 if data.len() < 1 {
                     return Err(invalid_input("Transparency data too short."));
                 }
@@ -903,7 +909,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             }
 
         }
-        //self.wrote_transparency = true;
+        self.wrote_transparency = true;
         self.writer.write_chunk(b"tRNS", data)
     }
 
