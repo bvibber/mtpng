@@ -465,8 +465,11 @@ pub struct Encoder<'a, W: Write> {
 
     header: Header,
     options: Options,
+
     wrote_header: bool,
     wrote_palette: bool,
+    palette_length: usize,
+    wrote_transparency: bool,
     started_image: bool,
     wrote_image: bool,
 
@@ -504,6 +507,8 @@ impl<'a, W: Write> Encoder<'a, W> {
 
             wrote_header: false,
             wrote_palette: false,
+            palette_length: 0,
+            wrote_transparency: false,
             started_image: false,
             wrote_image: false,
 
@@ -852,7 +857,54 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
 
         self.wrote_palette = true;
+        self.palette_length = palette.len() / 3;
         self.writer.write_chunk(b"PLTE", palette)
+    }
+
+    //
+    // Write a transparency info chunk.
+    //
+    // For indexed color, contains a single alpha value byte per palette
+    // entry, up to but not exceeding the number of palette entries.
+    //
+    // Note this chunk is allowed on greyscale and truecolor images,
+    // and there references a single color in 16-bit notation.
+    //
+    // https://www.w3.org/TR/PNG/#11tRNS
+    //
+    pub fn write_transparency(&mut self, data: &[u8]) -> io::Result<()> {
+        if !self.wrote_header {
+            return Err(invalid_input("Cannot write transparency before header."));
+        }
+        if self.started_image {
+            return Err(invalid_input("Cannot write transparency after image data."));
+        }
+        match self.header.color_type {
+            ColorType::Greyscale => {
+                if data.len() != 2 {
+                    return Err(invalid_input("Greyscale transparency data must be exactly 2 bytes."));
+                }
+            },
+            ColorType::Truecolor => {
+                if data.len() != 6 {
+                    return Err(invalid_input("Truecolor transparency data must be exactly 6 bytes."));
+                }
+            },
+            ColorType::IndexedColor => {
+                if data.len() < 1 {
+                    return Err(invalid_input("Transparency data too short."));
+                }
+                if data.len() > self.palette_length {
+                    return Err(invalid_input("Transparency data cannot contain more entries than palette."));
+                }
+            },
+            _ => {
+                return Err(invalid_input("Transparency chunk is invalid for color types with alpha"));
+            }
+
+        }
+        //self.wrote_transparency = true;
+        self.writer.write_chunk(b"tRNS", data)
     }
 
     //
