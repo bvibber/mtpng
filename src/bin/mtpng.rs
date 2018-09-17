@@ -55,7 +55,13 @@ pub fn err(payload: &str) -> Error
 }
 
 fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>)> {
-    let decoder = png::Decoder::new(File::open(filename)?);
+    use png::Decoder;
+    use png::HasParameters;
+    use png::Transformations;
+
+    let mut decoder = Decoder::new(File::open(filename)?);
+    decoder.set(Transformations::IDENTITY);
+
     let (info, mut reader) = decoder.read_info()?;
 
     let header = Header::with_depth(info.width,
