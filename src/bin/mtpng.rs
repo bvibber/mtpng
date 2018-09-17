@@ -54,7 +54,7 @@ pub fn err(payload: &str) -> Error
     Error::new(ErrorKind::Other, payload)
 }
 
-fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>)> {
+fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>)> {
     use png::Decoder;
     use png::HasParameters;
     use png::Transformations;
@@ -68,14 +68,21 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>)> {
                                     info.height,
                                     ColorType::try_from_u8(info.color_type as u8)?,
                                     info.bit_depth as u8);
+
+    let palette = reader.info().palette.clone();
+
     let mut data = vec![0u8; info.buffer_size()];
     reader.next_frame(&mut data)?;
 
-    Ok((header, data))
+    Ok((header, data, palette))
 }
 
-fn write_png(pool: &ThreadPool, args: &ArgMatches,
-             filename: &str, header: Header, data: &[u8])
+fn write_png(pool: &ThreadPool,
+             args: &ArgMatches,
+             filename: &str,
+             header: &Header,
+             data: &[u8],
+             palette: &Option<Vec<u8>>)
    -> io::Result<()>
 {
     let writer = File::create(filename)?;
@@ -124,6 +131,10 @@ fn write_png(pool: &ThreadPool, args: &ArgMatches,
     encoder.set_size(header.width, header.height)?;
     encoder.set_color(header.color_type, header.depth)?;
     encoder.write_header()?;
+    match palette {
+        Some(v) => encoder.write_palette(&v)?,
+        None => {},
+    }
     encoder.write_image_rows(&data)?;
     encoder.finish()?;
 
@@ -155,11 +166,11 @@ fn doit(args: ArgMatches) -> io::Result<()> {
     let outfile = args.value_of("output").unwrap();
 
     println!("{} -> {}", infile, outfile);
-    let (header, data) = read_png(&infile)?;
+    let (header, data, palette) = read_png(&infile)?;
 
     for _i in 0 .. reps {
         let start_time = precise_time_s();
-        write_png(&pool, &args, &outfile, header, &data)?;
+        write_png(&pool, &args, &outfile, &header, &data, &palette)?;
         let delta = precise_time_s() - start_time;
 
         println!("Done in {} ms", (delta * 1000.0).round());

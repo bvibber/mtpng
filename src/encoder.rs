@@ -465,7 +465,10 @@ pub struct Encoder<'a, W: Write> {
 
     header: Header,
     options: Options,
-    started: bool,
+    wrote_header: bool,
+    wrote_palette: bool,
+    started_image: bool,
+    wrote_image: bool,
 
     rows_per_chunk: usize,
     chunks_total: usize,
@@ -498,7 +501,11 @@ impl<'a, W: Write> Encoder<'a, W> {
 
             header: Header::default(),
             options: Options::new(),
-            started: false,
+
+            wrote_header: false,
+            wrote_palette: false,
+            started_image: false,
+            wrote_image: false,
 
             rows_per_chunk: 0,
             chunks_total: 0,
@@ -537,7 +544,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     pub fn set_size(&mut self, width: u32, height: u32) -> IoResult {
-        if self.started {
+        if self.wrote_header {
             Err(invalid_input("cannot change image size after starting output"))
         } else if width == 0 {
             Err(invalid_input("width cannot be 0"))
@@ -551,7 +558,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     pub fn set_color(&mut self, color_type: ColorType, depth: u8) -> IoResult {
-        if self.started {
+        if self.wrote_header {
             Err(invalid_input("cannot change color type or depth after starting output"))
         } else if !color_type.is_depth_valid(depth) {
             Err(invalid_input("invalid color depth for this color type"))
@@ -562,7 +569,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     pub fn set_chunk_size(&mut self, chunk_size: usize) -> IoResult {
-        if self.started {
+        if self.wrote_header {
             Err(invalid_input("cannot change chunk size after starting output"))
         } else if chunk_size < 32768 {
             Err(invalid_input("chunk size must be at least 32768"))
@@ -573,7 +580,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     pub fn set_compression_level(&mut self, level: CompressionLevel) -> IoResult {
-        if self.started {
+        if self.wrote_header {
             Err(invalid_input("cannot change compression level after starting output"))
         } else {
             self.options.compression_level = level;
@@ -582,7 +589,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     pub fn set_filter_mode(&mut self, filter_mode: Mode<Filter>) -> IoResult {
-        if self.started {
+        if self.wrote_header {
             Err(invalid_input("cannot change filter mode after starting output"))
         } else {
             self.options.filter_mode = filter_mode;
@@ -591,7 +598,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     pub fn set_strategy_mode(&mut self, strategy_mode: Mode<Strategy>) -> IoResult {
-        if self.started {
+        if self.wrote_header {
             Err(invalid_input("cannot change compression strategy after starting output"))
         } else {
             self.options.strategy_mode = strategy_mode;
@@ -600,7 +607,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     pub fn set_streaming(&mut self, streaming: bool) -> IoResult {
-        if self.started {
+        if self.wrote_header {
             Err(invalid_input("cannot change streaming mode after starting output"))
         } else {
             self.options.streaming = streaming;
@@ -791,8 +798,8 @@ impl<'a, W: Write> Encoder<'a, W> {
     // Must be done before anything else is output.
     //
     pub fn write_header(&mut self) -> IoResult {
-        if self.started {
-            return Err(invalid_input("cannot write header after starting output"));
+        if self.wrote_header {
+            return Err(invalid_input("Cannot write header a second time."));
         }
 
         let stride = self.header.stride() + 1;
@@ -816,10 +823,36 @@ impl<'a, W: Write> Encoder<'a, W> {
 
         self.pixel_accumulator = Arc::new(PixelChunk::new(self.header, 0, 0, self.rows_per_chunk));
 
-        self.started = true;
+        self.wrote_header = true;
 
         self.writer.write_signature()?;
         self.writer.write_header(self.header)
+    }
+
+    //
+    // Write an indexed-color palette as a PLTE chunk.
+    //
+    // Note this chunk is allowed on truecolor images, though sPLT is preferred.
+    //
+    pub fn write_palette(&mut self, palette: &[u8]) -> io::Result<()> {
+        if !self.wrote_header {
+            return Err(invalid_input("Cannot write palette before header."));
+        }
+        if self.wrote_palette {
+            return Err(invalid_input("Cannot write palette a second time."));
+        }
+        if self.started_image {
+            return Err(invalid_input("Cannot write palette after image data."));
+        }
+        if palette.len() < 3 {
+            return Err(invalid_input("Palette must have at least one entry."));
+        }
+        if palette.len() % 3 != 0 {
+            return Err(invalid_input("Palette must have an integral number of entries."));
+        }
+
+        self.wrote_palette = true;
+        self.writer.write_chunk(b"PLTE", palette)
     }
 
     //
@@ -831,6 +864,20 @@ impl<'a, W: Write> Encoder<'a, W> {
     {
         if self.pixel_index >= self.chunks_total {
             return Err(other("invalid internal state"));
+        }
+        if !self.wrote_header {
+            return Err(invalid_input("Cannot write image data before header."));
+        }
+        match self.header.color_type {
+            ColorType::IndexedColor => {
+                if !self.wrote_palette {
+                    return Err(invalid_input("Cannot write indexed-color image data before palette."));
+                }
+            },
+            _ => {},
+        }
+        if !self.started_image {
+            self.started_image = true;
         }
 
         Arc::get_mut(&mut self.pixel_accumulator).unwrap().read_row(reader)?;
