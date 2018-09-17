@@ -336,6 +336,44 @@ fn mtpng_encoder_write_header(p_encoder: PEncoder)
 
 #[no_mangle]
 pub unsafe extern "C"
+fn mtpng_encoder_write_palette(p_encoder: PEncoder,
+                               p_bytes: *const uint8_t,
+                               len: size_t)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_encoder.is_null() {
+            return Err(invalid_input("p_encoder must not be null"));
+        }
+        if p_bytes.is_null() {
+            return Err(invalid_input("p_bytes must not be null"));
+        }
+        let slice = ::std::slice::from_raw_parts(p_bytes, len);
+        (*p_encoder).write_palette(slice)
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_write_transparency(p_encoder: PEncoder,
+                                    p_bytes: *const uint8_t,
+                                    len: size_t)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_encoder.is_null() {
+            return Err(invalid_input("p_encoder must not be null"));
+        }
+        if p_bytes.is_null() {
+            return Err(invalid_input("p_bytes must not be null"));
+        }
+        let slice = ::std::slice::from_raw_parts(p_bytes, len);
+        (*p_encoder).write_transparency(slice)
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
 fn mtpng_encoder_write_image(p_encoder: PEncoder,
                              read_func: Option<CReadFunc>,
                              user_data: *mut c_void)

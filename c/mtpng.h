@@ -317,6 +317,39 @@ extern mtpng_result
 mtpng_encoder_write_header(mtpng_encoder *p_encoder);
 
 //
+// Write a palette entry for an indexed-color image, or a
+// suggested quantization palette for a truecolor image.
+//
+// See https://www.w3.org/TR/PNG/#11PLTE for the data format.
+//
+// Must be called after mtpng_encoder_write_header() and before
+// mtpng_encoder_write_image() or mtpng_encoder_write_image_data().
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_write_palette(mtpng_encoder* p_encoder,
+                            const uint8_t* p_bytes,
+                            size_t len);
+
+//
+// Write alpha transparency entries for an indexed-color image, or a
+// single transparent color for a greyscale or truecolor image.
+//
+// See https://www.w3.org/TR/PNG/#11tRNS for the data format.
+//
+// Must be called after mtpng_encoder_write_palette() for indexed
+// images, or mtpng_encoder_write_header() for others; and before
+// mtpng_encoder_write_image() or mtpng_encoder_write_image_data().
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_write_transparency(mtpng_encoder* p_encoder,
+                                 const uint8_t* p_bytes,
+                                 size_t len);
+
+//
 // Encode, compress, and write an image to the output stream
 // using pixel data provided by a callback in a "pull" manner.
 //
