@@ -135,6 +135,8 @@ Decoding cannot; it must be run as a stream, but can pipeline.
 
 [time](https://crates.io/crates/time) is used by the CLI tool to time compression.
 
+[typenum](https://crates.io/crates/typenum) is used to do compile-time constant specialization via generics.
+
 # License
 
 You may use this software under the following MIT-style license:
