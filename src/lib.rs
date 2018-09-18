@@ -27,6 +27,7 @@ extern crate rayon;
 extern crate crc;
 extern crate libz_sys;
 #[macro_use] extern crate itertools;
+extern crate typenum;
 
 // @fixme use a feature flag or?
 extern crate libc;

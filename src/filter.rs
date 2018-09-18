@@ -26,6 +26,9 @@
 use std::cmp;
 use std::io;
 
+use typenum::Unsigned;
+use typenum::consts::*;
+
 use super::Header;
 use super::Mode;
 use super::Mode::{Adaptive, Fixed};
@@ -62,19 +65,16 @@ impl Filter {
 // Using runtime bpp variable in the inner loop slows things down;
 // specialize the filter functions for each possible constant size.
 //
-macro_rules! filter_specialize {
-    ( $bpp:expr, $filter_closure:expr ) => {
-        {
-            match $bpp {
-                1 => $filter_closure(1), // indexed, greyscale@8
-                2 => $filter_closure(2), // greyscale@16, greyscale+alpha@8
-                3 => $filter_closure(3), // truecolor@8
-                4 => $filter_closure(4), // truecolor@8, greyscale+alpha@16
-                6 => $filter_closure(6), // truecolor@16
-                8 => $filter_closure(8), // truecolor+alpha@16
-                _ => panic!("Invalid bpp, should never happen."),
-            }
-        }
+fn filter_iter_specialized<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
+    where F : Fn(u8, u8, u8, u8) -> u8 {
+    match bpp {
+        1 => filter_iter_generic::<F, U1>(prev, src, out, func), // indexed, greyscale@8
+        2 => filter_iter_generic::<F, U2>(prev, src, out, func), // greyscale@16, greyscale+alpha@8
+        3 => filter_iter_generic::<F, U3>(prev, src, out, func), // truecolor@8
+        4 => filter_iter_generic::<F, U4>(prev, src, out, func), // truecolor@8, greyscale+alpha@16
+        6 => filter_iter_generic::<F, U6>(prev, src, out, func), // truecolor@16
+        8 => filter_iter_generic::<F, U8>(prev, src, out, func), // truecolor+alpha@16
+        _ => panic!("Invalid bpp, should never happen."),
     }
 }
 
@@ -88,7 +88,8 @@ macro_rules! filter_specialize {
 // the original pixels on decode based on the pixels decoded
 // so far plus the offset.
 //
-fn filter_iter<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
+#[inline(always)]
+fn filter_iter_generic<F, BPP: Unsigned>(prev: &[u8], src: &[u8], out: &mut [u8], func: F)
     where F : Fn(u8, u8, u8, u8) -> u8
 {
     //
@@ -99,19 +100,19 @@ fn filter_iter<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
     //
 
     for (dest, cur, up) in
-        izip!(&mut out[0 .. bpp],
-              &src[0 .. bpp],
-              &prev[0 .. bpp]) {
+        izip!(&mut out[0 .. BPP::USIZE],
+              &src[0 .. BPP::USIZE],
+              &prev[0 .. BPP::USIZE]) {
         *dest = func(*cur, 0, *up, 0);
     }
 
     let len = out.len();
     for (dest, cur, left, up, above_left) in
-        izip!(&mut out[bpp .. len],
-              &src[bpp .. len],
-              &src[0 .. len - bpp],
-              &prev[bpp .. len],
-              &prev[0 .. len - bpp]) {
+        izip!(&mut out[BPP::USIZE .. len],
+              &src[BPP::USIZE .. len],
+              &src[0 .. len - BPP::USIZE],
+              &prev[BPP::USIZE .. len],
+              &prev[0 .. len - BPP::USIZE]) {
         *dest = func(*cur, *left, *up, *above_left);
     }
 }
@@ -135,12 +136,10 @@ fn filter_none(_bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
 // https://www.w3.org/TR/PNG/#9Filter-types
 //
 fn filter_sub(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
-    filter_specialize!(bpp, |bpp| {
-        dest[0] = Filter::Sub as u8;
+    dest[0] = Filter::Sub as u8;
 
-        filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, _above, _upper_left| -> u8 {
-            val.wrapping_sub(left)
-        })
+    filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, left, _above, _upper_left| -> u8 {
+        val.wrapping_sub(left)
     })
 }
 
@@ -155,7 +154,7 @@ fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     // Does not need specialization.
     dest[0] = Filter::Up as u8;
 
-    filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, _left, above, _upper_left| -> u8 {
+    filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, _left, above, _upper_left| -> u8 {
         val.wrapping_sub(above)
     })
 }
@@ -167,13 +166,11 @@ fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 // https://www.w3.org/TR/PNG/#9Filter-type-3-Average
 //
 fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
-    filter_specialize!(bpp, |bpp| {
-        dest[0] = Filter::Average as u8;
+    dest[0] = Filter::Average as u8;
 
-        filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
-            let avg = ((left as u32 + above as u32) / 2) as u8;
-            val.wrapping_sub(avg)
-        })
+    filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
+        let avg = ((left as u32 + above as u32) / 2) as u8;
+        val.wrapping_sub(avg)
     })
 }
 
@@ -214,12 +211,10 @@ fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
 // https://www.w3.org/TR/PNG/#9Filter-type-4-Paeth
 //
 fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
-    filter_specialize!(bpp, |bpp| {
-        dest[0] = Filter::Paeth as u8;
+    dest[0] = Filter::Paeth as u8;
 
-        filter_iter(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, upper_left| -> u8 {
-            val.wrapping_sub(paeth_predictor(left, above, upper_left))
-        })
+    filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, upper_left| -> u8 {
+        val.wrapping_sub(paeth_predictor(left, above, upper_left))
     })
 }
 
