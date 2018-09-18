@@ -569,6 +569,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             Err(invalid_input("invalid color depth for this color type"))
         } else {
             self.header.color_type = color_type;
+            self.header.depth = depth;
             Ok(())
         }
     }

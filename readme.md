@@ -16,7 +16,7 @@ I was also inspired by an experimental C++/OpenMP project called `png-parallel` 
 
 # State
 
-Creates correct RGB and RGBA files; no support for indexed yet. Performs well on large files, but needs work for small files. No API stability yet!
+Creates correct files in all color formats (input must be pre-packed). Performs well on large files, but needs work for small files and ancillary chunks. No API stability yet!
 
 ## Goals
 
