@@ -12,6 +12,7 @@ clap = "2.32.0"
 time = "0.1.40"
 itertools = "0.7.8"
 libc = "0.2.43"
+typenum = "1.10.0"
 
 [lib]
 crate-type = ["rlib", "cdylib"]
