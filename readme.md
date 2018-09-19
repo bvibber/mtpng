@@ -120,6 +120,20 @@ Linux armhf (32-bit):
 
 On 32-bit ARM we don't quite beat libpng single-threaded, but multi-threaded still does well. Haven't tested 64-bit ARM yet. Note this machine throttles aggressively if it heats up, making the second run of a repeat on a long file like that noticeably slower than the first.
 
+```
+iPhone X
+A11 2.39 GHz
+6 cores (2 big, 4 little)
+
+iOS aarch64:
+- mtpng @ 1 thread  -- 802 ms -- 1.0x
+- mtpng @ 2 threads -- 475 ms -- 1.7x
+- mtpng @ 4 threads -- 371 ms -- 2.2x
+- mtpng @ 6 threads -- 320 ms -- 2.5x
+```
+
+A high-end 64-bit ARM system is quite a bit faster! It scales ok to 2 cores, getting smaller but real benefits from scheduling further work on the additional little cores.
+
 ## Todos
 
 See the [projects list on GitHub](https://github.com/brion/mtpng/projects) for active details.

@@ -1,0 +1,4 @@
+module mtpng [system][extern_c] {
+    header "mtpng.h"
+    export *
+}

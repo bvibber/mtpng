@@ -49,5 +49,5 @@ call %VsDevCmd% -arch=%arch% -host_arch=%arch%
 set x=%1
 shift
 cd samples
-cargo run --release --target=%target% -- %1 %2 %3 %4 %5 %6 %7 %8 %9 %x% ../out/%x%
+cargo run --release --target=%target%  --features=cli -- %1 %2 %3 %4 %5 %6 %7 %8 %9 %x% ../out/%x%
 cd ..
