@@ -25,7 +25,7 @@ Performance:
 * ☑️ SHOULD be as fast as or faster than libpng when single-threaded
 
 Functionality:
-* MUST support all standard color types and depths
+* ☑️ MUST support all standard color types and depths
 * ☑️ MUST support all standard filter modes
 * ☑️ MUST compress within a few percent as well as libpng
 * MAY achieve better compression than libpng, but MUST NOT do so at the cost of performance
@@ -33,10 +33,10 @@ Functionality:
 * MAY support interlacing
 
 Compatibility:
-* MUST have a good Rust API
-* MUST have a good C API
+* MUST have a good Rust API (in progress)
+* MUST have a good C API (in progress)
 * ☑️ MUST work on Linux x86, x86_64
-* MUST work on Linux arm, arm64 (untested)
+* MUST work on Linux arm (ok), arm64 (untested)
 * ☑️ SHOULD work on macOS x86_64
 * ☑️ SHOULD work on Windows x86, x86_64
 * SHOULD work on Windows arm, arm64 (untested)
@@ -70,6 +70,9 @@ macOS x86_64:
 - mtpng @  4 threads --  305 ms -- 2.1x (HT)
 ```
 
+macOS and Linux x86_64 perform about the same on the same machine, but libpng on macOS is built with clang, which seems to optimize libpng's filters worse than gcc does. This means we beat libpng on macOS by a larger margin than on Linux, where it's usually built with gcc.
+
+
 ```
 Refurbed old Dell workstation
 Xeon E5520 2.26 GHz
@@ -99,11 +102,23 @@ Windows 10 i686:
 - mtpng @ 16 threads --  206 ms -- 8.7x
 ```
 
-macOS and Linux x86_64 perform about the same on the same machine, but libpng on macOS is built with clang, which seems to optimize libpng's filters worse than gcc does. This means we beat libpng on macOS by a larger margin than on Linux, where it's usually built with gcc.
-
 Windows seems a little slower than Linux on the same machine, not quite sure why. The Linux build runs on Windows 10's WSL compatibility layer slightly slower than native Linux but faster than native Windows.
 
 32-bit builds are a bit slower still, but I don't have a Windows libpng comparison handy.
+
+```
+Raspberry Pi 3B+
+Cortex A53 1.4 GHz
+4 cores
+
+Linux armhf (32-bit):
+- libpng gcc         -- 5368 ms
+- mtpng @  1 thread  -- 6068 ms -- 1.0x
+- mtpng @  2 threads -- 3126 ms -- 1.9x
+- mtpng @  4 threads -- 1875 ms -- 3.2x
+```
+
+On 32-bit ARM we don't quite beat libpng single-threaded, but multi-threaded still does well. Haven't tested 64-bit ARM yet. Note this machine throttles aggressively if it heats up, making the second run of a repeat on a long file like that noticeably slower than the first.
 
 ## Todos
 
