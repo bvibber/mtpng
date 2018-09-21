@@ -497,6 +497,9 @@ pub struct Encoder<'a, W: Write> {
     // Accumulates the checksum of all output chunks in turn.
     adler32: u32,
 
+    // Accumulates IDAT output when not using streaming output mode
+    idat_buffer: Vec<u8>,
+
     // For messages from the thread pool.
     tx: Sender<ThreadMessage>,
     rx: Receiver<ThreadMessage>,
@@ -533,6 +536,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             deflate_chunks: ChunkMap::new(),
 
             adler32: deflate::adler32_initial(),
+            idat_buffer: Vec::new(),
 
             tx: tx,
             rx: rx,
@@ -740,12 +744,21 @@ impl<'a, W: Write> Encoder<'a, W> {
 
                     // @fixme if not streaming, append to an in-memory buffer
                     // and output a giant tag later.
-                    self.writer.write_chunk(b"IDAT", &current.data)?;
+                    if self.options.streaming {
+                        self.writer.write_chunk(b"IDAT", &current.data)?;
 
-                    if current.is_end {
-                        let mut chunk = Vec::<u8>::new();
-                        write_be32(&mut chunk, self.adler32)?;
-                        self.writer.write_chunk(b"IDAT", &chunk)?;
+                        if current.is_end {
+                            let mut chunk = Vec::<u8>::new();
+                            write_be32(&mut chunk, self.adler32)?;
+                            self.writer.write_chunk(b"IDAT", &chunk)?;
+                        }
+                    } else {
+                        self.idat_buffer.write(&current.data)?;
+
+                        if current.is_end {
+                            write_be32(&mut self.idat_buffer, self.adler32)?;
+                            self.writer.write_chunk(b"IDAT", &self.idat_buffer)?;
+                        }
                     }
 
                     self.chunks_output = self.chunks_output + 1;

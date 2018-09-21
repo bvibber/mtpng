@@ -131,6 +131,13 @@ fn write_png(pool: &ThreadPool,
         _                => return Err(err("Invalid compression strategy mode"))?,
     }
 
+    match args.value_of("streaming") {
+        None        => {},
+        Some("yes") => encoder.set_streaming(true)?,
+        Some("no")  => encoder.set_streaming(false)?,
+        _           => return Err(err("Invalid streaming mode, try yes or no."))
+    }
+
     // Image data
     encoder.set_size(header.width, header.height)?;
     encoder.set_color(header.color_type, header.depth)?;
@@ -209,6 +216,10 @@ pub fn main() {
             .long("strategy")
             .value_name("strategy")
             .help("Deflate strategy: one of filtered, huffman, rle, or fixed."))
+        .arg(Arg::with_name("streaming")
+            .long("streaming")
+            .value_name("streaming")
+            .help("Use streaming output mode; trades off file size for lower latency and memory usage"))
         .arg(Arg::with_name("threads")
             .long("threads")
             .value_name("threads")
