@@ -105,6 +105,19 @@ impl Options {
     pub fn set_strategy(&mut self, strategy: Strategy) {
         self.strategy = strategy as c_int;
     }
+
+    //
+    // Tune the memory buffer sizes for zlib deflate compression.
+    //
+    // Default is 8 (128 KiB)
+    // Maximum is 9 (256 KiB)
+    //
+    // Total memory usage for zlib is approx:
+    // (1 << (windowBits+2)) +  (1 << (memLevel+9))
+    //
+    pub fn set_mem_level(&mut self, level: i32) {
+        self.mem_level = level as c_int;
+    }
 }
 
 #[derive(Copy, Clone)]
