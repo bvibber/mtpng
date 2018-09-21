@@ -6,3 +6,5 @@ Cargo.lock
 cachegrind.out.*
 perf.*
 /build
+/darwin/mtpng
+xcuserdata
