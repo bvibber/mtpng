@@ -284,8 +284,15 @@ impl DeflateChunk {
             // we'll calculate it  later!
             // bit 5: dict requirement (0)
             let dict = 0;
-            // bits 6-7: compression level (02 == default)
-            let level = 2;
+            // bits 6-7: compression level (advisory/informative)
+            let level = match self.strategy {
+                Strategy::HuffmanOnly | Strategy::RLE | Strategy::Fixed => 0,
+                _ => match self.compression_level {
+                    CompressionLevel::Fast => 1,
+                    CompressionLevel::Default => 2,
+                    CompressionLevel::High => 3,
+                }
+            };
 
             let header = (cinfo as u16) << 12 |
                          (cm as u16) << 8 |
