@@ -223,11 +223,28 @@ impl Options {
     // Use default options
     pub fn new() -> Options {
         Options {
-            chunk_size: 128 * 1024,
+            //
+            // A chunk size of 256 KiB gives compression results very similar
+            // to a single stream when otherwise using defaults.
+            //
+            chunk_size: 256 * 1024,
+
+            //
+            // Same defaults as libpng.
+            //
             compression_level: CompressionLevel::Default,
             strategy_mode: Adaptive,
             filter_mode: Adaptive,
-            streaming: true,
+
+            //
+            // Streaming mode can produce lower latency to first bytes hitting
+            // output on large files, at the cost of size -- several extra
+            // 32-bit words per chunk, which adds up.
+            //
+            // Leaving off will buffer compressed image data into memory until
+            // the end is reached.
+            //
+            streaming: false,
         }
     }
 }

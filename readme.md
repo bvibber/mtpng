@@ -41,13 +41,17 @@ Compatibility:
 * ☑️ SHOULD work on Windows x86, x86_64
 * SHOULD work on Windows arm, arm64 (untested)
 
+## Compression
+
+Compression ratio is a tiny fraction worse than libpng with the dual-4K screenshot and the [arch photo](https://raw.githubusercontent.com/brion/mtpng/master/samples/arch-640.png) at the current default 256 KiB chunk size, getting closer the larger you increase it.
+
+Using a smaller chunk size, or enabling streaming mode, will increase the file size slightly more in exchange for greater parallelism (small chunks) and lower latency to bytes hitting the wire (streaming).
+
 ## Performance
 
 Note that unoptimized debug builds are about 50x slower than optimized release builds. Always run with `--release`!
 
 As of September 8, 2018 with Rust 1.28.0, single-threaded performance on Linux x86_64 is ~15-20% faster than libpng saving the same [dual-4K screenshot sample image](https://raw.githubusercontent.com/brion/mtpng/master/samples/dual4k.png) on Linux and macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
-
-Compression is a little bit worse than libpng with the dual-4K screenshot and the [arch photo](https://raw.githubusercontent.com/brion/mtpng/master/samples/arch-640.png) at the current default 128 KiB chunk size, getting closer the larger you increase it.
 
 Times for re-encoding the dual-4K screenshot at default options:
 
