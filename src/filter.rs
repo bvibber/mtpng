@@ -94,6 +94,9 @@ fn filter_iter_specialized<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8
 fn filter_iter_generic<F, BPP: Unsigned>(prev: &[u8], src: &[u8], out: &mut [u8], func: F)
     where F : Fn(u8, u8, u8, u8) -> u8
 {
+    assert!(src.len() == prev.len());
+    assert!(src.len() == out.len());
+
     //
     // The izip! macro merges multiple iterators together.
     // Performs _slightly_ better than a for loop with indexing
