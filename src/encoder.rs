@@ -129,6 +129,10 @@ impl PixelChunk {
             return &self.rows[row - self.start_row];
         }
     }
+
+    fn finish(self) -> Vec<Vec<u8>> {
+        self.rows
+    }
 }
 
 // Takes pixel chunks as input and accumulates filtered output.
@@ -276,37 +280,6 @@ impl DeflateChunk {
         // Todo: don't create an empty vector earlier, but reuse it sanely.
         let mut data = Vec::<u8>::new();
 
-        if self.is_start {
-            // Manually prepend the zlib header.
-            // https://github.com/madler/zlib/blob/master/deflate.c#L813
-
-            // bits 0-3
-            let cm = 8; // 8 == deflate
-            // bits 4-7
-            let cinfo = 7; // 15-bit window size minus 8
-
-            // bits 0-4: check bits for the above
-            // we'll calculate it  later!
-            // bit 5: dict requirement (0)
-            let dict = 0;
-            // bits 6-7: compression level (advisory/informative)
-            let level = match self.strategy {
-                Strategy::HuffmanOnly | Strategy::RLE | Strategy::Fixed => 0,
-                _ => match self.compression_level {
-                    CompressionLevel::Fast => 1,
-                    CompressionLevel::Default => 2,
-                    CompressionLevel::High => 3,
-                }
-            };
-
-            let header = (cinfo as u16) << 12 |
-                         (cm as u16) << 8 |
-                         (level as u16) << 6 |
-                         (dict as u16) << 5;
-            let checksum_header = header + 31 - (header % 31);
-            write_be16(&mut data, checksum_header)?;
-        }
-
         let mut options = deflate::Options::new();
 
         // Negative forces raw stream output
@@ -321,6 +294,10 @@ impl DeflateChunk {
         options.set_strategy(self.strategy);
 
         let mut encoder = Deflate::new(options, data);
+
+        if self.is_start {
+            encoder.write_header()?;
+        }
 
         match self.prior_input {
             Some(ref filter) => {
@@ -358,6 +335,106 @@ impl DeflateChunk {
             },
             Err(e) => Err(e)
         }
+    }
+}
+
+struct FilterChannel<'a> {
+    header: Header,
+    mode: Mode<Filter>,
+    rx_pixel: &'a Receiver<Vec<u8>>,
+    tx_filter: &'a Sender<Vec<u8>>,
+}
+
+impl<'a> FilterChannel<'a> {
+    fn new(header: Header,
+           mode: Mode<Filter>,
+           rx_pixel: &'a Receiver<Vec<u8>>,
+           tx_filter: &'a Sender<Vec<u8>>)
+    -> FilterChannel<'a>
+    {
+        FilterChannel {
+            header: header,
+            mode: mode,
+            rx_pixel: rx_pixel,
+            tx_filter: tx_filter,
+        }
+    }
+
+    fn run(&mut self) -> IoResult {
+        let mut row_pool = RowPool::new(self.header.stride() + 1);
+        let zero = vec![0u8; self.header.stride()];
+        let mut prev = zero;
+        for _i in 0 .. self.header.height as usize {
+            let row = self.rx_pixel.recv().map_err(|e| other(&e.to_string()))?;
+            let out_row = filter(&self.header, &mut row_pool, self.mode, &prev, &row).detach();
+            prev = row;
+            self.tx_filter.send(out_row).map_err(|e| other(&e.to_string()))?;
+        }
+        Ok(())
+    }
+}
+
+struct DeflateChannel<'a> {
+    header: Header,
+    compression_level: CompressionLevel,
+    strategy: Strategy,
+    rx_filter: &'a Receiver<Vec<u8>>,
+    tx_deflate: &'a Sender<Vec<u8>>,
+}
+
+impl<'a> DeflateChannel<'a> {
+    fn new(header: Header,
+           compression_level: CompressionLevel,
+           strategy: Strategy,
+           rx_filter: &'a Receiver<Vec<u8>>,
+           tx_deflate: &'a Sender<Vec<u8>>)
+    -> DeflateChannel<'a> {
+        DeflateChannel {
+            header: header,
+            compression_level: compression_level,
+            strategy: strategy,
+            rx_filter: rx_filter,
+            tx_deflate: tx_deflate,
+        }
+    }
+
+    fn run(&mut self) -> IoResult {
+        let out = Vec::<u8>::new();
+
+        let mut options = deflate::Options::new();
+
+        // Negative forces raw stream output
+        // 15 means 2^15 (32 KiB), the max supported.
+        options.set_window_bits(-15);
+
+        match self.compression_level {
+            CompressionLevel::Default => {},
+            CompressionLevel::Fast => options.set_level(1),
+            CompressionLevel::High => options.set_level(9),
+        }
+
+        options.set_strategy(self.strategy);
+
+        let mut encoder = Deflate::new(options, out);
+        let mut adler32 = deflate::adler32_initial();
+
+        encoder.write_header()?;
+        for i in 0 .. self.header.height as usize {
+            let row = self.rx_filter.recv().map_err(|e| other(&e.to_string()))?;
+            adler32 = deflate::adler32(adler32, &row);
+
+            encoder.write(&row, if i == self.header.height as usize - 1 {
+                Flush::Finish
+            } else {
+                Flush::NoFlush
+            })?
+        }
+
+        let mut out = encoder.finish()?;
+        write_be32(&mut out, adler32)?;
+
+        self.tx_deflate.send(out).map_err(|e| other(&e.to_string()))?;
+        Ok(())
     }
 }
 
@@ -719,30 +796,72 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
-    fn dispatch(&mut self, mode: DispatchMode) -> IoResult {
-        // See if anything interesting happened on the threads.
-        let mut blocking_mode = mode;
-        while self.filter_chunks.in_flight() || self.deflate_chunks.in_flight() {
-            match self.receive(blocking_mode) {
-                Some(ThreadMessage::FilterDone(filter)) => {
-                    self.filter_chunks.land(filter.index, filter);
-                }
-                Some(ThreadMessage::DeflateDone(deflate)) => {
-                    self.deflate_chunks.land(deflate.index, deflate);
-                },
-                Some(ThreadMessage::Error(e)) => {
-                    return Err(e);
-                }
-                None => {
-                    // No more output from the threads.
-                    break;
-                }
-            }
-            // After the first one, keep reading any if they're there
-            // but don't block further.
-            blocking_mode = DispatchMode::NonBlocking;
-        }
+    fn dispatch_channels(&mut self, mode: DispatchMode) -> IoResult {
+        // We only have one chunk! Instead of parceling out chunks
+        // to each thread, use two threads: one for filtering
+        // and one for deflate.
 
+        match self.pixel_chunks.pop_front() {
+            Some((_previous, current)) => {
+                // quick hack until retooling this whole loop
+                self.pixel_chunks.retire(current.index);
+                self.filter_chunks.retire(current.index);
+                self.deflate_chunks.retire(current.index);
+
+                let (tx_pixels, rx_pixels) = mpsc::channel();
+                let (tx_filter, rx_filter) = mpsc::channel();
+                let (tx_deflate, rx_deflate) = mpsc::channel();
+
+                let header = self.header;
+                let filter_mode = self.filter_mode();
+                self.dispatch_func(move |tx| {
+                    let mut filter = FilterChannel::new(header,
+                                                        filter_mode,
+                                                        &rx_pixels,
+                                                        &tx_filter);
+                    match filter.run() {
+                        Ok(()) => {},
+                        Err(e) => tx.send(ThreadMessage::Error(e)).unwrap(),
+                    }
+                });
+
+                let level = self.options.compression_level;
+                let strategy = self.compression_strategy();
+                self.dispatch_func(move |tx| {
+                    let mut deflate = DeflateChannel::new(header,
+                                                          level,
+                                                          strategy,
+                                                          &rx_filter,
+                                                          &tx_deflate);
+                    match deflate.run() {
+                        Ok(()) => {},
+                        Err(e) => tx.send(ThreadMessage::Error(e)).unwrap(),
+                    }
+                });
+
+                match Arc::try_unwrap(current) {
+                    Ok(chunk) => {
+                        for row in chunk.finish() {
+                            tx_pixels.send(row).map_err(|e| other(&e.to_string()))?;
+                        }
+                    },
+                    Err(_arc) => {
+                        return Err(other("Internal error: unable to lock pixel chunk"));
+                    }
+                }
+
+                // For the moment only one chunk will come out
+                let data = rx_deflate.recv().map_err(|e| other(&e.to_string()))?;
+                self.writer.write_chunk(b"IDAT", &data)?;
+
+                self.chunks_output = 1;
+            },
+            None => {}
+        }
+        Ok(())
+    }
+
+    fn dispatch_chunks(&mut self, mode: DispatchMode) -> IoResult {
         // If we have output to run, write it!
         loop {
             match self.deflate_chunks.pop_front() {
@@ -816,8 +935,8 @@ impl<'a, W: Write> Encoder<'a, W> {
                     let filter_mode = self.filter_mode();
                     self.dispatch_func(move |tx| {
                         let mut filter = FilterChunk::new(previous.clone(),
-                                                          current.clone(),
-                                                          filter_mode);
+                                                        current.clone(),
+                                                        filter_mode);
                         tx.send(match filter.run() {
                             Ok(()) => ThreadMessage::FilterDone(Arc::new(filter)),
                             Err(e) => ThreadMessage::Error(e),
@@ -831,6 +950,37 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
 
         Ok(())
+    }
+
+    fn dispatch(&mut self, mode: DispatchMode) -> IoResult {
+        // See if anything interesting happened on the threads.
+        let mut blocking_mode = mode;
+        while self.filter_chunks.in_flight() || self.deflate_chunks.in_flight() {
+            match self.receive(blocking_mode) {
+                Some(ThreadMessage::FilterDone(filter)) => {
+                    self.filter_chunks.land(filter.index, filter);
+                }
+                Some(ThreadMessage::DeflateDone(deflate)) => {
+                    self.deflate_chunks.land(deflate.index, deflate);
+                },
+                Some(ThreadMessage::Error(e)) => {
+                    return Err(e);
+                }
+                None => {
+                    // No more output from the threads.
+                    break;
+                }
+            }
+            // After the first one, keep reading any if they're there
+            // but don't block further.
+            blocking_mode = DispatchMode::NonBlocking;
+        }
+
+        if self.rows_per_chunk == self.header.height as usize {
+            self.dispatch_channels(blocking_mode)
+        } else {
+            self.dispatch_chunks(blocking_mode)
+        }
     }
 
     //
@@ -987,6 +1137,12 @@ impl<'a, W: Write> Encoder<'a, W> {
                                                                   self.pixel_index,
                                                                   self.start_row(self.pixel_index),
                                                                   self.end_row(self.pixel_index)));
+            } else {
+                // hack -- need to remove a reference for row channeling mode
+                self.pixel_accumulator = Arc::new(PixelChunk::new(self.header,
+                                                                  0,
+                                                                  self.start_row(0),
+                                                                  self.end_row(0)));
             }
 
             // Dispatch any available async tasks and output.

@@ -179,6 +179,41 @@ impl<W: Write> Deflate<W> {
         }
     }
 
+    pub fn write_header(&mut self) -> IoResult {
+        // Manually prepend the zlib header.
+        // https://github.com/madler/zlib/blob/master/deflate.c#L813
+
+        // bits 0-3
+        let cm = 8; // 8 == deflate
+        // bits 4-7
+        let cinfo = 7; // 15-bit window size minus 8
+
+        // bits 0-4: check bits for the above
+        // we'll calculate it  later!
+        // bit 5: dict requirement (0)
+        let dict = 0;
+        // bits 6-7: compression level (advisory/informative)
+        let level = match self.options.strategy {
+            Z_HUFFMAN_ONLY | Z_RLE | Z_FIXED => 0,
+            _ => {
+                if self.options.level > 6 {
+                    3
+                } else if self.options.level > 1 {
+                    2
+                } else {
+                    1
+                }
+            }
+        };
+
+        let header = (cinfo as u16) << 12 |
+                     (cm    as u16) <<  8 |
+                     (level as u16) <<  6 |
+                     (dict  as u16) <<  5;
+        let checksum_header = header + 31 - (header % 31);
+        write_be16(&mut self.output, checksum_header)
+    }
+
     pub fn set_dictionary(&mut self, dict: &[u8]) -> IoResult {
         self.init()?;
         let ret = unsafe {

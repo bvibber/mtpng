@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn it_works() {
         let header = Header::with_color(1024, 768, ColorType::Truecolor);
-        let mut row_pool = RowPool::new(1024 + 1);
+        let mut row_pool = RowPool::new(header.stride() + 1);
 
         let prev = vec![0u8; header.stride()];
         let row = vec![0u8; header.stride()];
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn it_works_16() {
         let header = Header::with_depth(1024, 768, ColorType::Truecolor, 16);
-        let mut row_pool = RowPool::new(1024 + 1);
+        let mut row_pool = RowPool::new(header.stride() + 1);
 
         let prev = vec![0u8; header.stride()];
         let row = vec![0u8; header.stride()];
