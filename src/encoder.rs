@@ -149,8 +149,8 @@ struct FilterChunk {
     // The input pixels for chunk n
     input: Arc<PixelChunk>,
 
-    // Filtered output bytes
-    data: Vec<u8>,
+    // Rows of filtered output bytes
+    rows: Vec<Vec<u8>>,
 }
 
 impl FilterChunk {
@@ -160,7 +160,7 @@ impl FilterChunk {
     {
         // Prepend one byte for the filter selector.
         let stride = input.stride + 1;
-        let nbytes = stride * (input.end_row - input.start_row);
+        let nrows = input.end_row - input.start_row;
 
         FilterChunk {
             index: input.index,
@@ -174,20 +174,25 @@ impl FilterChunk {
 
             prior_input: prior_input,
             input: input,
-            data: Vec::with_capacity(nbytes),
+            rows: Vec::with_capacity(nrows),
         }
     }
 
     // Return the last up-to-32kib, used as an input dictionary
     // for the next chunk's deflate job.
-    fn get_trailer(&self) -> &[u8] {
+    fn get_trailer(&self) -> Vec<u8> {
         let trailer = 32768;
-        let len = self.data.len();
-        if len > trailer {
-            return &self.data[len - trailer .. len];
-        } else {
-            return &self.data[0 .. len];
+        let mut buf = Vec::<u8>::with_capacity(trailer);
+
+        let nrows = self.end_row - self.start_row;
+        let whole_rows = trailer / self.stride;
+        let remainder_bytes = trailer % self.stride;
+
+        buf.extend_from_slice(&self.rows[nrows - whole_rows - 1][self.stride - remainder_bytes ..]);
+        for n in nrows - whole_rows .. nrows {
+            buf.extend_from_slice(&self.rows[n]);
         }
+        buf
     }
 
     //
@@ -215,7 +220,9 @@ impl FilterChunk {
 
             let output = filter.filter(prev, row);
 
-            self.data.write_all(output)?
+            let mut buf = Vec::<u8>::with_capacity(self.stride);
+            buf.extend_from_slice(output);
+            self.rows.push(buf);
         }
         Ok(())
     }
@@ -320,21 +327,30 @@ impl DeflateChunk {
         match self.prior_input {
             Some(ref filter) => {
                 let trailer = filter.get_trailer();
-                encoder.set_dictionary(trailer)?;
+                encoder.set_dictionary(&trailer)?;
             },
             None => {
                 // do nothing.
             }
         }
 
-        encoder.write(&self.input.data, if self.is_end {
-            Flush::Finish
-        } else {
-            Flush::SyncFlush
-        })?;
-
         // In raw deflate mode we have to calculate the checksum ourselves.
-        self.adler32 = deflate::adler32(1, &self.input.data);
+        self.adler32 = 1;
+        for n in self.input.start_row .. self.input.end_row {
+            let row = &self.input.rows[n - self.input.start_row];
+            self.adler32 = deflate::adler32(self.adler32, &row);
+            encoder.write(&row,
+                if n == self.input.end_row - 1 {
+                    if self.is_end {
+                        Flush::Finish
+                    } else {
+                        Flush::SyncFlush
+                    }
+                } else {
+                    Flush::NoFlush
+                }
+            )?;
+        }
 
         return match encoder.finish() {
             Ok(data) => {
@@ -740,7 +756,7 @@ impl<'a, W: Write> Encoder<'a, W> {
                     // Combine the checksums!
                     self.adler32 = deflate::adler32_combine(self.adler32,
                                                             current.adler32,
-                                                            current.input.data.len());
+                                                            current.input.stride * (current.input.end_row - current.input.start_row));
 
                     // @fixme if not streaming, append to an in-memory buffer
                     // and output a giant tag later.
