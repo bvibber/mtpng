@@ -23,8 +23,11 @@
 // THE SOFTWARE.
 //
 
-use ::std::io;
-use ::std::io::{Error, ErrorKind, Write};
+use std::io;
+use std::io::{Error, ErrorKind, Write};
+
+use std::mem;
+
 
 pub type IoResult = io::Result<()>;
 
@@ -59,4 +62,85 @@ pub fn write_be16<W: Write>(w: &mut W, val: u16) -> IoResult {
 pub fn write_byte<W: Write>(w: &mut W, val: u8) -> IoResult {
     let bytes = [val];
     w.write_all(&bytes)
+}
+
+pub struct RowPool {
+    row_len: usize,
+    buffers: Vec<Vec<u8>>,
+}
+
+pub struct Row {
+    data: Vec<u8>,
+    row_pool: *mut RowPool,
+}
+
+impl Row {
+    fn new(data: Vec<u8>, row_pool: &mut RowPool) -> Row {
+        Row {
+            data: data,
+            row_pool: row_pool,
+        }
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
+
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        &mut self.data
+    }
+}
+
+impl RowPool {
+    pub fn new(row_len: usize) -> RowPool {
+        RowPool {
+            row_len: row_len,
+            buffers: Vec::new(),
+        }
+    }
+
+    pub fn claim(&mut self, len: usize) -> Row {
+        assert!(len == self.row_len); // todo allow multiples or?
+
+        let buf = match self.buffers.pop() {
+            Some(buf) => buf,
+            None => self.make_buffer()
+        };
+        Row::new(buf, self)
+    }
+
+    fn make_buffer(&self) -> Vec<u8> {
+        vec![0; self.row_len]
+    }
+
+    pub fn recycle(&mut self, row: Row) {
+        // The row's drop trait will call our recycle_buffer().
+        drop(row);
+    }
+
+    fn recycle_buffer(&mut self, buf: Vec<u8>) {
+        self.buffers.push(buf);
+    }
+
+    pub fn recycle_pool(&mut self, mut other: RowPool) {
+        loop {
+            match other.buffers.pop() {
+                Some(buf) => self.recycle_buffer(buf),
+                None => break,
+            }
+        }
+    }
+}
+
+impl Drop for Row {
+    fn drop(&mut self) {
+        let mut other = Vec::<u8>::new();
+        mem::swap(&mut self.data, &mut other);
+        // Unsafe needed to hack into mutable.
+        // DONT DO THIS.
+        // EVER.
+        unsafe {
+            (*self.row_pool).recycle_buffer(other)
+        }
+    }
 }

@@ -25,6 +25,7 @@
 
 use std::cmp;
 use std::io;
+use std::cell::RefCell;
 
 use typenum::Unsigned;
 use typenum::consts::*;
@@ -34,6 +35,7 @@ use super::Mode;
 use super::Mode::{Adaptive, Fixed};
 
 use super::utils::invalid_input;
+use super::utils::{Row, RowPool};
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
@@ -283,146 +285,121 @@ fn estimate_complexity(data: &[u8]) -> u32 {
     sum
 }
 
-//
-// Holds a target row that can be filtered
-// Can be reused.
-//
-struct Filterator {
-    filter: Filter,
-    bpp: usize,
-    data: Vec<u8>,
-    complexity: u32,
+fn filter_run(header: &Header,
+              row_pool: &mut RowPool,
+              mode: Filter,
+              prev: &[u8],
+              src: &[u8])
+-> (Row, u32)
+{
+    let stride = header.stride();
+    let mut row = row_pool.claim(stride + 1);
+
+    let func = match mode {
+        Filter::None => filter_none,
+        Filter::Sub => filter_sub,
+        Filter::Up => filter_up,
+        Filter::Average => filter_average,
+        Filter::Paeth => filter_paeth,
+    };
+    func(header.bytes_per_pixel(), prev, src, row.data_mut());
+
+    let complexity = estimate_complexity(&row.data()[1..]);
+    (row, complexity)
 }
 
-impl Filterator {
-    fn new(filter: Filter, bpp: usize, stride: usize) -> Filterator {
-        Filterator {
-            filter: filter,
-            bpp: bpp,
-            data: vec![0u8; stride + 1],
-            complexity: 0,
-        }
-    }
+fn filter_fixed(header: &Header,
+                row_pool: &mut RowPool,
+                mode: Filter,
+                prev: &[u8],
+                src: &[u8])
+-> Row
+{
+    filter_run(header, row_pool, mode, prev, src).0
+}
 
-    fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
-        match self.filter {
-            Filter::None    => filter_none(self.bpp, prev, src, &mut self.data),
-            Filter::Sub     => filter_sub(self.bpp, prev, src, &mut self.data),
-            Filter::Up      => filter_up(self.bpp, prev, src, &mut self.data),
-            Filter::Average => filter_average(self.bpp, prev, src, &mut self.data),
-            Filter::Paeth   => filter_paeth(self.bpp, prev, src, &mut self.data),
-        }
-        self.complexity = estimate_complexity(&self.data[1..]);
-        &self.data
-    }
+fn filter_adaptive(header: &Header,
+                   row_pool: &mut RowPool,
+                   prev: &[u8],
+                   src: &[u8])
+-> Row
+{
+    //
+    // Note the "none" filter is often good for things like
+    // line-art diagrams and screenshots that have lots of
+    // sharp pixel edges and long runs of solid colors.
+    //
+    // The adaptive filter algorithm doesn't work on it, however,
+    // since it measures accumulated filter prediction offets and
+    // that gives useless results on absolute color magnitudes.
+    //
+    // Compression could be improved for some files if a heuristic
+    // can be devised to check if the none filter will work well.
+    //
 
-    fn get_data(&self) -> &[u8] {
-        &self.data
-    }
+    let (data_sub, complexity_sub) = filter_run(header, row_pool, Filter::Sub, prev, src);
+    let mut min = complexity_sub;
 
-    fn get_complexity(&self) -> u32 {
-        self.complexity
+    let (data_up, complexity_up) = filter_run(header, row_pool, Filter::Up, prev, src);
+    min = cmp::min(min, complexity_up);
+
+    let (data_avg, complexity_avg) = filter_run(header, row_pool, Filter::Average, prev, src);
+    min = cmp::min(min, complexity_avg);
+
+    let (data_paeth, complexity_paeth) = filter_run(header, row_pool, Filter::Paeth, prev, src);
+    min = cmp::min(min, complexity_paeth);
+
+    if min == complexity_paeth {
+        data_paeth
+    } else if min == complexity_avg {
+        data_avg
+    } else if min == complexity_up {
+        data_up
+    } else /*if min == self.filter_sub.get_complexity() */ {
+        data_sub
     }
 }
 
-pub struct AdaptiveFilter {
-    mode: Mode<Filter>,
-    filter_none: Filterator,
-    filter_up: Filterator,
-    filter_sub: Filterator,
-    filter_average: Filterator,
-    filter_paeth: Filterator,
-}
-
-impl AdaptiveFilter {
-    pub fn new(header: Header, mode: Mode<Filter>) -> AdaptiveFilter {
-        let stride = header.stride();
-        let bpp = header.bytes_per_pixel();
-        AdaptiveFilter {
-            mode: mode,
-            filter_none:    Filterator::new(Filter::None,    bpp, stride),
-            filter_up:      Filterator::new(Filter::Up,      bpp, stride),
-            filter_sub:     Filterator::new(Filter::Sub,     bpp, stride),
-            filter_average: Filterator::new(Filter::Average, bpp, stride),
-            filter_paeth:   Filterator::new(Filter::Paeth,   bpp, stride),
-        }
-    }
-
-    fn filter_adaptive(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
-        //
-        // Note the "none" filter is often good for things like
-        // line-art diagrams and screenshots that have lots of
-        // sharp pixel edges and long runs of solid colors.
-        //
-        // The adaptive filter algorithm doesn't work on it, however,
-        // since it measures accumulated filter prediction offets and
-        // that gives useless results on absolute color magnitudes.
-        //
-        // Compression could be improved for some files if a heuristic
-        // can be devised to check if the none filter will work well.
-        //
-
-        self.filter_sub.filter(prev, src);
-        let mut min = self.filter_sub.get_complexity();
-
-        self.filter_up.filter(prev, src);
-        min = cmp::min(min, self.filter_up.get_complexity());
-
-        self.filter_average.filter(prev, src);
-        min = cmp::min(min, self.filter_average.get_complexity());
-
-        self.filter_paeth.filter(prev, src);
-        min = cmp::min(min, self.filter_paeth.get_complexity());
-
-        if min == self.filter_paeth.get_complexity() {
-            self.filter_paeth.get_data()
-        } else if min == self.filter_average.get_complexity() {
-            self.filter_average.get_data()
-        } else if min == self.filter_up.get_complexity() {
-            self.filter_up.get_data()
-        } else /*if min == self.filter_sub.get_complexity() */ {
-            self.filter_sub.get_data()
-        }
-    }
-
-    pub fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
-        match self.mode {
-            Fixed(Filter::None)    => self.filter_none.filter(prev, src),
-            Fixed(Filter::Sub)     => self.filter_sub.filter(prev, src),
-            Fixed(Filter::Up)      => self.filter_up.filter(prev, src),
-            Fixed(Filter::Average) => self.filter_average.filter(prev, src),
-            Fixed(Filter::Paeth)   => self.filter_paeth.filter(prev, src),
-            Adaptive               => self.filter_adaptive(prev, src),
-        }
+pub fn filter(header: &Header,
+              row_pool: &mut RowPool,
+              mode: Mode<Filter>,
+              prev: &[u8],
+              src: &[u8])
+-> Row
+{
+    match mode {
+        Fixed(mode) => filter_fixed(header, row_pool, mode, prev, src),
+        Adaptive    => filter_adaptive(header, row_pool, prev, src),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::AdaptiveFilter;
+    use super::filter;
     use super::Mode;
     use super::super::Header;
     use super::super::ColorType;
+    use super::super::utils::RowPool;
 
     #[test]
     fn it_works() {
         let header = Header::with_color(1024, 768, ColorType::Truecolor);
-        let mut filter = AdaptiveFilter::new(header, Mode::Adaptive);
+        let mut row_pool = RowPool::new(1024 + 1);
 
         let prev = vec![0u8; header.stride()];
         let row = vec![0u8; header.stride()];
-        let filtered_data = filter.filter(&prev, &row);
-        assert_eq!(filtered_data.len(), header.stride() + 1);
+        let filtered_row = filter(&header, &mut row_pool, Mode::Adaptive, &prev, &row);
+        assert_eq!(filtered_row.data().len(), header.stride() + 1);
     }
 
     #[test]
     fn it_works_16() {
         let header = Header::with_depth(1024, 768, ColorType::Truecolor, 16);
-        let mut filter = AdaptiveFilter::new(header, Mode::Adaptive);
+        let mut row_pool = RowPool::new(1024 + 1);
 
         let prev = vec![0u8; header.stride()];
         let row = vec![0u8; header.stride()];
-        let filtered_data = filter.filter(&prev, &row);
-        assert_eq!(filtered_data.len(), header.stride() + 1);
+        let filtered_row = filter(&header, &mut row_pool, Mode::Adaptive, &prev, &row);
+        assert_eq!(filtered_row.data().len(), header.stride() + 1);
     }
 }

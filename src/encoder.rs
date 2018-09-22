@@ -44,9 +44,9 @@ use super::Mode;
 use super::Mode::{Adaptive, Fixed};
 use super::Options;
 
-use super::filter::AdaptiveFilter;
 use super::filter::Filter;
 use super::writer::Writer;
+use super::filter::filter;
 
 use super::deflate;
 use super::deflate::Deflate;
@@ -199,7 +199,7 @@ impl FilterChunk {
     // Run the filtering, on a background thread.
     //
     fn run(&mut self) -> IoResult {
-        let mut filter = AdaptiveFilter::new(self.input.header, self.filter_mode);
+        let mut row_pool = RowPool::new(self.stride);
         let zero = vec![0u8; self.stride - 1];
         for i in self.start_row .. self.end_row {
             let prior = if i == self.start_row {
@@ -218,10 +218,10 @@ impl FilterChunk {
 
             let row = self.input.get_row(i);
 
-            let output = filter.filter(prev, row);
+            let row = filter(&self.input.header, &mut row_pool, self.filter_mode, prev, row);
 
             let mut buf = Vec::<u8>::with_capacity(self.stride);
-            buf.extend_from_slice(output);
+            buf.extend_from_slice(row.data());
             self.rows.push(buf);
         }
         Ok(())
