@@ -220,9 +220,7 @@ impl FilterChunk {
 
             let row = filter(&self.input.header, &mut row_pool, self.filter_mode, prev, row);
 
-            let mut buf = Vec::<u8>::with_capacity(self.stride);
-            buf.extend_from_slice(row.data());
-            self.rows.push(buf);
+            self.rows.push(row.detach());
         }
         Ok(())
     }

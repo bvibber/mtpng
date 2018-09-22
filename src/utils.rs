@@ -28,6 +28,8 @@ use std::io::{Error, ErrorKind, Write};
 
 use std::mem;
 
+use std::ptr;
+
 
 pub type IoResult = io::Result<()>;
 
@@ -89,6 +91,17 @@ impl Row {
     pub fn data_mut(&mut self) -> &mut [u8] {
         &mut self.data
     }
+
+    pub fn detach(mut self) -> Vec<u8> {
+        // Swap out the buffer vector...
+        let mut other = Vec::<u8>::new();
+        mem::swap(&mut self.data, &mut other);
+
+        // Clear the row_pool so we don't try to recycle the empty buffer
+        self.row_pool = ptr::null_mut();
+
+        other
+    }
 }
 
 impl RowPool {
@@ -134,13 +147,15 @@ impl RowPool {
 
 impl Drop for Row {
     fn drop(&mut self) {
-        let mut other = Vec::<u8>::new();
-        mem::swap(&mut self.data, &mut other);
-        // Unsafe needed to hack into mutable.
-        // DONT DO THIS.
-        // EVER.
-        unsafe {
-            (*self.row_pool).recycle_buffer(other)
+        if !self.row_pool.is_null() {
+            let mut other = Vec::<u8>::new();
+            mem::swap(&mut self.data, &mut other);
+            // Unsafe needed to hack into mutable.
+            // DONT DO THIS.
+            // EVER.
+            unsafe {
+                (*self.row_pool).recycle_buffer(other)
+            }
         }
     }
 }
