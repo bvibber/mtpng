@@ -295,17 +295,17 @@ fn filter_run(header: &Header,
               src: &[u8])
 -> (Row, u32)
 {
+    let bpp = header.bytes_per_pixel();
     let stride = header.stride();
     let mut row = row_pool.claim(stride + 1);
 
-    let func = match mode {
-        Filter::None => filter_none,
-        Filter::Sub => filter_sub,
-        Filter::Up => filter_up,
-        Filter::Average => filter_average,
-        Filter::Paeth => filter_paeth,
-    };
-    func(header.bytes_per_pixel(), prev, src, row.data_mut());
+    match mode {
+        Filter::None => filter_none(bpp, prev, src, row.data_mut()),
+        Filter::Sub => filter_sub(bpp, prev, src, row.data_mut()),
+        Filter::Up => filter_up(bpp, prev, src, row.data_mut()),
+        Filter::Average => filter_average(bpp, prev, src, row.data_mut()),
+        Filter::Paeth => filter_paeth(bpp, prev, src, row.data_mut()),
+    }
 
     let complexity = estimate_complexity(&row.data()[1..]);
     (row, complexity)
