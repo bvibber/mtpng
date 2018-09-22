@@ -185,6 +185,7 @@ fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 //
 // https://www.w3.org/TR/PNG/#9Filter-type-4-Paeth
 //
+#[inline(always)]
 fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
     let a = left as i32;
     let b = above as i32;
