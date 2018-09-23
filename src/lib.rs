@@ -23,15 +23,19 @@
 // THE SOFTWARE.
 //
 
+//! mtpng - a multithreaded parallel PNG encoder in Rust
+
 extern crate rayon;
 extern crate crc;
 extern crate libz_sys;
 #[macro_use] extern crate itertools;
 extern crate typenum;
 
-// @fixme use a feature flag or?
+#[cfg(feature="capi")]
 extern crate libc;
+#[cfg(feature="capi")]
 mod capi;
+#[cfg(feature="capi")]
 pub use capi::*;
 
 pub mod deflate;
@@ -44,15 +48,17 @@ use std::io;
 
 use utils::{invalid_input, other};
 
-//
-// Like Option, but more specific. :D
-//
+/// Wrapper for filter and compression modes.
+///
+/// "Adaptive" means automatic selection based on content;
+/// "Fixed" carries a specific mode.
 #[derive(Copy, Clone)]
 pub enum Mode<T> {
     Adaptive,
     Fixed(T),
 }
 
+/// PNG color types.
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum ColorType {
@@ -65,20 +71,22 @@ pub enum ColorType {
 use ColorType::*;
 
 impl ColorType {
+    /// Validate and produce a ColorType from one of the PNG header constants.
     //
     // Todo: use TryFrom trait when it's stable.
     //
     pub fn try_from_u8(val: u8) -> io::Result<ColorType> {
         return match val {
-            0 => Ok(ColorType::Greyscale),
-            2 => Ok(ColorType::Truecolor),
-            3 => Ok(ColorType::IndexedColor),
-            4 => Ok(ColorType::GreyscaleAlpha),
-            6 => Ok(ColorType::TruecolorAlpha),
+            0 => Ok(Greyscale),
+            2 => Ok(Truecolor),
+            3 => Ok(IndexedColor),
+            4 => Ok(GreyscaleAlpha),
+            6 => Ok(TruecolorAlpha),
             _ => Err(other("Inalid color type value")),
         }
     }
 
+    /// Check if the given bit depth is valid for this color type.
     pub fn is_depth_valid(&self, depth: u8) -> bool {
         match *self {
             Greyscale => match depth {
@@ -97,18 +105,27 @@ impl ColorType {
     }
 }
 
+/// PNG header compression method representation.
+///
+/// There is only one method defined, which is Deflate.
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum CompressionMethod {
     Deflate = 0,
 }
 
+/// PNG header filter method representation.
+///
+/// Currently only Standard is supported. This may be expanded to support APNG in future.
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum FilterMethod {
     Standard = 0,
 }
 
+/// PNG header interlace method representation.
+///
+/// Currently only Standard is supported; Adam7 interlacing will throw an error if used.
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum InterlaceMethod {
@@ -116,9 +133,12 @@ pub enum InterlaceMethod {
     Adam7 = 1,
 }
 
+/// PNG header representation.
+///
+/// You must create one of these with image metadata when encoding,
+/// and can reuse the header for multiple encodings if desired.
 #[derive(Copy, Clone)]
 pub struct Header {
-    // @fixme dont use pub?
     pub width: u32,
     pub height: u32,
     pub depth: u8,
@@ -129,6 +149,11 @@ pub struct Header {
 }
 
 impl Header {
+    /// Create a new Header struct with default settings.
+    ///
+    /// This will be 1x1 pixels, TruecolorAlpha 8-bit, with
+    /// the standard compression, filter, and interlace methods.
+    /// You can mutate the state using the set_* methods.
     pub fn new() -> Header {
         Header {
             width: 1,
@@ -141,6 +166,7 @@ impl Header {
         }
     }
 
+    /// Get the number of channels per pixel for this image's color type.
     pub fn channels(&self) -> usize {
         match self.color_type {
             ColorType::Greyscale => 1,
@@ -151,10 +177,9 @@ impl Header {
         }
     }
 
-    //
-    // warning this is specific to the filtering?
-    // rename maybe
-    //
+    /// Get the bytes per pixel for this image, for PNG filtering purposes.
+    ///
+    /// If the bit depth is < 8, this will clamp at 1.
     pub fn bytes_per_pixel(&self) -> usize {
         self.channels() * if self.depth > 8 {
             2
@@ -163,12 +188,9 @@ impl Header {
         }
     }
 
-    //
-    // Get the stride in bytes for the encoded pixel rows
-    // matching the settings in this header.
-    //
-    // Will panic on arithmetic overflow.
-    //
+    /// Get the stride in bytes for the encoded pixel rows matching the settings in this header.
+    ///
+    /// Will panic on arithmetic overflow if given pathologically long rows.
     pub fn stride(&self) -> usize {
         let bits_per_pixel = self.channels() * self.depth as usize;
 
@@ -187,6 +209,13 @@ impl Header {
         }
     }
 
+    /// Set the pixel dimensions of the image.
+    ///
+    /// Returns error if width or height are 0.
+    ///
+    /// Warning: it's possible to make combinations of width and color type
+    /// that cannot fit in memory on 32-bit systems. These are not detected
+    /// here, but will panic when stride() is called.
     pub fn set_size(&mut self, width: u32, height: u32) -> io::Result<()> {
         if width == 0 {
             Err(invalid_input("width cannot be 0"))
@@ -199,6 +228,13 @@ impl Header {
         }
     }
 
+    /// Set the color type and depth of the image.
+    ///
+    /// Returns error if depth is invalid for the given color type.
+    ///
+    /// Warning: it's possible to make combinations of width and color type
+    /// that cannot fit in memory on 32-bit systems. These are not detected
+    /// here, but will panic when stride() is called.
     pub fn set_color(&mut self, color_type: ColorType, depth: u8) -> io::Result<()> {
         if !color_type.is_depth_valid(depth) {
             Err(invalid_input("invalid color depth for this color type"))
@@ -210,6 +246,9 @@ impl Header {
     }
 }
 
+/// Representation of deflate compression level.
+///
+/// Default is zlib's 6; Fast is 1; High is 9.
 #[derive(Copy, Clone)]
 pub enum CompressionLevel {
     Fast,

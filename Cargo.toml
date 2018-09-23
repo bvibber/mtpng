@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Brion Vibber <brion@pobox.com>"]
 
 [features]
-default=["capi"]
+default=[]
 cli=["png", "clap", "time"]
 capi=["libc"]
 
