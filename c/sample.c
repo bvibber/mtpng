@@ -122,10 +122,10 @@ int main(int argc, char **argv) {
     // Error handler for the TRY macros:
 cleanup:
     if (encoder) {
-        TRY(mtpng_encoder_release(&encoder));
+        mtpng_encoder_release(&encoder);
     }
     if (pool) {
-        TRY(mtpng_threadpool_release(&pool));
+        mtpng_threadpool_release(&pool);
     }
 
     printf("Failed!\n");
