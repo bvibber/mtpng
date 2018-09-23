@@ -42,7 +42,6 @@ use super::CompressionLevel;
 use super::Header;
 use super::Mode;
 use super::Mode::{Adaptive, Fixed};
-use super::Options;
 
 use super::filter::AdaptiveFilter;
 use super::filter::Filter;
@@ -54,6 +53,46 @@ use super::deflate::Flush;
 use super::deflate::Strategy;
 
 use super::utils::*;
+
+
+#[derive(Copy, Clone)]
+pub struct Options {
+    chunk_size: usize,
+    compression_level: CompressionLevel,
+    strategy_mode: Mode<Strategy>,
+    filter_mode: Mode<Filter>,
+    streaming: bool,
+}
+
+impl Options {
+    // Use default options
+    pub fn new() -> Options {
+        Options {
+            //
+            // A chunk size of 256 KiB gives compression results very similar
+            // to a single stream when otherwise using defaults.
+            //
+            chunk_size: 256 * 1024,
+
+            //
+            // Same defaults as libpng.
+            //
+            compression_level: CompressionLevel::Default,
+            strategy_mode: Adaptive,
+            filter_mode: Adaptive,
+
+            //
+            // Streaming mode can produce lower latency to first bytes hitting
+            // output on large files, at the cost of size -- several extra
+            // 32-bit words per chunk, which adds up.
+            //
+            // Leaving off will buffer compressed image data into memory until
+            // the end is reached.
+            //
+            streaming: false,
+        }
+    }
+}
 
 // Accumulates a set of pixels, then gets sent off as input
 // to the deflate jobs.
