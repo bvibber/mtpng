@@ -45,7 +45,7 @@ use time::precise_time_s;
 extern crate mtpng;
 use mtpng::{ColorType, CompressionLevel, Header};
 use mtpng::Mode::{Adaptive, Fixed};
-use mtpng::encoder::Encoder;
+use mtpng::encoder::{Encoder, Options};
 use mtpng::deflate::Strategy;
 use mtpng::filter::Filter;
 
@@ -66,10 +66,10 @@ fn read_png(filename: &str)
 
     let (info, mut reader) = decoder.read_info()?;
 
-    let header = Header::with_depth(info.width,
-                                    info.height,
-                                    ColorType::try_from_u8(info.color_type as u8)?,
-                                    info.bit_depth as u8);
+    let mut header = Header::new();
+    header.set_size(info.width, info.height)?;
+    header.set_color(ColorType::try_from_u8(info.color_type as u8)?,
+                     info.bit_depth as u8)?;
 
     let palette = reader.info().palette.clone();
     let transparency = reader.info().trns.clone();
@@ -90,58 +90,60 @@ fn write_png(pool: &ThreadPool,
    -> io::Result<()>
 {
     let writer = File::create(filename)?;
-    let mut encoder = Encoder::with_thread_pool(writer, pool);
+    let mut options = Options::new();
 
     // Encoding options
+    options.set_thread_pool(pool)?;
+
     match args.value_of("chunk-size") {
         None    => {},
         Some(s) => {
             let n = s.parse::<usize>().map_err(|_e| err("Invalid chunk size"))?;
-            encoder.set_chunk_size(n)?;
+            options.set_chunk_size(n)?;
         },
     }
 
     match args.value_of("filter") {
         None             => {},
-        Some("adaptive") => encoder.set_filter_mode(Adaptive)?,
-        Some("none")     => encoder.set_filter_mode(Fixed(Filter::None))?,
-        Some("up")       => encoder.set_filter_mode(Fixed(Filter::Up))?,
-        Some("sub")      => encoder.set_filter_mode(Fixed(Filter::Sub))?,
-        Some("average")  => encoder.set_filter_mode(Fixed(Filter::Average))?,
-        Some("paeth")    => encoder.set_filter_mode(Fixed(Filter::Paeth))?,
+        Some("adaptive") => options.set_filter_mode(Adaptive)?,
+        Some("none")     => options.set_filter_mode(Fixed(Filter::None))?,
+        Some("up")       => options.set_filter_mode(Fixed(Filter::Up))?,
+        Some("sub")      => options.set_filter_mode(Fixed(Filter::Sub))?,
+        Some("average")  => options.set_filter_mode(Fixed(Filter::Average))?,
+        Some("paeth")    => options.set_filter_mode(Fixed(Filter::Paeth))?,
         _                => return Err(err("Unsupported filter type")),
     }
 
     match args.value_of("level") {
         None            => {},
-        Some("default") => encoder.set_compression_level(CompressionLevel::Default)?,
-        Some("1")       => encoder.set_compression_level(CompressionLevel::Fast)?,
-        Some("9")       => encoder.set_compression_level(CompressionLevel::High)?,
+        Some("default") => options.set_compression_level(CompressionLevel::Default)?,
+        Some("1")       => options.set_compression_level(CompressionLevel::Fast)?,
+        Some("9")       => options.set_compression_level(CompressionLevel::High)?,
         _               => return Err(err("Unsupported compression level (try default, 1, or 9)")),
     }
 
     match args.value_of("strategy") {
         None             => {},
-        Some("auto")     => encoder.set_strategy_mode(Adaptive)?,
-        Some("default")  => encoder.set_strategy_mode(Fixed(Strategy::Default))?,
-        Some("filtered") => encoder.set_strategy_mode(Fixed(Strategy::Filtered))?,
-        Some("huffman")  => encoder.set_strategy_mode(Fixed(Strategy::HuffmanOnly))?,
-        Some("rle")      => encoder.set_strategy_mode(Fixed(Strategy::RLE))?,
-        Some("fixed")    => encoder.set_strategy_mode(Fixed(Strategy::Fixed))?,
+        Some("auto")     => options.set_strategy_mode(Adaptive)?,
+        Some("default")  => options.set_strategy_mode(Fixed(Strategy::Default))?,
+        Some("filtered") => options.set_strategy_mode(Fixed(Strategy::Filtered))?,
+        Some("huffman")  => options.set_strategy_mode(Fixed(Strategy::HuffmanOnly))?,
+        Some("rle")      => options.set_strategy_mode(Fixed(Strategy::RLE))?,
+        Some("fixed")    => options.set_strategy_mode(Fixed(Strategy::Fixed))?,
         _                => return Err(err("Invalid compression strategy mode"))?,
     }
 
     match args.value_of("streaming") {
         None        => {},
-        Some("yes") => encoder.set_streaming(true)?,
-        Some("no")  => encoder.set_streaming(false)?,
+        Some("yes") => options.set_streaming(true)?,
+        Some("no")  => options.set_streaming(false)?,
         _           => return Err(err("Invalid streaming mode, try yes or no."))
     }
 
+    let mut encoder = Encoder::new(writer, &options);
+
     // Image data
-    encoder.set_size(header.width, header.height)?;
-    encoder.set_color(header.color_type, header.depth)?;
-    encoder.write_header()?;
+    encoder.write_header(&header)?;
     match palette {
         Some(v) => encoder.write_palette(&v)?,
         None => {},

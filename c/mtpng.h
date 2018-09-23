@@ -86,6 +86,21 @@ typedef enum mtpng_color_t {
 typedef struct mtpng_threadpool_struct mtpng_threadpool;
 
 //
+// Represents configuration options for the PNG encoder.
+//
+// The contents are private; you will only ever use pointers.
+//
+typedef struct mtpng_encoder_options_struct mtpng_encoder_options;
+
+//
+// Represents a PNG image's top-level metadata, belonging
+// in the iHDR header chunk.
+//
+// The contents are private; you will only ever use pointers.
+//
+typedef struct mtpng_header_struct mtpng_header;
+
+//
 // Represents a PNG encoder instance, which can encode a single
 // image and then must be released. Multiple encoders may share
 // a single thread pool.
@@ -182,10 +197,153 @@ mtpng_threadpool_new(mtpng_threadpool** pp_pool,
 extern mtpng_result
 mtpng_threadpool_release(mtpng_threadpool** pp_pool);
 
+#pragma mark Encoder options
+
+//
+// Creates a new set of encoder options. Fill out the details
+// and pass in to mtpng_encoder_new(). May be reused on multiple
+// encoders.
+//
+// Free with mtpng_encoder_options_release().
+//
+// On input, *pp_options must be NULL.
+// On output, *pp_options will be a pointer to an options instance
+// if successful, or remain unchanged in case of error.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_options_new(mtpng_encoder_options** pp_options);
+
+//
+// Releases the option set's memory and clears the pointer.
+//
+// On input, *pp_options must be a valid instance pointer.
+// On output, *pp_options will be NULL on success or remain unchanged
+// in case of failure.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_options_release(mtpng_encoder_options** pp_options);
+
+//
+// Set the thread pool instance to queue work on.
+//
+// p_pool may be NULL, in which case a default global thread pool
+// will be used. If a thread pool is provided, it is the caller's
+// responsibility to keep the thread pool alive until all encoders
+// using it have been released.
+//
+// Check the return values for errors.
+//
+extern mtpng_result
+mtpng_encoder_options_set_thread_pool(mtpng_encoder_options* p_options,
+                                      mtpng_threadpool* p_pool);
+
+
+//
+// Override the default PNG filter mode selection.
+//
+// The default is MTPNG_FILTER_NONE for indexed images and
+// MTPNG_FILTER_ADAPTIVE for all others. Some images compress
+// better with a particular filter.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_options_set_filter(mtpng_encoder_options* p_options,
+                                 mtpng_filter filter_mode);
+
+//
+// Override the default chunk size for parallel encoding
+// of larger files. Actual chunking will be in terms of
+// rows, so data chunks will be at least the given size
+// in bytes.
+//
+// If there are more chunks in the image's raw data bytes
+// than available CPUs on the thread pool, you should see
+// parallel speedups as long as input data is provided
+// fast enough.
+//
+// If the file is smaller than the chunk size, currently
+// the speed will be equivalent to running single-threaded.
+//
+// chunk_size must be at least 32768 bytes, required for
+// maintaining compression across chunks.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_options_set_chunk_size(mtpng_encoder_options* p_options,
+                                     size_t chunk_size);
+
+#pragma mark Header
+
+//
+// Creates a new PNG header with default settings. Fill out the details
+// and pass in to mtpng_encoder_write_header(). May be reused on multiple
+// encoders.
+//
+// Free with mtpng_header_release().
+//
+// On input, *pp_header must be NULL.
+// On output, *pp_header will be a pointer to an options instance
+// if successful, or remain unchanged in case of error.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_header_new(mtpng_header** pp_header);
+
+//
+// Releases the header's memory and clears the pointer.
+//
+// On input, *pp_header must be a valid instance pointer.
+// On output, *pp_header will be NULL on success or remain unchanged
+// in case of failure.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_header_release(mtpng_header** pp_header);
+
+//
+// Set the image size in pixels. The given width and height
+// values must not be 0, but are not otherwise limited.
+//
+// Caller is responsible for ensuring that at least one row
+// of image data copied a few times fits in memory, or you're
+// gonna have a bad time.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_header_set_size(mtpng_header* p_header,
+                      uint32_t width,
+                      uint32_t height);
+
+//
+// Set the color type and depth for the image.
+//
+// Any valid combination of color type and depth is accepted;
+// see https://www.w3.org/TR/PNG/#table111 for the specs.
+//
+// If you do not call this function, mtpng will assume you want
+// truecolor with alpha at 8-bit depth.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_header_set_color(mtpng_header* p_header,
+                       mtpng_color color_type,
+                       uint8_t depth);
+
 #pragma mark Encoder
 
 //
 // Create a new PNG encoder instance.
+// Copies the options data.
 //
 // On input, *pp_encoder must be NULL.
 // On output, *pp_encoder will be an instance pointer on success,
@@ -197,10 +355,8 @@ mtpng_threadpool_release(mtpng_threadpool** pp_pool);
 // user_data is passed to the callback functions, and may be any
 // value such as a private object pointer or NULL.
 //
-// p_pool may be NULL, in which case a default global thread pool
-// will be used. If a thread pool is provided, it is the caller's
-// responsibility to keep the thread pool alive until all encoders
-// using it have been released.
+// p_options may be NULL, in which case default options will
+// be used including a global threadpool.
 //
 // Check the return values for errors.
 //
@@ -209,7 +365,7 @@ mtpng_encoder_new(mtpng_encoder** pp_encoder,
                   mtpng_write_func write_func,
                   mtpng_flush_func flush_func,
                   void* const user_data,
-                  mtpng_threadpool* p_pool);
+                  mtpng_encoder_options* p_options);
 
 //
 // Releases the encoder's memory and clears the pointer.
@@ -234,77 +390,6 @@ extern mtpng_result
 mtpng_encoder_release(mtpng_encoder** pp_encoder);
 
 //
-// Set the image size in pixels. The given width and height
-// values must not be 0, but are not otherwise limited.
-//
-// Caller is responsible for ensuring that at least one row
-// of image data copied a few times fits in memory, or you're
-// gonna have a bad time.
-//
-// Required before calling mtpng_encoder_write_header().
-//
-// Check the return value for errors.
-//
-extern mtpng_result
-mtpng_encoder_set_size(mtpng_encoder* p_encoder,
-                       uint32_t width,
-                       uint32_t height);
-
-//
-// Set the color type and depth for the image.
-//
-// Any valid combination of color type and depth is accepted;
-// see https://www.w3.org/TR/PNG/#table111 for the specs.
-//
-// If you do not call this function, mtpng will assume you want
-// truecolor with alpha at 8-bit depth.
-//
-// Must be called before mtpng_encoder_write_header().
-//
-// Check the return value for errors.
-//
-extern mtpng_result
-mtpng_encoder_set_color(mtpng_encoder* p_encoder,
-                        mtpng_color color_type,
-                        uint8_t depth);
-
-//
-// Override the default PNG filter mode selection.
-//
-// The default is MTPNG_FILTER_NONE for indexed images and
-// MTPNG_FILTER_ADAPTIVE for all others. Some images compress
-// better with a particular filter.
-//
-extern mtpng_result
-mtpng_encoder_set_filter(mtpng_encoder* p_encoder,
-                         mtpng_filter filter_mode);
-
-//
-// Override the default chunk size for parallel encoding
-// of larger files. Actual chunking will be in terms of
-// rows, so data chunks will be at least the given size
-// in bytes.
-//
-// If there are more chunks in the image's raw data bytes
-// than available CPUs on the thread pool, you should see
-// parallel speedups as long as input data is provided
-// fast enough.
-//
-// If the file is smaller than the chunk size, currently
-// the speed will be equivalent to running single-threaded.
-//
-// chunk_size must be at least 32768 bytes, required for
-// maintaining compression across chunks.
-//
-// Must be called before mtpng_encoder_write_header().
-//
-// Check the return value for errors.
-//
-extern mtpng_result
-mtpng_encoder_set_chunk_size(mtpng_encoder* p_encoder,
-                             size_t chunk_size);
-
-//
 // Signal that we're done setting up, and start writing
 // header data to the output.
 //
@@ -314,7 +399,8 @@ mtpng_encoder_set_chunk_size(mtpng_encoder* p_encoder,
 // Check the return value for errors.
 //
 extern mtpng_result
-mtpng_encoder_write_header(mtpng_encoder *p_encoder);
+mtpng_encoder_write_header(mtpng_encoder* p_encoder,
+                           mtpng_header* p_header);
 
 //
 // Write a palette entry for an indexed-color image, or a

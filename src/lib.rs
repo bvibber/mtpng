@@ -42,7 +42,7 @@ pub mod writer;
 
 use std::io;
 
-use utils::other;
+use utils::{invalid_input, other};
 
 //
 // Like Option, but more specific. :D
@@ -129,28 +129,16 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn new(width: u32, height: u32, color_type: ColorType, depth: u8, interlace_method: InterlaceMethod) -> Header {
+    pub fn new() -> Header {
         Header {
-            width: width,
-            height: height,
-            depth: depth,
-            color_type: color_type,
+            width: 1,
+            height: 1,
+            depth: 8,
+            color_type: ColorType::TruecolorAlpha,
             compression_method: CompressionMethod::Deflate,
             filter_method: FilterMethod::Standard,
-            interlace_method: interlace_method,
+            interlace_method: InterlaceMethod::Standard,
         }
-    }
-
-    pub fn with_depth(width: u32, height: u32, color_type: ColorType, depth: u8) -> Header {
-        Header::new(width, height, color_type, depth, InterlaceMethod::Standard)
-    }
-
-    pub fn with_color(width: u32, height: u32, color_type: ColorType) -> Header {
-        Header::with_depth(width, height, color_type, 8)
-    }
-
-    pub fn default() -> Header {
-        Header::with_color(0, 0, ColorType::TruecolorAlpha)
     }
 
     pub fn channels(&self) -> usize {
@@ -196,6 +184,28 @@ impl Header {
             stride_bytes + 1
         } else {
             stride_bytes
+        }
+    }
+
+    pub fn set_size(&mut self, width: u32, height: u32) -> io::Result<()> {
+        if width == 0 {
+            Err(invalid_input("width cannot be 0"))
+        } else if height == 0 {
+            Err(invalid_input("height canno tbe 0"))
+        } else {
+            self.width = width;
+            self.height = height;
+            Ok(())
+        }
+    }
+
+    pub fn set_color(&mut self, color_type: ColorType, depth: u8) -> io::Result<()> {
+        if !color_type.is_depth_valid(depth) {
+            Err(invalid_input("invalid color depth for this color type"))
+        } else {
+            self.color_type = color_type;
+            self.depth = depth;
+            Ok(())
         }
     }
 }

@@ -55,17 +55,18 @@ use super::utils::*;
 
 
 #[derive(Copy, Clone)]
-pub struct Options {
+pub struct Options<'a> {
     chunk_size: usize,
     compression_level: CompressionLevel,
     strategy_mode: Mode<Strategy>,
     filter_mode: Mode<Filter>,
     streaming: bool,
+    thread_pool: Option<&'a ThreadPool>,
 }
 
-impl Options {
+impl<'a> Options<'a> {
     // Use default options
-    pub fn new() -> Options {
+    pub fn new() -> Options<'a> {
         Options {
             //
             // A chunk size of 256 KiB gives compression results very similar
@@ -89,7 +90,48 @@ impl Options {
             // the end is reached.
             //
             streaming: false,
+
+            //
+            // Use the global thread pool.
+            //
+            thread_pool: None,
         }
+    }
+}
+
+impl<'a> Options<'a> {
+    pub fn set_thread_pool(&mut self, thread_pool: &'a ThreadPool) -> IoResult {
+        self.thread_pool = Some(thread_pool);
+        Ok(())
+    }
+
+    pub fn set_chunk_size(&mut self, chunk_size: usize) -> IoResult {
+        if chunk_size < 32768 {
+            Err(invalid_input("chunk size must be at least 32768"))
+        } else {
+            self.chunk_size = chunk_size;
+            Ok(())
+        }
+    }
+
+    pub fn set_compression_level(&mut self, level: CompressionLevel) -> IoResult {
+        self.compression_level = level;
+        Ok(())
+    }
+
+    pub fn set_filter_mode(&mut self, filter_mode: Mode<Filter>) -> IoResult {
+        self.filter_mode = filter_mode;
+        Ok(())
+    }
+
+    pub fn set_strategy_mode(&mut self, strategy_mode: Mode<Strategy>) -> IoResult {
+        self.strategy_mode = strategy_mode;
+        Ok(())
+    }
+
+    pub fn set_streaming(&mut self, streaming: bool) -> IoResult {
+        self.streaming = streaming;
+        Ok(())
     }
 }
 
@@ -467,10 +509,9 @@ enum RowStatus {
 
 pub struct Encoder<'a, W: Write> {
     writer: Writer<W>,
-    thread_pool: Option<&'a ThreadPool>,
+    options: Options<'a>,
 
     header: Header,
-    options: Options,
 
     wrote_header: bool,
     wrote_palette: bool,
@@ -504,14 +545,13 @@ pub struct Encoder<'a, W: Write> {
 }
 
 impl<'a, W: Write> Encoder<'a, W> {
-    fn new_encoder(write: W, thread_pool: Option<&'a ThreadPool>) -> Encoder<'a, W> {
+    pub fn new(write: W, options: &Options<'a>) -> Encoder<'a, W> {
         let (tx, rx) = mpsc::channel();
         Encoder {
             writer: Writer::new(write),
-            thread_pool: thread_pool,
 
-            header: Header::default(),
-            options: Options::new(),
+            header: Header::new(),
+            options: options.clone(),
 
             wrote_header: false,
             wrote_palette: false,
@@ -524,7 +564,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             chunks_output: 0,
 
             // hack, clean this up later
-            pixel_accumulator: Arc::new(PixelChunk::new(Header::default(), 0, 0, 0)),
+            pixel_accumulator: Arc::new(PixelChunk::new(Header::new(), 0, 0, 0)),
             pixel_index: 0,
             current_row: 0,
 
@@ -537,95 +577,6 @@ impl<'a, W: Write> Encoder<'a, W> {
 
             tx: tx,
             rx: rx,
-        }
-    }
-
-    //
-    // Create a new encoder using default thread pool.
-    // Consumes the Write target, but you can get it back via finish()
-    //
-    pub fn new(writer: W) -> Encoder<'static, W> {
-        Encoder::new_encoder(writer, None)
-    }
-
-    //
-    // Create a new encoder state using given thread pool
-    // Consumes the Write target, but you can get it back via finish()
-    //
-    pub fn with_thread_pool(writer: W, thread_pool: &'a ThreadPool) -> Encoder<'a, W> {
-        Encoder::new_encoder(writer, Some(thread_pool))
-    }
-
-    pub fn set_size(&mut self, width: u32, height: u32) -> IoResult {
-        if self.wrote_header {
-            Err(invalid_input("cannot change image size after starting output"))
-        } else if width == 0 {
-            Err(invalid_input("width cannot be 0"))
-        } else if height == 0 {
-            Err(invalid_input("height canno tbe 0"))
-        } else {
-            self.header.width = width;
-            self.header.height = height;
-            Ok(())
-        }
-    }
-
-    pub fn set_color(&mut self, color_type: ColorType, depth: u8) -> IoResult {
-        if self.wrote_header {
-            Err(invalid_input("cannot change color type or depth after starting output"))
-        } else if !color_type.is_depth_valid(depth) {
-            Err(invalid_input("invalid color depth for this color type"))
-        } else {
-            self.header.color_type = color_type;
-            self.header.depth = depth;
-            Ok(())
-        }
-    }
-
-    pub fn set_chunk_size(&mut self, chunk_size: usize) -> IoResult {
-        if self.wrote_header {
-            Err(invalid_input("cannot change chunk size after starting output"))
-        } else if chunk_size < 32768 {
-            Err(invalid_input("chunk size must be at least 32768"))
-        } else {
-            self.options.chunk_size = chunk_size;
-            Ok(())
-        }
-    }
-
-    pub fn set_compression_level(&mut self, level: CompressionLevel) -> IoResult {
-        if self.wrote_header {
-            Err(invalid_input("cannot change compression level after starting output"))
-        } else {
-            self.options.compression_level = level;
-            Ok(())
-        }
-    }
-
-    pub fn set_filter_mode(&mut self, filter_mode: Mode<Filter>) -> IoResult {
-        if self.wrote_header {
-            Err(invalid_input("cannot change filter mode after starting output"))
-        } else {
-            self.options.filter_mode = filter_mode;
-            Ok(())
-        }
-    }
-
-    pub fn set_strategy_mode(&mut self, strategy_mode: Mode<Strategy>) -> IoResult {
-        if self.wrote_header {
-            Err(invalid_input("cannot change compression strategy after starting output"))
-        } else {
-            self.options.strategy_mode = strategy_mode;
-            Ok(())
-        }
-    }
-
-    pub fn set_streaming(&mut self, streaming: bool) -> IoResult {
-        if self.wrote_header {
-            Err(invalid_input("cannot change streaming mode after starting output"))
-        } else {
-            self.options.streaming = streaming;
-            Ok(())
         }
     }
 
@@ -647,7 +598,7 @@ impl<'a, W: Write> Encoder<'a, W> {
         where F: Fn(&Sender<ThreadMessage>) + Send + 'static
     {
         let tx = self.tx.clone();
-        match self.thread_pool {
+        match self.options.thread_pool {
             Some(pool) => {
                 pool.spawn(move || {
                     func(&tx);
@@ -824,10 +775,12 @@ impl<'a, W: Write> Encoder<'a, W> {
     // Write the PNG signature and header chunk.
     // Must be done before anything else is output.
     //
-    pub fn write_header(&mut self) -> IoResult {
+    pub fn write_header(&mut self, header: &Header) -> IoResult {
         if self.wrote_header {
             return Err(invalid_input("Cannot write header a second time."));
         }
+
+        self.header = header.clone();
 
         let stride = self.header.stride() + 1;
         let height = self.header.height as usize;
@@ -1039,30 +992,36 @@ impl<'a, W: Write> Encoder<'a, W> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::Header;
     use super::super::ColorType;
     use super::Encoder;
+    use super::Options;
     use super::IoResult;
+
+    use std::io;
 
     fn test_encoder<F>(width: u32, height: u32, func: F)
         where F: Fn(&mut Encoder<Vec<u8>>, &[u8]) -> IoResult
     {
         match {
-            let mut data = Vec::<u8>::with_capacity(width as usize * 3);
-            for i in 0 .. width as usize * 3 {
-                data.push((i % 255) as u8);
-            }
+            || -> io::Result<Vec<u8>> {
+                let mut data = Vec::<u8>::with_capacity(width as usize * 3);
+                for i in 0 .. width as usize * 3 {
+                    data.push((i % 255) as u8);
+                }
 
-            let writer = Vec::<u8>::new();
+                let writer = Vec::<u8>::new();
+                let options = Options::new();
+                let mut encoder = Encoder::new(writer, &options);
 
-            let mut encoder = Encoder::new(writer);
-            encoder.set_size(width, height).unwrap();
-            encoder.set_color(ColorType::Truecolor, 8).unwrap();
+                let mut header = Header::new();
+                header.set_size(width, height).unwrap();
+                header.set_color(ColorType::Truecolor, 8).unwrap();
+                encoder.write_header(&header)?;
 
-            match func(&mut encoder, &data) {
-                Ok(()) => {},
-                Err(e) => assert!(false, "Error during test: {}", e),
-            }
-            encoder.finish()
+                func(&mut encoder, &data)?;
+                encoder.finish()
+            }()
         } {
             Ok(_writer) => {},
             Err(e) => assert!(false, "Error {}", e),
@@ -1072,7 +1031,6 @@ mod tests {
     #[test]
     fn create_and_state() {
         test_encoder(1920, 1080, |encoder, data| {
-            encoder.write_header()?;
 
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
@@ -1089,8 +1047,6 @@ mod tests {
     #[test]
     fn test_rows() {
         test_encoder(1920, 1080, |encoder, data| {
-            encoder.write_header()?;
-
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
 

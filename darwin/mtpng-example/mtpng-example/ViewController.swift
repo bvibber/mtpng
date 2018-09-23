@@ -61,8 +61,7 @@ class ViewController: UIViewController {
         // And get the data out.
         let data = context.data!.assumingMemoryBound(to: UInt8.self);
 
-        // Now set up our encoder:
-        var encoder = OpaquePointer.init(bitPattern: 0);
+        // Create a manual thread pool
         var pool = OpaquePointer.init(bitPattern: 0);
         let user_data = UnsafeMutableRawPointer.init(Unmanaged.passUnretained(self).toOpaque());
 
@@ -71,26 +70,46 @@ class ViewController: UIViewController {
             NSLog("Failure!");
         }
 
+        // Set it in the options
+        var options = OpaquePointer.init(bitPattern: 0);
+        ret = mtpng_encoder_options_new(&options);
+        if (ret != MTPNG_RESULT_OK) {
+            NSLog("Failure!");
+        }
+
+        ret = mtpng_encoder_options_set_thread_pool(options, pool);
+        if (ret != MTPNG_RESULT_OK) {
+            NSLog("Failure!");
+        }
+
+        // Create the encoder
+        var encoder = OpaquePointer.init(bitPattern: 0);
         ret = mtpng_encoder_new(&encoder,
                           write_func,
                           flush_func,
                           user_data,
-                          pool);
+                          options);
         if (ret != MTPNG_RESULT_OK) {
             NSLog("Failure!");
         }
 
-        ret = mtpng_encoder_set_size(encoder, UInt32(width), UInt32(height));
+        var header = OpaquePointer.init(bitPattern: 0);
+        ret = mtpng_header_new(&header);
         if (ret != MTPNG_RESULT_OK) {
             NSLog("Failure!");
         }
 
-        ret = mtpng_encoder_set_color(encoder, MTPNG_COLOR_TRUECOLOR_ALPHA, 8);
+        ret = mtpng_header_set_size(header, UInt32(width), UInt32(height));
         if (ret != MTPNG_RESULT_OK) {
             NSLog("Failure!");
         }
 
-        ret = mtpng_encoder_write_header(encoder);
+        ret = mtpng_header_set_color(header, MTPNG_COLOR_TRUECOLOR_ALPHA, 8);
+        if (ret != MTPNG_RESULT_OK) {
+            NSLog("Failure!");
+        }
+
+        ret = mtpng_encoder_write_header(encoder, header);
         if (ret != MTPNG_RESULT_OK) {
             NSLog("Failure!");
         }
@@ -106,6 +125,16 @@ class ViewController: UIViewController {
             }
         }
         ret = mtpng_encoder_finish(&encoder);
+        if (ret != MTPNG_RESULT_OK) {
+            NSLog("Failure!");
+        }
+
+        ret = mtpng_header_release(&header);
+        if (ret != MTPNG_RESULT_OK) {
+            NSLog("Failure!");
+        }
+
+        ret = mtpng_encoder_options_release(&options);
         if (ret != MTPNG_RESULT_OK) {
             NSLog("Failure!");
         }

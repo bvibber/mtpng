@@ -73,34 +73,42 @@ int main(int argc, char **argv) {
     }
 
     //
-    // Create a custom thread pool and the encoder.
+    // Create a custom thread pool
     //
     mtpng_threadpool* pool = NULL;
     TRY(mtpng_threadpool_new(&pool, threads));
 
+    //
+    // Set some encoding options
+    //
+    mtpng_encoder_options* options = NULL;
+    TRY(mtpng_encoder_options_new(&options));
+    TRY(mtpng_encoder_options_set_chunk_size(options, 200000));
+    TRY(mtpng_encoder_options_set_filter(options, MTPNG_FILTER_ADAPTIVE));
+    TRY(mtpng_encoder_options_set_thread_pool(options, pool));
+
+    //
+    // Create the encoder.
+    //
     mtpng_encoder* encoder = NULL;
     TRY(mtpng_encoder_new(&encoder,
                           write_func,
                           flush_func,
                           (void*)out,
-                          pool));
-
-    //
-    // Set some encoding options
-    //
-    TRY(mtpng_encoder_set_chunk_size(encoder, 200000));
+                          options));
 
     //
     // Set up the PNG image state
     //
-    TRY(mtpng_encoder_set_size(encoder, 1024, 768));
-    TRY(mtpng_encoder_set_color(encoder, MTPNG_COLOR_TRUECOLOR, 8));
-    TRY(mtpng_encoder_set_filter(encoder, MTPNG_FILTER_ADAPTIVE));
+    mtpng_header* header = NULL;
+    TRY(mtpng_header_new(&header));
+    TRY(mtpng_header_set_size(header, 1024, 768));
+    TRY(mtpng_header_set_color(header, MTPNG_COLOR_TRUECOLOR, 8));
+    TRY(mtpng_encoder_write_header(encoder, header));
 
     //
     // Write the data!
     //
-    TRY(mtpng_encoder_write_header(encoder));
     uint8_t* bytes = malloc(stride);
     for (size_t y = 0; y < height; y++) {
         for (size_t x = 0; x < width; x++) {
@@ -113,7 +121,9 @@ int main(int argc, char **argv) {
     }
     free(bytes);
     bytes = NULL;
+    TRY(mtpng_header_release(&header));
     TRY(mtpng_encoder_finish(&encoder));
+    TRY(mtpng_encoder_options_release(&options));
     TRY(mtpng_threadpool_release(&pool));
 
     printf("Done.\n");
@@ -121,8 +131,14 @@ int main(int argc, char **argv) {
 
     // Error handler for the TRY macros:
 cleanup:
+    if (header) {
+        mtpng_header_release(&header);
+    }
     if (encoder) {
         mtpng_encoder_release(&encoder);
+    }
+    if (options) {
+        mtpng_encoder_options_release(&options);
     }
     if (pool) {
         mtpng_threadpool_release(&pool);

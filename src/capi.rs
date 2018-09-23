@@ -35,8 +35,10 @@ use libc::{c_void, c_int, size_t, uint8_t, uint32_t};
 
 use super::ColorType;
 use super::Mode::{Adaptive, Fixed};
+use super::Header;
 
 use super::encoder::Encoder;
+use super::encoder::Options;
 
 use super::filter::Filter;
 
@@ -160,7 +162,9 @@ impl Write for CWriter {
 type CEncoder = Encoder<'static, CWriter>;
 
 pub type PThreadPool = *mut ThreadPool;
+pub type PEncoderOptions = *mut Options<'static>;
 pub type PEncoder = *mut CEncoder;
+pub type PHeader = *mut Header;
 
 
 #[no_mangle]
@@ -202,6 +206,164 @@ fn mtpng_threadpool_release(pp_pool: *mut PThreadPool)
 }
 
 
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_options_new(pp_options: *mut PEncoderOptions)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if pp_options.is_null() {
+            return Err(invalid_input("pp_options must not be null"));
+        }
+        if !(*pp_options).is_null() {
+            return Err(invalid_input("*pp_options must be null"))
+        }
+        *pp_options = Box::into_raw(Box::new(Options::new()));
+        Ok(())
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_options_release(pp_options: *mut PEncoderOptions)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if pp_options.is_null() {
+            return Err(invalid_input("pp_header must not be null"));
+        }
+        if (*pp_options).is_null() {
+            return Err(invalid_input("*pp_header must not be null"));
+        }
+        drop(Box::from_raw(*pp_options));
+        *pp_options = ptr::null_mut();
+        Ok(())
+    }())
+}
+
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_options_set_thread_pool(p_options: PEncoderOptions,
+                                         p_pool: PThreadPool)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_options.is_null() {
+            return Err(invalid_input("p_options must not be null"));
+        }
+        (*p_options).set_thread_pool(&*p_pool)
+    }())
+}
+
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_options_set_filter(p_options: PEncoderOptions,
+                                    filter_mode: c_int)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_options.is_null() {
+            return Err(invalid_input("p_options must not be null"));
+        }
+        if filter_mode > u8::max_value() as c_int {
+            return Err(invalid_input("Invalid filter mode"));
+        }
+        let mode = if filter_mode < 0 {
+            Adaptive
+        } else {
+            Fixed(Filter::try_from_u8(filter_mode as u8)?)
+        };
+        (*p_options).set_filter_mode(mode)
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_options_set_chunk_size(p_options: PEncoderOptions,
+                                        chunk_size: size_t)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_options.is_null() {
+            return Err(invalid_input("p_encoder must not be null"));
+        }
+        (*p_options).set_chunk_size(chunk_size)
+    }())
+}
+
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_header_new(pp_header: *mut PHeader)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if pp_header.is_null() {
+            return Err(invalid_input("pp_header must not be null"));
+        }
+        if !(*pp_header).is_null() {
+            return Err(invalid_input("*pp_header must be null"))
+        }
+        *pp_header = Box::into_raw(Box::new(Header::new()));
+        Ok(())
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_header_release(pp_header: *mut PHeader)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if pp_header.is_null() {
+            return Err(invalid_input("pp_header must not be null"));
+        }
+        if (*pp_header).is_null() {
+            return Err(invalid_input("*pp_header must not be null"));
+        }
+        drop(Box::from_raw(*pp_header));
+        *pp_header = ptr::null_mut();
+        Ok(())
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_header_set_size(p_header: PHeader,
+                         width: uint32_t,
+                         height: uint32_t)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_header.is_null() {
+            return Err(invalid_input("p_encoder must not be null"));
+        }
+        (*p_header).set_size(width, height)
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_header_set_color(p_header: PHeader,
+                                   color_type: c_int,
+                                   depth: uint8_t)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_header.is_null() {
+            return Err(invalid_input("p_header must not be null"));
+        }
+        if color_type < 0 || color_type > u8::max_value() as c_int {
+            return Err(invalid_input("Invalid color type"));
+        }
+        let color = ColorType::try_from_u8(color_type as u8)?;
+        (*p_header).set_color(color, depth)
+    }())
+}
+
+
 
 #[no_mangle]
 pub unsafe extern "C"
@@ -209,7 +371,7 @@ fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
                      write_func: Option<CWriteFunc>,
                      flush_func: Option<CFlushFunc>,
                      user_data: *mut c_void,
-                     p_pool: PThreadPool)
+                     p_options: PEncoderOptions)
 -> CResult
 {
     CResult::from(|| -> io::Result<()> {
@@ -223,11 +385,13 @@ fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
             (Some(wf), Some(ff)) => CWriter::new(wf, ff, user_data),
             _ => return Err(invalid_input("write_func and flush_func must not be null"))
         };
-        let encoder = if p_pool.is_null() {
-            Encoder::new(writer)
+        let default = Options::<'static>::new();
+        let options = if p_options.is_null() {
+            &default
         } else {
-            Encoder::with_thread_pool(writer, &*p_pool)
+            &*p_options
         };
+        let encoder = Encoder::new(writer, options);
         *pp_encoder = Box::into_raw(Box::new(encoder));
         Ok(())
     }())
@@ -251,86 +415,22 @@ fn mtpng_encoder_release(pp_encoder: *mut PEncoder)
     }())
 }
 
-#[no_mangle]
-pub unsafe extern "C"
-fn mtpng_encoder_set_size(p_encoder: PEncoder,
-                          width: uint32_t,
-                          height: uint32_t)
--> CResult
-{
-    CResult::from(|| -> io::Result<()> {
-        if p_encoder.is_null() {
-            return Err(invalid_input("p_encoder must not be null"));
-        }
-        (*p_encoder).set_size(width, height)
-    }())
-}
 
 #[no_mangle]
 pub unsafe extern "C"
-fn mtpng_encoder_set_color(p_encoder: PEncoder,
-                           color_type: c_int,
-                           depth: uint8_t)
+fn mtpng_encoder_write_header(p_encoder: PEncoder,
+                              p_header: PHeader)
 -> CResult
 {
     CResult::from(|| -> io::Result<()> {
         if p_encoder.is_null() {
             return Err(invalid_input("p_encoder must not be null"));
         }
-        if color_type < 0 || color_type > u8::max_value() as c_int {
-            return Err(invalid_input("Invalid color type"));
+        if p_header.is_null() {
+            return Err(invalid_input("p_header must not be null"));
         }
-        let color = ColorType::try_from_u8(color_type as u8)?;
-        (*p_encoder).set_color(color, depth)
-    }())
-}
-
-#[no_mangle]
-pub unsafe extern "C"
-fn mtpng_encoder_set_filter(p_encoder: PEncoder,
-                            filter_mode: c_int)
--> CResult
-{
-    CResult::from(|| -> io::Result<()> {
-        if p_encoder.is_null() {
-            return Err(invalid_input("p_encoder must not be null"));
-        }
-        if filter_mode > u8::max_value() as c_int {
-            return Err(invalid_input("Invalid filter mode"));
-        }
-        let mode = if filter_mode < 0 {
-            Adaptive
-        } else {
-            Fixed(Filter::try_from_u8(filter_mode as u8)?)
-        };
-        (*p_encoder).set_filter_mode(mode)
-    }())
-}
-
-#[no_mangle]
-pub unsafe extern "C"
-fn mtpng_encoder_set_chunk_size(p_encoder: PEncoder,
-                                chunk_size: size_t)
--> CResult
-{
-    CResult::from(|| -> io::Result<()> {
-        if p_encoder.is_null() {
-            return Err(invalid_input("p_encoder must not be null"));
-        }
-        (*p_encoder).set_chunk_size(chunk_size)
-    }())
-}
-
-#[no_mangle]
-pub unsafe extern "C"
-fn mtpng_encoder_write_header(p_encoder: PEncoder)
--> CResult
-{
-    CResult::from(|| -> io::Result<()> {
-        if p_encoder.is_null() {
-            return Err(invalid_input("p_encoder must not be null"));
-        }
-        (*p_encoder).write_header()
+        (*p_encoder).write_header(&*p_header)?;
+        Ok(())
     }())
 }
 
