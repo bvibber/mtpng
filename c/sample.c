@@ -27,26 +27,6 @@
 
 #include "mtpng.h"
 
-typedef struct read_state_t {
-    size_t width;
-    size_t bpp;
-    size_t stride;
-    size_t y;
-} read_state;
-
-static size_t read_func(void* user_data, uint8_t* bytes, size_t len)
-{
-    read_state* state = (read_state*)user_data;
-    for (size_t x = 0; x < state->width; x++) {
-        size_t i = x * state->bpp;
-        bytes[i] = (x + state->y) % 256;
-        bytes[i + 1] = (2 * x + state->y) % 256;
-        bytes[i + 2] = (x + 2 * state->y) % 256;
-    }
-    state->y++;
-    return len;
-}
-
 static size_t write_func(void* user_data, const uint8_t* bytes, size_t len)
 {
     FILE* out = (FILE*)user_data;
@@ -86,12 +66,6 @@ int main(int argc, char **argv) {
     size_t const bpp = channels;
     size_t const stride = width * bpp;
 
-    read_state state;
-    state.stride = stride;
-    state.width = width;
-    state.bpp = bpp;
-    state.y = 0;
-
     FILE* out = fopen("out/csample.png", "wb");
     if (!out) {
         fprintf(stderr, "Error: failed to open output file\n");
@@ -127,7 +101,18 @@ int main(int argc, char **argv) {
     // Write the data!
     //
     TRY(mtpng_encoder_write_header(encoder));
-    TRY(mtpng_encoder_write_image(encoder, read_func, (void*)&state));
+    uint8_t* bytes = malloc(stride);
+    for (size_t y = 0; y < height; y++) {
+        for (size_t x = 0; x < width; x++) {
+            size_t i = x * bpp;
+            bytes[i] = (x + y) % 256;
+            bytes[i + 1] = (2 * x + y) % 256;
+            bytes[i + 2] = (x + 2 * y) % 256;
+        }
+        TRY(mtpng_encoder_write_image_rows(encoder, bytes, stride));
+    }
+    free(bytes);
+    bytes = NULL;
     TRY(mtpng_encoder_finish(&encoder));
     TRY(mtpng_threadpool_release(&pool));
 
