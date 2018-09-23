@@ -49,12 +49,11 @@ use std::io;
 use utils::{invalid_input, other};
 
 /// Wrapper for filter and compression modes.
-///
-/// "Adaptive" means automatic selection based on content;
-/// "Fixed" carries a specific mode.
 #[derive(Copy, Clone)]
 pub enum Mode<T> {
+    /// Automatic selection based on file contents
     Adaptive,
+    /// Fixed value
     Fixed(T),
 }
 
@@ -62,16 +61,23 @@ pub enum Mode<T> {
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum ColorType {
+    /// Single brightness channel.
     Greyscale = 0,
+    /// Red, green, and blue channels.
     Truecolor = 2,
+    /// Single channel of palette indices.
     IndexedColor = 3,
+    /// Brightness and alpha channels.
     GreyscaleAlpha = 4,
+    /// Red, green, blue, and alpha channels.
     TruecolorAlpha = 6,
 }
 use ColorType::*;
 
 impl ColorType {
     /// Validate and produce a ColorType from one of the PNG header constants.
+    ///
+    /// Will return an error on invalid input.
     //
     // Todo: use TryFrom trait when it's stable.
     //
@@ -87,6 +93,8 @@ impl ColorType {
     }
 
     /// Check if the given bit depth is valid for this color type.
+    ///
+    /// See [the PNG standard](https://www.w3.org/TR/PNG/#table111) for valid types.
     pub fn is_depth_valid(&self, depth: u8) -> bool {
         match *self {
             Greyscale => match depth {
@@ -103,6 +111,17 @@ impl ColorType {
             },
         }
     }
+
+    /// Calculate the number of channels per pixel.
+    pub fn channels(&self) -> usize {
+        match self {
+            Greyscale => 1,
+            Truecolor => 3,
+            IndexedColor => 1,
+            GreyscaleAlpha => 2,
+            TruecolorAlpha => 4,
+        }
+    }
 }
 
 /// PNG header compression method representation.
@@ -111,6 +130,7 @@ impl ColorType {
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum CompressionMethod {
+    /// Use zlib deflate compression, the default.
     Deflate = 0,
 }
 
@@ -120,6 +140,7 @@ pub enum CompressionMethod {
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum FilterMethod {
+    /// Use PNG standard filter types.
     Standard = 0,
 }
 
@@ -129,7 +150,13 @@ pub enum FilterMethod {
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum InterlaceMethod {
+    /// No interlacing.
+    ///
+    /// Rows proceed from top to bottom and are the same length.
     Standard = 0,
+    /// Adam7 interlacing.
+    ///
+    /// Not yet supported.
     Adam7 = 1,
 }
 
@@ -139,13 +166,13 @@ pub enum InterlaceMethod {
 /// and can reuse the header for multiple encodings if desired.
 #[derive(Copy, Clone)]
 pub struct Header {
-    pub width: u32,
-    pub height: u32,
-    pub depth: u8,
-    pub color_type: ColorType,
-    pub compression_method: CompressionMethod,
-    pub filter_method: FilterMethod,
-    pub interlace_method: InterlaceMethod,
+    width: u32,
+    height: u32,
+    depth: u8,
+    color_type: ColorType,
+    compression_method: CompressionMethod,
+    filter_method: FilterMethod,
+    interlace_method: InterlaceMethod,
 }
 
 impl Header {
@@ -166,33 +193,57 @@ impl Header {
         }
     }
 
-    /// Get the number of channels per pixel for this image's color type.
-    pub fn channels(&self) -> usize {
-        match self.color_type {
-            ColorType::Greyscale => 1,
-            ColorType::Truecolor => 3,
-            ColorType::IndexedColor => 1,
-            ColorType::GreyscaleAlpha => 2,
-            ColorType::TruecolorAlpha => 4,
-        }
+    /// Get the pixel width of the image.
+    pub fn width(&self) -> u32 {
+        self.width
     }
 
-    /// Get the bytes per pixel for this image, for PNG filtering purposes.
+    /// Get the pixel height of the image.
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    /// Get the color depth of the image in bits.
+    pub fn depth(&self) -> u8 {
+        self.depth
+    }
+
+    /// Get the color type of the image.
+    pub fn color_type(&self) -> ColorType {
+        self.color_type
+    }
+
+    /// Get the compression method defined for the image.
+    pub fn compression_method(&self) -> CompressionMethod {
+        self.compression_method
+    }
+
+    /// Get the filter method defined for the image.
+    pub fn filter_method(&self) -> FilterMethod {
+        self.filter_method
+    }
+
+    /// Get the interlace method defined for the image.
+    pub fn interlace_method(&self) -> InterlaceMethod {
+        self.interlace_method
+    }
+
+    /// Calculate the bytes per pixel, for PNG filtering purposes.
     ///
     /// If the bit depth is < 8, this will clamp at 1.
     pub fn bytes_per_pixel(&self) -> usize {
-        self.channels() * if self.depth > 8 {
+        self.color_type.channels() * if self.depth > 8 {
             2
         } else {
             1
         }
     }
 
-    /// Get the stride in bytes for the encoded pixel rows matching the settings in this header.
+    /// Calculate the stride in bytes for the encoded pixel rows.
     ///
     /// Will panic on arithmetic overflow if given pathologically long rows.
     pub fn stride(&self) -> usize {
-        let bits_per_pixel = self.channels() * self.depth as usize;
+        let bits_per_pixel = self.color_type.channels() * self.depth as usize;
 
         // Very long line lengths can overflow usize on 32-bit.
         // If we got this far, let it panic in the unwrap().
@@ -244,14 +295,43 @@ impl Header {
             Ok(())
         }
     }
+
+    /// Set the compression method.
+    ///
+    /// This is not very useful, as only deflate is supported.
+    pub fn set_compression_method(&mut self, compression_method: CompressionMethod) -> io::Result<()> {
+        self.compression_method = compression_method;
+        Ok(())
+    }
+
+    /// Set the filter method.
+    ///
+    /// Currently only Standard is supported.
+    pub fn set_filter_method(&mut self, filter_method: FilterMethod) -> io::Result<()> {
+        self.filter_method = filter_method;
+        Ok(())
+    }
+
+    /// Set the interlace method.
+    ///
+    /// Currently only Standard is supported; requesting Adam7 will return an error.
+    pub fn set_interlace_method(&mut self, interlace_method: InterlaceMethod) -> io::Result<()> {
+        match interlace_method {
+            InterlaceMethod::Standard => {},
+            InterlaceMethod::Adam7 => return Err(invalid_input("Adam7 interlacing not yet")),
+        }
+        self.interlace_method = interlace_method;
+        Ok(())
+    }
 }
 
 /// Representation of deflate compression level.
-///
-/// Default is zlib's 6; Fast is 1; High is 9.
 #[derive(Copy, Clone)]
 pub enum CompressionLevel {
+    /// Fast but poor compression (zlib level 1).
     Fast,
+    /// Good balance of speed and compression (zlib level 6).
     Default,
+    /// Best compression but slow (zlib level 9).
     High
 }

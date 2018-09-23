@@ -407,8 +407,8 @@ mod tests {
     #[test]
     fn it_works() {
         let mut header = Header::new();
-        header.set_size(1024, 768);
-        header.set_color(ColorType::Truecolor, 8);
+        header.set_size(1024, 768).unwrap();
+        header.set_color(ColorType::Truecolor, 8).unwrap();
         let mut filter = AdaptiveFilter::new(header, Mode::Adaptive);
 
         let prev = vec![0u8; header.stride()];
@@ -420,8 +420,8 @@ mod tests {
     #[test]
     fn it_works_16() {
         let mut header = Header::new();
-        header.set_size(1024, 768);
-        header.set_color(ColorType::Truecolor, 16);
+        header.set_size(1024, 768).unwrap();
+        header.set_color(ColorType::Truecolor, 16).unwrap();
         let mut filter = AdaptiveFilter::new(header, Mode::Adaptive);
 
         let prev = vec![0u8; header.stride()];
