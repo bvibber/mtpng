@@ -30,7 +30,6 @@ use std::cmp;
 use std::collections::HashMap;
 
 use std::io;
-use std::io::Read;
 use std::io::Write;
 
 use std::sync::Arc;
@@ -137,26 +136,12 @@ impl PixelChunk {
         self.rows.len() == (self.end_row - self.start_row)
     }
 
-    fn read_row<R>(&mut self, reader: &mut R) -> io::Result<usize>
-        where R: Read
+    fn read_row(&mut self, row: &[u8])
     {
-        /*
-        // To skip zeroing of memory can try:
-        // But this doesn't do much and is dangerous.
-        let mut row = Vec::<u8>::with_capacity(self.stride);
-        unsafe {
-            row.set_len(self.stride);
-        }
-        */
-        let mut row = vec![0u8; self.stride];
+        let mut row_copy = Vec::with_capacity(self.stride);
+        row_copy.extend_from_slice(row);
 
-        let nbytes = reader.read(&mut row)?;
-        if nbytes == self.stride {
-            self.rows.push(row);
-            Ok(self.stride)
-        } else {
-            Err(invalid_input("Unexpected bytes read"))
-        }
+        self.rows.push(row_copy);
     }
 
     fn get_row(&self, row: usize) -> &[u8] {
@@ -308,7 +293,7 @@ impl DeflateChunk {
     fn run(&mut self) -> IoResult {
         // Run the deflate!
         // Todo: don't create an empty vector earlier, but reuse it sanely.
-        let mut data = Vec::<u8>::new();
+        let data = Vec::<u8>::new();
 
         let mut options = deflate::Options::new();
 
@@ -492,7 +477,6 @@ pub struct Encoder<'a, W: Write> {
     palette_length: usize,
     wrote_transparency: bool,
     started_image: bool,
-    wrote_image: bool,
 
     rows_per_chunk: usize,
     chunks_total: usize,
@@ -534,7 +518,6 @@ impl<'a, W: Write> Encoder<'a, W> {
             palette_length: 0,
             wrote_transparency: false,
             started_image: false,
-            wrote_image: false,
 
             rows_per_chunk: 0,
             chunks_total: 0,
@@ -956,8 +939,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     // Copy a row's pixel data into buffers for async compression.
     // Returns immediately after copying.
     //
-    fn process_row<R>(&mut self, reader: &mut R) -> io::Result<RowStatus>
-        where R:Read
+    fn process_row(&mut self, row: &[u8]) -> io::Result<RowStatus>
     {
         if self.pixel_index >= self.chunks_total {
             return Err(other("invalid internal state"));
@@ -977,7 +959,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             self.started_image = true;
         }
 
-        Arc::get_mut(&mut self.pixel_accumulator).unwrap().read_row(reader)?;
+        Arc::get_mut(&mut self.pixel_accumulator).unwrap().read_row(row);
 
         if self.pixel_accumulator.is_full() {
             // Move the item off to the completed stack...
@@ -1007,32 +989,13 @@ impl<'a, W: Write> Encoder<'a, W> {
 
     //
     // Encode and compress the given image data and write to output.
-    //
     // Input data must be packed in the correct format for the given
     // color type and depth, with no padding at the end of rows.
-    //
-    // Data will be requested one row at a time; returning too much
-    // or too little data per row will cause failure.
-    //
-    pub fn write_image<R>(&mut self, reader: &mut R) -> IoResult
-        where R: Read
-    {
-        for _y in 0 .. self.header.height {
-            self.process_row(reader)?;
-        }
-        Ok(())
-    }
-
-    //
-    // Encode and compress the given image data and write to output.
     //
     // An integral number of rows must be provided at once.
     //
     // If not all of the image rows are provided, multiple calls are
     // required to finish out the data.
-    //
-    // This is a convenience function so it can take an immutable
-    // shared slice reference as parameter.
     //
     pub fn write_image_rows(&mut self, buf: &[u8]) -> IoResult {
         let stride = self.header.stride();
@@ -1076,44 +1039,26 @@ impl<'a, W: Write> Encoder<'a, W> {
 
 #[cfg(test)]
 mod tests {
-    use std::io;
-    use std::io::Read;
-
     use super::super::ColorType;
     use super::Encoder;
     use super::IoResult;
 
-    struct RowProvider {
-        // no fields needed atm
-    }
-    impl RowProvider {
-        fn new() -> RowProvider {
-            RowProvider {
-                // whee
-            }
-        }
-    }
-    impl Read for RowProvider {
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            for (i, byte) in buf.iter_mut().enumerate() {
-                *byte = (i % 255) as u8;
-            }
-            Ok(buf.len())
-        }
-    }
-
     fn test_encoder<F>(width: u32, height: u32, func: F)
-        where F: Fn(&mut Encoder<Vec<u8>>, &mut RowProvider) -> IoResult
+        where F: Fn(&mut Encoder<Vec<u8>>, &[u8]) -> IoResult
     {
         match {
-            let mut reader = RowProvider::new();
+            let mut data = Vec::<u8>::with_capacity(width as usize * 3);
+            for i in 0 .. width as usize * 3 {
+                data.push((i % 255) as u8);
+            }
+
             let writer = Vec::<u8>::new();
 
             let mut encoder = Encoder::new(writer);
             encoder.set_size(width, height).unwrap();
             encoder.set_color(ColorType::Truecolor, 8).unwrap();
 
-            match func(&mut encoder, &mut reader) {
+            match func(&mut encoder, &data) {
                 Ok(()) => {},
                 Err(e) => assert!(false, "Error during test: {}", e),
             }
@@ -1133,7 +1078,9 @@ mod tests {
             assert_eq!(encoder.progress(), 0.0);
 
             // We must finish out the file or it'll whinge.
-            encoder.write_image(data)?;
+            for _y in 0 .. 1080 {
+                encoder.write_image_rows(data)?;
+            }
 
             Ok(())
         });
@@ -1147,7 +1094,9 @@ mod tests {
             assert_eq!(encoder.is_finished(), false);
             assert_eq!(encoder.progress(), 0.0);
 
-            encoder.write_image(data)?;
+            for _y in 0 .. 1080 {
+                encoder.write_image_rows(data)?;
+            }
 
             // Should trigger all blocks!
             encoder.flush()?;

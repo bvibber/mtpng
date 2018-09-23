@@ -27,7 +27,6 @@ use rayon::ThreadPool;
 use rayon::ThreadPoolBuilder;
 
 use std::io;
-use std::io::Read;
 use std::io::Write;
 
 use std::ptr;
@@ -35,15 +34,11 @@ use std::ptr;
 use libc::{c_void, c_int, size_t, uint8_t, uint32_t};
 
 use super::ColorType;
-use super::CompressionLevel;
-use super::Mode;
 use super::Mode::{Adaptive, Fixed};
 
 use super::encoder::Encoder;
 
 use super::filter::Filter;
-
-use super::deflate::Strategy;
 
 use super::utils::invalid_input;
 use super::utils::other;
@@ -63,14 +58,18 @@ impl From<Result<(),io::Error>> for CResult {
     }
 }
 
+/*
 pub type CReadFunc = unsafe extern "C"
     fn(*const c_void, *mut uint8_t, size_t) -> size_t;
+*/
 
 pub type CWriteFunc = unsafe extern "C"
     fn(*const c_void, *const uint8_t, size_t) -> size_t;
 
 pub type CFlushFunc = unsafe extern "C"
     fn(*const c_void) -> bool;
+
+/*
 
 //
 // Adapter for Read trait to use C callback.
@@ -106,6 +105,7 @@ impl Read for CReader {
         }
     }
 }
+*/
 
 //
 // Adapter for Write trait to use C callbacks.
@@ -369,25 +369,6 @@ fn mtpng_encoder_write_transparency(p_encoder: PEncoder,
         }
         let slice = ::std::slice::from_raw_parts(p_bytes, len);
         (*p_encoder).write_transparency(slice)
-    }())
-}
-
-#[no_mangle]
-pub unsafe extern "C"
-fn mtpng_encoder_write_image(p_encoder: PEncoder,
-                             read_func: Option<CReadFunc>,
-                             user_data: *mut c_void)
--> CResult
-{
-    CResult::from(|| -> io::Result<()> {
-        if p_encoder.is_null() {
-            return Err(invalid_input("p_encoder must not be null"));
-        }
-        let mut reader = match read_func {
-            Some(func) => CReader::new(func, user_data),
-            _ => return Err(invalid_input("read_func must not be null")),
-        };
-        (*p_encoder).write_image(&mut reader)
     }())
 }
 

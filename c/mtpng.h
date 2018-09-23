@@ -96,21 +96,21 @@ typedef struct mtpng_encoder_struct mtpng_encoder;
 
 #pragma mark Function types
 
+#if 0
 //
-// Read callback type for mtpng_encoder_new().
+// Read callback type for mtpng_decoder_new().
 //
-// When an additional input row is required, this callback is given
+// When additional input data is required, this callback is given
 // a data buffer to copy into. If data is not yet available, you
 // should block until it is.
 //
-// Return the number of bytes copied, or less on failure.
-//
-// Callbacks must report all bytes copied to be considered successful;
-// failure will propagate to abort the encoding process.
+// Return the number of bytes copied, or less on end of file or
+// failure.
 //
 typedef size_t (*mtpng_read_func)(void* user_data,
                                   uint8_t* p_bytes,
                                   size_t len);
+#endif
 
 //
 // Write callback type for mtpng_encoder_new().
@@ -350,30 +350,8 @@ mtpng_encoder_write_transparency(mtpng_encoder* p_encoder,
                                  size_t len);
 
 //
-// Encode, compress, and write an image to the output stream
-// using pixel data provided by a callback in a "pull" manner.
-//
-// Must be called after mtpng_encoder_write_header() and before
-// mtpng_encoder_finish(). The read_func callback will be called
-// once for each row of the image data.
-//
-// Image data must be pre-packed in the correct bit depth and
-// channel order.
-//
-// Check the return value for errors.
-//
-extern mtpng_result
-mtpng_encoder_write_image(mtpng_encoder* p_encoder,
-                          mtpng_read_func read_func,
-                          void* user_data);
-
-//
 // Load one or more rows of input data into the encoder, to be
 // filtered and compressed as data is provided.
-//
-// Use this in preference to mtpng_encoder_write_image() to drive
-// the encoder in a "push" manner, or if all data is conveniently
-// available in a buffer ahead of time.
 //
 // Must be called after mtpng_encoder_write_header() and before
 // mtpng_encoder_finish().

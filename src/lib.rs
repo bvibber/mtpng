@@ -42,8 +42,6 @@ pub mod writer;
 
 use std::io;
 
-use deflate::Strategy;
-use filter::Filter;
 use utils::other;
 
 //
@@ -54,7 +52,6 @@ pub enum Mode<T> {
     Adaptive,
     Fixed(T),
 }
-use Mode::Adaptive;
 
 #[derive(Copy, Clone)]
 #[repr(u8)]
