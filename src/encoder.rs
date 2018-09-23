@@ -271,42 +271,16 @@ impl DeflateChunk {
         // Todo: don't create an empty vector earlier, but reuse it sanely.
         let mut data = Vec::<u8>::new();
 
-        if self.is_start {
-            // Manually prepend the zlib header.
-            // https://github.com/madler/zlib/blob/master/deflate.c#L813
-
-            // bits 0-3
-            let cm = 8; // 8 == deflate
-            // bits 4-7
-            let cinfo = 7; // 15-bit window size minus 8
-
-            // bits 0-4: check bits for the above
-            // we'll calculate it  later!
-            // bit 5: dict requirement (0)
-            let dict = 0;
-            // bits 6-7: compression level (advisory/informative)
-            let level = match self.strategy {
-                Strategy::HuffmanOnly | Strategy::RLE | Strategy::Fixed => 0,
-                _ => match self.compression_level {
-                    CompressionLevel::Fast => 1,
-                    CompressionLevel::Default => 2,
-                    CompressionLevel::High => 3,
-                }
-            };
-
-            let header = (cinfo as u16) << 12 |
-                         (cm as u16) << 8 |
-                         (level as u16) << 6 |
-                         (dict as u16) << 5;
-            let checksum_header = header + 31 - (header % 31);
-            write_be16(&mut data, checksum_header)?;
-        }
-
         let mut options = deflate::Options::new();
 
-        // Negative forces raw stream output
-        // 15 means 2^15 (32 KiB), the max supported.
-        options.set_window_bits(-15);
+        options.set_window_bits(if self.is_start {
+            // 15 means 2^15 (32 KiB), the max supported.
+            15
+        } else {
+            // Negative forces raw stream output so we don't get
+            // a second header...
+            -15
+        });
 
         match self.compression_level {
             CompressionLevel::Default => {},
@@ -316,6 +290,7 @@ impl DeflateChunk {
         options.set_strategy(self.strategy);
 
         let mut encoder = Deflate::new(options, data);
+
 
         match self.prior_input {
             Some(ref filter) => {
@@ -749,14 +724,18 @@ impl<'a, W: Write> Encoder<'a, W> {
 
                         if current.is_end {
                             let mut chunk = Vec::<u8>::new();
-                            write_be32(&mut chunk, self.adler32)?;
+                            if !current.is_start {
+                                write_be32(&mut chunk, self.adler32)?;
+                            }
                             self.writer.write_chunk(b"IDAT", &chunk)?;
                         }
                     } else {
                         self.idat_buffer.write(&current.data)?;
 
                         if current.is_end {
-                            write_be32(&mut self.idat_buffer, self.adler32)?;
+                            if !current.is_start {
+                                write_be32(&mut self.idat_buffer, self.adler32)?;
+                            }
                             self.writer.write_chunk(b"IDAT", &self.idat_buffer)?;
                         }
                     }
