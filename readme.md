@@ -117,16 +117,16 @@ Cortex A53 1.4 GHz
 4 cores
 
 Linux armhf (Raspian):
-- libpng gcc         --  5368 ms
-- mtpng @  1 thread  --  6068 ms -- 1.0x
-- mtpng @  2 threads --  3126 ms -- 1.9x
-- mtpng @  4 threads --  1875 ms -- 3.2x
+- libpng gcc         -- 5368 ms
+- mtpng @  1 thread  -- 6068 ms -- 1.0x
+- mtpng @  2 threads -- 3126 ms -- 1.9x
+- mtpng @  4 threads -- 1875 ms -- 3.2x
 
 Linux aarch64 (Fedora 28):
-- libpng gcc         -- 10635 ms
-- mtpng @  1 thread  --  8262 ms -- 1.0x
-- mtpng @  2 threads --  4239 ms -- 1.9x
-- mtpng @  4 threads --  2508 ms -- 3.3x
+- libpng gcc         -- 4692 ms
+- mtpng @  1 thread  -- 4311 ms -- 1.0x
+- mtpng @  2 threads -- 2140 ms -- 2.0x
+- mtpng @  4 threads -- 1416 ms -- 3.0x
 ```
 
 On 32-bit ARM we don't quite beat libpng single-threaded, but multi-threaded still does well. 64-bit ARM does better, perhaps because libpng is less optimized there. Note this machine throttles aggressively if it heats up, making the second run of a repeat on a long file like that noticeably slower than the first.
