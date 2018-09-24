@@ -36,8 +36,9 @@ Compatibility:
 * MUST have a good Rust API (in progress)
 * MUST have a good C API (in progress)
 * ☑️ MUST work on Linux x86, x86_64
-* MUST work on Linux arm (ok), arm64 (untested)
+* ☑️ MUST work on Linux arm, arm64
 * ☑️ SHOULD work on macOS x86_64
+* ☑️ SHOULD work on iOS arm64
 * ☑️ SHOULD work on Windows x86, x86_64
 * SHOULD work on Windows arm, arm64 (untested)
 
@@ -115,11 +116,17 @@ Raspberry Pi 3B+
 Cortex A53 1.4 GHz
 4 cores
 
-Linux armhf (32-bit):
-- libpng gcc         -- 5368 ms
-- mtpng @  1 thread  -- 6068 ms -- 1.0x
-- mtpng @  2 threads -- 3126 ms -- 1.9x
-- mtpng @  4 threads -- 1875 ms -- 3.2x
+Linux armhf (Raspian):
+- libpng gcc         --  5368 ms
+- mtpng @  1 thread  --  6068 ms -- 1.0x
+- mtpng @  2 threads --  3126 ms -- 1.9x
+- mtpng @  4 threads --  1875 ms -- 3.2x
+
+Linux aarch64 (Fedora 28):
+- libpng gcc         -- 10635 ms
+- mtpng @  1 thread  --  8262 ms -- 1.0x
+- mtpng @  2 threads --  4239 ms -- 1.9x
+- mtpng @  4 threads --  2508 ms -- 3.3x
 ```
 
 On 32-bit ARM we don't quite beat libpng single-threaded, but multi-threaded still does well. Haven't tested 64-bit ARM yet. Note this machine throttles aggressively if it heats up, making the second run of a repeat on a long file like that noticeably slower than the first.
