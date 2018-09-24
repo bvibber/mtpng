@@ -129,7 +129,7 @@ Linux aarch64 (Fedora 28):
 - mtpng @  4 threads --  2508 ms -- 3.3x
 ```
 
-On 32-bit ARM we don't quite beat libpng single-threaded, but multi-threaded still does well. Haven't tested 64-bit ARM yet. Note this machine throttles aggressively if it heats up, making the second run of a repeat on a long file like that noticeably slower than the first.
+On 32-bit ARM we don't quite beat libpng single-threaded, but multi-threaded still does well. 64-bit ARM does better, perhaps because libpng is less optimized there. Note this machine throttles aggressively if it heats up, making the second run of a repeat on a long file like that noticeably slower than the first.
 
 ```
 iPhone X
