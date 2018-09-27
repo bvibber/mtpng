@@ -169,7 +169,7 @@ fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = Filter::Average as u8;
 
     filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
-        let avg = ((left as u32 + above as u32) / 2) as u8;
+        let avg = ((left as i16 + above as i16) / 2) as u8;
         val.wrapping_sub(avg)
     })
 }
@@ -181,14 +181,14 @@ fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 // https://www.w3.org/TR/PNG/#9Filter-type-4-Paeth
 //
 fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
-    let a = left as i32;
-    let b = above as i32;
-    let c = upper_left as i32;
+    let a = left as i16;
+    let b = above as i16;
+    let c = upper_left as i16;
 
     let p = a + b - c;        // initial estimate
-    let pa = i32::abs(p - a); // distances to a, b, c
-    let pb = i32::abs(p - b);
-    let pc = i32::abs(p - c);
+    let pa = i16::abs(p - a); // distances to a, b, c
+    let pb = i16::abs(p - b);
+    let pc = i16::abs(p - c);
     // return nearest of a,b,c,
     // breaking ties in order a,b,c.
     if pa <= pb && pa <= pc {
