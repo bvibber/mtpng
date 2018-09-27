@@ -93,18 +93,18 @@ Linux x86_64:
 - mtpng @ 16 threads --  155 ms -- 7.3x (HT)
 
 Windows 10 x86_64:
-- mtpng @  1 thread  -- 1551 ms -- 1.0x
-- mtpng @  2 threads --  781 ms -- 2.0x
-- mtpng @  4 threads --  402 ms -- 3.9x
-- mtpng @  8 threads --  222 ms -- 6.9x
-- mtpng @ 16 threads --  184 ms -- 8.4x (HT)
+- mtpng @  1 thread  -- 1377 ms -- 1.0x
+- mtpng @  2 threads --  708 ms -- 1.9x
+- mtpng @  4 threads --  375 ms -- 3.7x
+- mtpng @  8 threads --  214 ms -- 6.4x
+- mtpng @ 16 threads --  170 ms -- 8.1x (HT)
 
 Windows 10 i686:
-- mtpng @  1 thread  -- 1802 ms -- 1.0x
-- mtpng @  2 threads --  917 ms -- 1.9x
-- mtpng @  4 threads --  469 ms -- 3.8x
-- mtpng @  8 threads --  259 ms -- 6.9x
-- mtpng @ 16 threads --  206 ms -- 8.7x
+- mtpng @  1 thread  -- 1524 ms -- 1.0x
+- mtpng @  2 threads --  801 ms -- 1.9x
+- mtpng @  4 threads --  405 ms -- 3.8x
+- mtpng @  8 threads --  243 ms -- 6.3x
+- mtpng @ 16 threads --  194 ms -- 7.9x
 ```
 
 Windows seems a little slower than Linux on the same machine, not quite sure why. The Linux build runs on Windows 10's WSL compatibility layer slightly slower than native Linux but faster than native Windows.
