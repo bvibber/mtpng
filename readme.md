@@ -70,9 +70,9 @@ Linux x86_64:
 
 macOS x86_64:
 - libpng clang       --  943 ms (slower than Linux/gcc)
-- mtpng @  1 thread  --  637 ms -- 1.0x (nice!)
-- mtpng @  2 threads --  332 ms -- 1.9x
-- mtpng @  4 threads --  283 ms -- 2.3x (HT)
+- mtpng @  1 thread  --  563 ms -- 1.0x (nice!)
+- mtpng @  2 threads --  299 ms -- 1.9x
+- mtpng @  4 threads --  252 ms -- 2.2x (HT)
 ```
 
 macOS and Linux x86_64 perform about the same on the same machine, but libpng on macOS is built with clang, which seems to optimize libpng's filters worse than gcc does. This means we beat libpng on macOS by a larger margin than on Linux, where it's usually built with gcc.

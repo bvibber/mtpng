@@ -304,7 +304,8 @@ impl Filterator {
         }
     }
 
-    fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
+    #[inline(always)]
+    fn do_filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
         match self.filter {
             Filter::None    => filter_none(self.bpp, prev, src, &mut self.data),
             Filter::Sub     => filter_sub(self.bpp, prev, src, &mut self.data),
@@ -314,6 +315,35 @@ impl Filterator {
         }
         self.complexity = estimate_complexity(&self.data[1..]);
         &self.data
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[target_feature(enable = "avx")]
+    unsafe fn do_filter_avx(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
+        self.do_filter(prev, src)
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[target_feature(enable = "avx2")]
+    unsafe fn do_filter_avx2(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
+        self.do_filter(prev, src)
+    }
+
+    fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if is_x86_feature_detected!("avx2") {
+                return unsafe {
+                    self.do_filter_avx2(prev, src)
+                };
+            }
+            if is_x86_feature_detected!("avx") {
+                return unsafe {
+                    self.do_filter_avx(prev, src)
+                };
+            }
+        }
+        self.do_filter(prev, src)
     }
 
     fn get_data(&self) -> &[u8] {
