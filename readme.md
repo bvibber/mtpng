@@ -52,7 +52,7 @@ Using a smaller chunk size, or enabling streaming mode, will increase the file s
 
 Note that unoptimized debug builds are about 50x slower than optimized release builds. Always run with `--release`!
 
-As of September 8, 2018 with Rust 1.28.0, single-threaded performance on Linux x86_64 is ~15-20% faster than libpng saving the same [dual-4K screenshot sample image](https://raw.githubusercontent.com/brion/mtpng/master/samples/dual4k.png) on Linux and macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
+As of September 8, 2018 with Rust 1.28.0, single-threaded performance on Linux x86_64 is ~30-40% faster than libpng saving the same [dual-4K screenshot sample image](https://raw.githubusercontent.com/brion/mtpng/master/samples/dual4k.png) on Linux and macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
 
 Times for re-encoding the dual-4K screenshot at default options:
 
@@ -64,9 +64,9 @@ MacBook Pro 13" 2015
 Linux x86_64:
 - libpng gcc         --  850 ms (target to beat)
 - libpng clang       --  900 ms
-- mtpng @  1 thread  --  721 ms -- 1.0x (victory!)
-- mtpng @  2 threads --  373 ms -- 1.9x
-- mtpng @  4 threads --  316 ms -- 2.3x (HT)
+- mtpng @  1 thread  --  555 ms -- 1.0x (victory!)
+- mtpng @  2 threads --  302 ms -- 1.8x
+- mtpng @  4 threads --  248 ms -- 2.2x (HT)
 
 macOS x86_64:
 - libpng clang       --  943 ms (slower than Linux/gcc)
@@ -86,11 +86,11 @@ configured for SMP (NUMA disabled)
 
 Linux x86_64:
 - libpng gcc         -- 1695 ms (target to beat)
-- mtpng @  1 thread  -- 1330 ms -- 1.0x (winning!)
-- mtpng @  2 threads --  698 ms -- 1.9x
-- mtpng @  4 threads --  354 ms -- 3.8x
-- mtpng @  8 threads --  190 ms -- 7x
-- mtpng @ 16 threads --  165 ms -- 8.0x (HT)
+- mtpng @  1 thread  -- 1124 ms -- 1.0x (winning!)
+- mtpng @  2 threads --  570 ms -- 2.0x
+- mtpng @  4 threads --  298 ms -- 3.8x
+- mtpng @  8 threads --  165 ms -- 6.8x
+- mtpng @ 16 threads --  155 ms -- 7.3x (HT)
 
 Windows 10 x86_64:
 - mtpng @  1 thread  -- 1551 ms -- 1.0x
