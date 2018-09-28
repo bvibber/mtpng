@@ -227,7 +227,7 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 // as it's expecting, well, a filter delta. :D
 //
 fn filter_complexity_delta(val: u8) -> u32 {
-    i32::abs(val as i8 as i32) as u32
+    i16::abs(val as i8 as i16) as u32
 }
 
 //
