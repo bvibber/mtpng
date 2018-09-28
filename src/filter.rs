@@ -227,7 +227,13 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 // as it's expecting, well, a filter delta. :D
 //
 fn filter_complexity_delta(val: u8) -> u32 {
-    i16::abs(val as i8 as i16) as u32
+    if cfg!(any(target_arch = "x86", target_arch = "x86_64")) {
+        // i32::abs optimizes faster on x86
+        i32::abs(val as i8 as i32) as u32
+    } else {
+        // i16::abs optimizes faster on arm
+        i16::abs(val as i8 as i16) as u32
+    }
 }
 
 //
