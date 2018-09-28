@@ -398,6 +398,7 @@ impl DeflateChunk {
 struct ChunkMap<T> {
     cursor_in: usize,
     cursor_out: usize,
+    running: usize,
 
     // todo use a VecDeque for this maybe
     live_chunks: HashMap<usize, Arc<T>>,
@@ -408,6 +409,7 @@ impl<T> ChunkMap<T> {
         ChunkMap {
             cursor_in: 0,
             cursor_out: 0,
+            running: 0,
             live_chunks: HashMap::new(),
         }
     }
@@ -416,8 +418,8 @@ impl<T> ChunkMap<T> {
         self.cursor_in > self.cursor_out
     }
 
-    fn live_jobs(&self) -> usize {
-        self.cursor_in - self.cursor_out
+    fn running_jobs(&self) -> usize {
+        self.running
     }
 
     //
@@ -425,6 +427,7 @@ impl<T> ChunkMap<T> {
     //
     fn advance(&mut self) {
         self.cursor_in = self.cursor_in + 1;
+        self.running = self.running + 1;
     }
 
     //
@@ -437,6 +440,7 @@ impl<T> ChunkMap<T> {
         if index > self.cursor_in {
             panic!("Tried to land a future chunk");
         }
+        self.running = self.running - 1;
         match self.live_chunks.insert(index, chunk) {
             None => {},
             Some(_x) => panic!("Tried to re-append an existing chunk"),
@@ -594,6 +598,10 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
+    fn running_jobs(&self) -> usize {
+        self.filter_chunks.running_jobs() + self.deflate_chunks.running_jobs()
+    }
+
     fn threads(&self) -> usize {
         match self.options.thread_pool {
             Some(pool) => pool.current_num_threads(),
@@ -729,7 +737,7 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
 
         // If we have more deflate work to do, dispatch them!
-        while self.deflate_chunks.live_jobs() < self.threads() {
+        while self.running_jobs() < self.threads() {
             match self.filter_chunks.pop_front() {
                 Some((previous, current)) => {
                     // Prepare to dispatch the deflate job:
@@ -751,7 +759,7 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
 
         // If we have more filter work to do, dispatch them!
-        while self.filter_chunks.live_jobs() < self.threads() {
+        while self.running_jobs() < self.threads() {
             match self.pixel_chunks.pop_front() {
                 Some((previous, current)) => {
                     // Prepare to dispatch the filter job:
@@ -928,14 +936,10 @@ impl<'a, W: Write> Encoder<'a, W> {
             }
 
             // Dispatch any available async tasks and output.
-            let jobs = self.filter_chunks.live_jobs() +
-                       self.deflate_chunks.live_jobs();
-            let blocking = if jobs >= self.threads() {
-                DispatchMode::Blocking
-            } else {
-                DispatchMode::NonBlocking
-            };
-            self.dispatch(blocking)?;
+            while self.running_jobs() >= self.threads() {
+                self.dispatch(DispatchMode::Blocking)?;
+            }
+            self.dispatch(DispatchMode::NonBlocking)?;
         }
 
         self.current_row = self.current_row + 1;
