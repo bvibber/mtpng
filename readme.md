@@ -52,7 +52,7 @@ Using a smaller chunk size, or enabling streaming mode, will increase the file s
 
 Note that unoptimized debug builds are about 50x slower than optimized release builds. Always run with `--release`!
 
-As of September 8, 2018 with Rust 1.28.0, single-threaded performance on Linux x86_64 is ~30-40% faster than libpng saving the same [dual-4K screenshot sample image](https://raw.githubusercontent.com/brion/mtpng/master/samples/dual4k.png) on Linux and macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
+As of September 26, 2018 with Rust 1.29.0, single-threaded performance on Linux x86_64 is ~30-40% faster than libpng saving the same [dual-4K screenshot sample image](https://raw.githubusercontent.com/brion/mtpng/master/samples/dual4k.png) on Linux and macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
 
 Times for re-encoding the dual-4K screenshot at default options:
 
