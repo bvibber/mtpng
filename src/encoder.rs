@@ -25,8 +25,6 @@
 
 use rayon::ThreadPool;
 
-use std::cmp;
-
 use std::collections::HashMap;
 
 use std::io;
@@ -523,7 +521,6 @@ pub struct Encoder<'a, W: Write> {
     wrote_transparency: bool,
     started_image: bool,
 
-    rows_per_chunk: usize,
     chunks_total: usize,
     chunks_output: usize,
 
@@ -563,7 +560,6 @@ impl<'a, W: Write> Encoder<'a, W> {
             wrote_transparency: false,
             started_image: false,
 
-            rows_per_chunk: 0,
             chunks_total: 0,
             chunks_output: 0,
 
@@ -624,11 +620,11 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     fn start_row(&self, index: usize) -> usize {
-        index * self.rows_per_chunk
+        index * self.header.height() as usize / self.chunks_total
     }
 
     fn end_row(&self, index: usize) -> usize {
-        cmp::min(self.start_row(index) + self.rows_per_chunk, self.header.height as usize)
+        self.start_row(index + 1)
     }
 
     fn receive(&mut self, blocking: DispatchMode) -> Option<ThreadMessage> {
@@ -794,23 +790,17 @@ impl<'a, W: Write> Encoder<'a, W> {
         let stride = self.header.stride() + 1;
         let height = self.header.height as usize;
 
-        let full_rows = self.options.chunk_size / stride;
-        let extra_pixels = self.options.chunk_size % stride;
-        self.rows_per_chunk = cmp::min(height, full_rows + if extra_pixels > 0 {
+        let chunks = stride * height / self.options.chunk_size;
+        self.chunks_total = if chunks < 1 {
             1
         } else {
-            0
-        });
-
-        let full_chunks = height / self.rows_per_chunk;
-        let extra_lines = height % self.rows_per_chunk;
-        self.chunks_total = full_chunks + if extra_lines > 0 {
-            1
-        } else {
-            0
+            chunks
         };
 
-        self.pixel_accumulator = Arc::new(PixelChunk::new(self.header, 0, 0, self.rows_per_chunk));
+        self.pixel_accumulator = Arc::new(PixelChunk::new(self.header,
+                                                          0, // index
+                                                          self.start_row(0),
+                                                          self.end_row(0)));
 
         self.wrote_header = true;
 
