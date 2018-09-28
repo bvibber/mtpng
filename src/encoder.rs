@@ -418,6 +418,10 @@ impl<T> ChunkMap<T> {
         self.cursor_in > self.cursor_out
     }
 
+    fn live_jobs(&self) -> usize {
+        self.cursor_in - self.cursor_out
+    }
+
     //
     // Record that this job is now in-flight
     //
@@ -594,6 +598,13 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
+    fn threads(&self) -> usize {
+        match self.options.thread_pool {
+            Some(pool) => pool.current_num_threads(),
+            None => ::rayon::current_num_threads()
+        }
+    }
+
     fn dispatch_func<F>(&self, func: F)
         where F: Fn(&Sender<ThreadMessage>) + Send + 'static
     {
@@ -690,7 +701,7 @@ impl<'a, W: Write> Encoder<'a, W> {
                                                             current.adler32,
                                                             current.input.data.len());
 
-                    // @fixme if not streaming, append to an in-memory buffer
+                    // if not streaming, append to an in-memory buffer
                     // and output a giant tag later.
                     if self.options.streaming {
                         self.writer.write_chunk(b"IDAT", &current.data)?;
@@ -722,9 +733,7 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
 
         // If we have more deflate work to do, dispatch them!
-        // @todo check if the thread pool is full and block if so...
-        // That will keep memory from growing on large images during fast input.
-        loop {
+        while self.deflate_chunks.live_jobs() < self.threads() {
             match self.filter_chunks.pop_front() {
                 Some((previous, current)) => {
                     // Prepare to dispatch the deflate job:
@@ -746,7 +755,7 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
 
         // If we have more filter work to do, dispatch them!
-        loop {
+        while self.filter_chunks.live_jobs() < self.threads() {
             match self.pixel_chunks.pop_front() {
                 Some((previous, current)) => {
                     // Prepare to dispatch the filter job:
@@ -929,7 +938,14 @@ impl<'a, W: Write> Encoder<'a, W> {
             }
 
             // Dispatch any available async tasks and output.
-            self.dispatch(DispatchMode::NonBlocking)?;
+            let jobs = self.filter_chunks.live_jobs() +
+                       self.deflate_chunks.live_jobs();
+            let blocking = if jobs >= self.threads() {
+                DispatchMode::Blocking
+            } else {
+                DispatchMode::NonBlocking
+            };
+            self.dispatch(blocking)?;
         }
 
         self.current_row = self.current_row + 1;
