@@ -805,6 +805,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             chunks
         };
 
+        self.pixel_chunks.advance();
         self.pixel_accumulator = Arc::new(PixelChunk::new(self.header,
                                                           0, // index
                                                           self.start_row(0),
