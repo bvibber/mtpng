@@ -21,12 +21,16 @@ if exist "%prog%\%vs%\Community\%common%" (
     set VsDevCmd="%prog%\%vs%\Professional\%common%"
 ) else if exist "%prog%\%vs%\Enterprise\%common%" (
     set VsDevCmd="%prog%\%vs%\Enterprise\%common%"
+) else if exist "%prog%\%vs%\BuildTools\%common%" (
+    set VsDevCmd="%prog%\%vs%\BuildTools\%common%"
 ) else if exist "%prog86%\%vs%\Community\%common%" (
     set VsDevCmd="%prog86%\%vs%\Community\%common%"
 ) else if exist "%prog86%\%vs%\Professional\%common%" (
     set VsDevCmd="%prog86%\%vs%\Professional\%common%"
 ) else if exist "%prog86%\%vs%\Enterprise\%common%" (
     set VsDevCmd="%prog86%\%vs%\Enterprise\%common%"
+) else if exist "%prog86%\%vs%\BuildTools\%common%" (
+    set VsDevCmd="%prog86%\%vs%\BuildTools\%common%"
 ) else (
     echo "Could not find Visual Studio dev tools."
 )
