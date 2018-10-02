@@ -16,7 +16,7 @@ required-features=["cli"]
 [dependencies]
 rayon = "1.0.2"
 crc = "1.8.1"
-libz-sys = { version = ">=1.0.23", features = ['asm'] }
+libz-sys = "1.0.23"
 itertools = "0.7.8"
 typenum = "1.10.0"
 
@@ -35,6 +35,3 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 # Unoptimized debug builds are too slow to profile
 # having debug info doesn't hurt perf for now
 debug = true
-
-[patch.crates-io]
-libz-sys = { git = "https://github.com/alexcrichton/libz-sys.git" }
