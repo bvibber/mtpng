@@ -37,4 +37,4 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 debug = true
 
 [patch.crates-io]
-libz-sys = { git = "https://github.com/alexcrichton/libz-sys.git", branch = "asm" }
+libz-sys = { git = "https://github.com/alexcrichton/libz-sys.git" }
