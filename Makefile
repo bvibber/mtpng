@@ -57,4 +57,4 @@ $(LIB) : $(RUSTLIB)
 	cp $(RUSTLIB) $(LIB)
 
 $(RUSTLIB) : Cargo.toml src/*.rs
-	$(CARGO) build --release --features=capi
+	$(CARGO) build --release --features capi
