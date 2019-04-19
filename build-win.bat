@@ -31,7 +31,7 @@ set SOURCES=c\sample.c
 set HEADERS=c\mtpng.h
 set EXE=build\sample.exe
 
-%CARGO% build --target=%TARGET% --release
+%CARGO% build --target=%TARGET% --release --features capi
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 if not exist build mkdir build
