@@ -145,6 +145,21 @@ iOS aarch64:
 
 A high-end 64-bit ARM system is quite a bit faster! It scales ok to 2 cores, getting smaller but real benefits from scheduling further work on the additional little cores.
 
+```
+Lenovo C630 Yoga
+Snapdragon 850 2.96 GHz
+8 cores (4 big, 4 little?)
+
+Windows Subsystem for Linux aarch64 (Win10 1903):
+- mtpng @ 1 thread  -- 1029ms -- 1.0x
+- mtpng @ 2 threads --  516ms -- 2.0x
+- mtpng @ 4 threads --  317ms -- 3.2x
+- mtpng @ 6 threads --  262ms -- 3.9x
+- mtpng @ 8 threads --  241ms -- 4.3x
+```
+
+The Snapdragon 850 scores not as well as the A11 in single-threaded, but catches up with additional threads.
+
 ## Todos
 
 See the [projects list on GitHub](https://github.com/brion/mtpng/projects) for active details.
