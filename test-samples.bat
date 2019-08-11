@@ -13,7 +13,7 @@ rem https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-o
 
 set prog=C:\Program Files
 set prog86=C:\Program Files (x86)
-set vs=Microsoft Visual Studio\2017
+set vs=Microsoft Visual Studio\2019
 set common=Common7\Tools\VsDevCmd.bat
 if exist "%prog%\%vs%\Community\%common%" (
     set VsDevCmd="%prog%\%vs%\Community\%common%"
