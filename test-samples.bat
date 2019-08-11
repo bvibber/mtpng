@@ -4,7 +4,7 @@ setlocal
 rem Run all the sample files at given options
 rem reads input from samples\*.png
 rem creates output in out\*.png
-rem Provide "x86" or "x64" as first param to set target.
+rem Provide "x86", "x64" or "arm64" as first param to set target.
 
 if not exist out mkdir out
 
@@ -37,18 +37,26 @@ if exist "%prog%\%vs%\Community\%common%" (
 
 if "x%1"=="xx86" (
     set arch=x86
+    set hostarch=x86
     set target=i686-pc-windows-msvc
     shift
 ) else if "x%1"=="xx64" (
     set arch=x64
+    set hostarch=x64
     set target=x86_64-pc-windows-msvc
+    shift
+) else if "x%1"=="xarm64" (
+    set arch=arm64
+    set hostarch=x86
+    set target=aarch64-pc-windows-msvc
     shift
 ) else (
     set arch=x64
+    set hostarch=x64
     set target=x86_64-pc-windows-msvc
 )
 
-call %VsDevCmd% -arch=%arch% -host_arch=%arch%
+call %VsDevCmd% -arch=%arch% -host_arch=%hostarch%
 
 set x=%1
 shift
