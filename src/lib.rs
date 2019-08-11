@@ -27,7 +27,8 @@
 
 extern crate rayon;
 extern crate crc;
-extern crate libz_sys;
+extern crate miniz_oxide;
+extern crate adler32;
 #[macro_use] extern crate itertools;
 extern crate typenum;
 

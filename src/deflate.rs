@@ -32,7 +32,19 @@ use std::ptr;
 
 use std::os::raw::*;
 
-use ::libz_sys::*;
+//use ::libz_sys::*;
+
+use miniz_oxide::deflate;
+use miniz_oxide::deflate::core::{
+    CompressorOxide,
+    compress_to_output,
+    deflate_flags,
+    TDEFLFlush,
+    TDEFLStatus
+};
+use miniz_oxide::DataFormat;
+
+use ::adler32::RollingAdler32;
 
 use super::utils::*;
 
@@ -41,49 +53,74 @@ unsafe fn char_ptr(byte_ref: &u8) -> *mut u8 {
 }
 
 pub fn adler32(sum: u32, bytes: &[u8]) -> u32 {
-    unsafe {
-        ::libz_sys::adler32(sum as c_ulong, &bytes[0], bytes.len() as c_uint) as u32
-    }
+    let mut rolling = RollingAdler32::from_value(sum);
+    rolling.update_buffer(bytes);
+    rolling.hash()
 }
 
 pub fn adler32_initial() -> u32 {
-    unsafe {
-        ::libz_sys::adler32(0, ptr::null(), 0) as u32
-    }
+    let buf: [u8; 0] = [];
+    let rolling = RollingAdler32::from_buffer(&buf);
+    rolling.hash()
 }
 
 pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
-    unsafe {
-        ::libz_sys::adler32_combine(sum_a as c_ulong, sum_b as c_ulong, len_b as c_long) as u32
+    // Ported from zlib
+    // https://github.com/madler/zlib/blob/master/adler32.c
+    const BASE: u32 = 65521;
+
+    /* the derivation of this formula is left as an exercise for the reader */
+    let len2: u32 = (len_b % BASE as usize) as u32;
+    let rem: u32 = len2;
+    let mut sum1: u32 = sum_a & 0xffff;
+    let mut sum2: u32 = rem * sum1;
+    sum2 %= BASE;
+    sum1 += (sum_b & 0xffff) + BASE - 1;
+    sum2 += ((sum_a >> 16) & 0xffff) + ((sum_b >> 16) & 0xffff) + BASE - rem;
+    if sum1 >= BASE {
+        sum1 -= BASE;
     }
+    if sum1 >= BASE {
+        sum1 -= BASE;
+    }
+    if sum2 >= (BASE << 1) {
+        sum2 -= BASE << 1;
+    }
+    if sum2 >= BASE {
+        sum2 -= BASE;
+    }
+    sum1 | (sum2 << 16)
+}
+
+#[derive(Copy, Clone)]
+pub enum Strategy {
+    Default,
+    Filtered,
+    HuffmanOnly,
+    RLE,
+    Fixed,
+}
+
+pub enum Method {
+    Deflated
 }
 
 pub struct Options {
     level: c_int,
-    method: c_int,
+    method: Method,
     window_bits: c_int,
     mem_level: c_int,
-    strategy: c_int,
-}
-
-#[repr(i32)]
-#[derive(Copy, Clone)]
-pub enum Strategy {
-    Default = Z_DEFAULT_STRATEGY,
-    Filtered = Z_FILTERED,
-    HuffmanOnly = Z_HUFFMAN_ONLY,
-    RLE = Z_RLE,
-    Fixed = Z_FIXED,
+    strategy: Strategy,
 }
 
 impl Options {
     pub fn new() -> Options {
         Options {
-            level: Z_DEFAULT_COMPRESSION,
-            method: Z_DEFLATED,
+            level: -1, // Z_DEFAULT_COMPRESSION
+            method: Method::Deflated,
             window_bits: 15,
             mem_level: 8,
-            strategy: Z_DEFAULT_STRATEGY,
+            strategy: Strategy::Default,
         }
     }
 
@@ -103,7 +140,7 @@ impl Options {
     }
 
     pub fn set_strategy(&mut self, strategy: Strategy) {
-        self.strategy = strategy as c_int;
+        self.strategy = strategy;
     }
 
     //
@@ -122,13 +159,13 @@ impl Options {
 
 #[derive(Copy, Clone)]
 pub enum Flush {
-    NoFlush = Z_NO_FLUSH as isize,
-    PartialFlush = Z_PARTIAL_FLUSH as isize,
-    SyncFlush = Z_SYNC_FLUSH as isize,
-    FullFlush = Z_FULL_FLUSH as isize,
-    Finish = Z_FINISH as isize,
-    Block = Z_BLOCK as isize,
-    Trees = Z_TREES as isize,
+    NoFlush,
+    PartialFlush,
+    SyncFlush,
+    FullFlush,
+    Finish,
+    Block,
+    Trees,
 }
 
 pub struct Deflate<W: Write> {
@@ -136,7 +173,7 @@ pub struct Deflate<W: Write> {
     options: Options,
     initialized: bool,
     finished: bool,
-    stream: Box<z_stream>,
+    compressor: CompressorOxide,
 }
 
 impl<W: Write> Deflate<W> {
@@ -146,9 +183,7 @@ impl<W: Write> Deflate<W> {
             options: options,
             initialized: false,
             finished: false,
-            stream: Box::new(unsafe {
-                mem::zeroed()
-            }),
+            compressor: CompressorOxide::new(deflate_flags::TDEFL_WRITE_ZLIB_HEADER),
         }
     }
 
@@ -156,87 +191,66 @@ impl<W: Write> Deflate<W> {
         if self.initialized {
             Ok(())
         } else {
-            let ret = unsafe {
-                deflateInit2_(&mut *self.stream,
-                              self.options.level,
-                              self.options.method,
-                              self.options.window_bits,
-                              self.options.mem_level,
-                              self.options.strategy,
-                              zlibVersion(),
-                              mem::size_of::<z_stream>() as c_int)
-            };
-            return match ret {
-                Z_OK => {
-                    self.initialized = true;
-                    Ok(())
-                },
-                Z_MEM_ERROR => Err(other("Out of memory")),
-                Z_STREAM_ERROR => Err(invalid_input("Invalid parameter")),
-                Z_VERSION_ERROR => Err(invalid_input("Incompatible version of zlib")),
-                _ => Err(other("Unexpected error")),
+            if self.options.level > -1 {
+                self.compressor.set_format_and_level(DataFormat::Zlib, self.options.level as u8);
             }
+            self.initialized = true;
+            Ok(())
         }
     }
 
     pub fn set_dictionary(&mut self, dict: &[u8]) -> IoResult {
         self.init()?;
-        let ret = unsafe {
-            deflateSetDictionary(&mut *self.stream,
-                                 &dict[0],
-                                 dict.len() as c_uint)
-        };
-        match ret {
-            Z_OK => Ok(()),
-            Z_STREAM_ERROR => Err(invalid_input("Invalid parameter")),
-            _ => Err(other("Unexpected error")),
+        // miniz_oxide doesn't expose setting the dictionary
+        // so we'll cheat!
+        self.compressor.set_compression_level(deflate::CompressionLevel::NoCompression);
+        match compress_to_output(
+            &mut self.compressor,
+            dict,
+            TDEFLFlush::Sync,
+            |_data: &[u8]| -> bool {
+                true
+            }
+        ).0 {
+            TDEFLStatus::Okay => {},
+            TDEFLStatus::Done => {},
+            TDEFLStatus::PutBufFailed => {
+                return Err(other("PutBufFailed"));
+            },
+            TDEFLStatus::BadParam => {
+                return Err(invalid_input("Invalid parameter"));
+            },
         }
+        self.compressor.set_compression_level_raw(self.options.level as u8);
+        Ok(())
     }
 
     fn deflate(&mut self, data: &[u8], flush: Flush) -> IoResult {
         self.init()?;
-        let buffer = [0u8; 128 * 1024];
-        let stream = &mut *self.stream;
-        unsafe {
-            stream.next_in = char_ptr(&data[0]);
-            stream.avail_in = data.len() as c_uint;
-        }
-        loop {
-            let ret = unsafe {
-                stream.next_out = char_ptr(&buffer[0]);
-                stream.avail_out = buffer.len() as c_uint;
 
-                deflate(stream, flush as c_int)
-            };
-            match ret {
-                Z_OK | Z_STREAM_END => {
-                    let end = buffer.len() - stream.avail_out as usize;
-                    self.output.write_all(&buffer[0 .. end])?;
-                    match ret {
-                        Z_OK => {
-                            if stream.avail_out == 0 {
-                                // Must call again; more output available.
-                                continue;
-                            } else {
-                                return Ok(());
-                            }
-                        },
-                        Z_STREAM_END => {
-                            self.finished = true;
-                            if stream.avail_out == 0 {
-                                // Must call again; more output available.
-                                continue;
-                            } else {
-                                return Ok(());
-                            }
-                        },
-                        _ => unreachable!(),
-                    }
-                },
-                Z_STREAM_ERROR => return Err(invalid_input("Inconsistent stream state")),
-                Z_BUF_ERROR => return Err(other("No progress possible")),
-                _ => return Err(other("Unexpected error")),
+        let compressor = &mut self.compressor;
+        let output = &mut self.output;
+        return match compress_to_output(
+            compressor,
+            data,
+            match flush {
+                Flush::NoFlush => TDEFLFlush::None,
+                Flush::FullFlush => TDEFLFlush::Full,
+                Flush::SyncFlush => TDEFLFlush::Sync,
+                Flush::Finish => TDEFLFlush::Finish,
+                _ => TDEFLFlush::None,
+            },
+            |bytes: &[u8]| -> bool {
+                match output.write(bytes) {
+                    Ok(_) => true,
+                    Err(_) => false,
+                }
             }
+        ).0 {
+            TDEFLStatus::Okay => Ok(()),
+            TDEFLStatus::Done => Ok(()),
+            TDEFLStatus::PutBufFailed => Err(other("PutBufFailed")),
+            TDEFLStatus::BadParam => Err(invalid_input("Invalid parameter")),
         }
     }
 
@@ -249,26 +263,13 @@ impl<W: Write> Deflate<W> {
     // Deallocate the zlib state and return the writer.
     //
     pub fn finish(mut self) -> io::Result<W> {
-        return if self.initialized {
-            let ret = unsafe {
-                deflateEnd(&mut *self.stream)
-            };
-            match ret {
-                // Z_DATA_ERROR means we freed before finishing the stream.
-                // For our use case we do this deliberately, it's ok!
-                Z_OK | Z_DATA_ERROR => Ok(self.output),
-                Z_STREAM_ERROR => Err(invalid_input("Inconsistent stream state")),
-                _ => Err(other("Unexpected error")),
-            }
-        } else {
-            Ok(self.output)
-        }
+        Ok(self.output)
     }
 
     //
     // Get the checksum so far.
     //
     pub fn get_adler32(&self) -> u32 {
-        (*self.stream).adler as u32
+        return self.compressor.adler32();
     }
 }
