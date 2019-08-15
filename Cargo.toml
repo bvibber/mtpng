@@ -1,9 +1,10 @@
 [package]
 name = "mtpng"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Brion Vibber <brion@pobox.com>"]
 license = "MIT"
 description = "Multithreaded PNG encoder library"
+readme = "readme.md"
 homepage = "https://github.com/brion/mtpng"
 repository = "https://github.com/brion/mtpng.git"
 keywords = ["png", "multithreaded", "threaded", "parallel"]

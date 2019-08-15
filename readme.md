@@ -16,7 +16,7 @@ I was also inspired by an experimental C++/OpenMP project called `png-parallel` 
 
 # State
 
-Creates correct files in all color formats (input must be pre-packed). Performs well on large files, but needs work for small files and ancillary chunks. No API stability yet!
+Creates correct files in all color formats (input must be pre-packed). Performs well on large files, but needs work for small files and ancillary chunks. Planning API stability soon, but not yet there -- things will change before 1.0.
 
 ## Goals
 
