@@ -40,7 +40,7 @@ Compatibility:
 * ☑️ SHOULD work on macOS x86_64
 * ☑️ SHOULD work on iOS arm64
 * ☑️ SHOULD work on Windows x86, x86_64
-* SHOULD work on Windows arm, arm64 (untested)
+* ☑️️ SHOULD work on Windows arm64
 
 ## Compression
 
