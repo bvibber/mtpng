@@ -8,3 +8,4 @@ perf.*
 /build
 /darwin/mtpng
 xcuserdata
+.vscode

@@ -2,6 +2,13 @@
 name = "mtpng"
 version = "0.1.0"
 authors = ["Brion Vibber <brion@pobox.com>"]
+license = "MIT"
+license-file = "license.md"
+description = "Multithreaded PNG encoder library"
+homepage = "https://github.com/brion/mtpng"
+repository = "https://github.com/brion/mtpng.git"
+keywords = ["png", "multithreaded", "threaded", "parallel"]
+categories = ["multimedia::images"]
 
 [features]
 default=[]
@@ -32,6 +39,7 @@ libc = { version = "0.2.43", optional = true }
 crate-type = ["rlib", "cdylib", "staticlib"]
 
 [profile.release]
-# Unoptimized debug builds are too slow to profile
-# having debug info doesn't hurt perf for now
-debug = true
+## Unoptimized debug builds are too slow to profile!
+## Having debug info doesn't hurt perf but does increase
+## size, so enable this if needed.
+# debug = true
