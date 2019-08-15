@@ -3,7 +3,6 @@ name = "mtpng"
 version = "0.1.0"
 authors = ["Brion Vibber <brion@pobox.com>"]
 license = "MIT"
-license-file = "license.md"
 description = "Multithreaded PNG encoder library"
 homepage = "https://github.com/brion/mtpng"
 repository = "https://github.com/brion/mtpng.git"
