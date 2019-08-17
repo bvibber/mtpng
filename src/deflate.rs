@@ -105,30 +105,17 @@ impl Options {
     pub fn set_strategy(&mut self, strategy: Strategy) {
         self.strategy = strategy as c_int;
     }
-
-    //
-    // Tune the memory buffer sizes for zlib deflate compression.
-    //
-    // Default is 8 (128 KiB)
-    // Maximum is 9 (256 KiB)
-    //
-    // Total memory usage for zlib is approx:
-    // (1 << (windowBits+2)) +  (1 << (memLevel+9))
-    //
-    pub fn set_mem_level(&mut self, level: i32) {
-        self.mem_level = level as c_int;
-    }
 }
 
 #[derive(Copy, Clone)]
 pub enum Flush {
-    NoFlush = Z_NO_FLUSH as isize,
-    PartialFlush = Z_PARTIAL_FLUSH as isize,
+    // Only SyncFlush and Finish are used internally.
+
+    //NoFlush = Z_NO_FLUSH as isize,
+    //PartialFlush = Z_PARTIAL_FLUSH as isize,
     SyncFlush = Z_SYNC_FLUSH as isize,
-    FullFlush = Z_FULL_FLUSH as isize,
+    //FullFlush = Z_FULL_FLUSH as isize,
     Finish = Z_FINISH as isize,
-    Block = Z_BLOCK as isize,
-    Trees = Z_TREES as isize,
 }
 
 pub struct Deflate<W: Write> {
@@ -263,12 +250,5 @@ impl<W: Write> Deflate<W> {
         } else {
             Ok(self.output)
         }
-    }
-
-    //
-    // Get the checksum so far.
-    //
-    pub fn get_adler32(&self) -> u32 {
-        (*self.stream).adler as u32
     }
 }

@@ -36,6 +36,7 @@ use std::sync::mpsc::{Sender, Receiver};
 
 use super::ColorType;
 use super::CompressionLevel;
+use super::DeflateStrategy;
 use super::Header;
 use super::Mode;
 use super::Mode::{Adaptive, Fixed};
@@ -47,7 +48,6 @@ use super::writer::Writer;
 use super::deflate;
 use super::deflate::Deflate;
 use super::deflate::Flush;
-use super::deflate::Strategy;
 
 use super::utils::*;
 
@@ -56,7 +56,7 @@ use super::utils::*;
 pub struct Options<'a> {
     chunk_size: usize,
     compression_level: CompressionLevel,
-    strategy_mode: Mode<Strategy>,
+    strategy_mode: Mode<DeflateStrategy>,
     filter_mode: Mode<Filter>,
     streaming: bool,
     thread_pool: Option<&'a ThreadPool>,
@@ -122,7 +122,7 @@ impl<'a> Options<'a> {
         Ok(())
     }
 
-    pub fn set_strategy_mode(&mut self, strategy_mode: Mode<Strategy>) -> IoResult {
+    pub fn set_strategy_mode(&mut self, strategy_mode: Mode<DeflateStrategy>) -> IoResult {
         self.strategy_mode = strategy_mode;
         Ok(())
     }
@@ -292,7 +292,7 @@ struct DeflateChunk {
     is_end: bool,
 
     compression_level: CompressionLevel,
-    strategy: Strategy,
+    strategy: DeflateStrategy,
 
     // The filtered pixels for chunk n-1
     // Empty on first chunk.
@@ -311,7 +311,7 @@ struct DeflateChunk {
 
 impl DeflateChunk {
     fn new(compression_level: CompressionLevel,
-           strategy: Strategy,
+           strategy: DeflateStrategy,
            prior_input: Option<Arc<FilterChunk>>,
            input: Arc<FilterChunk>) -> DeflateChunk {
 
@@ -658,12 +658,12 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
-    fn compression_strategy(&self) -> Strategy {
+    fn compression_strategy(&self) -> DeflateStrategy {
         match self.options.strategy_mode {
             Fixed(s) => s,
             Adaptive => match self.filter_mode() {
-                Fixed(Filter::None) => Strategy::Default,
-                _                   => Strategy::Filtered,
+                Fixed(Filter::None) => DeflateStrategy::Default,
+                _                   => DeflateStrategy::Filtered,
             },
         }
     }

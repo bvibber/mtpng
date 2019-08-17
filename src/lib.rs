@@ -38,11 +38,13 @@ mod capi;
 #[cfg(feature="capi")]
 pub use capi::*;
 
-pub mod deflate;
+mod deflate;
 pub mod filter;
 pub mod encoder;
 pub mod utils;
 pub mod writer;
+
+pub type DeflateStrategy = deflate::Strategy;
 
 use std::io;
 
