@@ -36,7 +36,7 @@ use std::sync::mpsc::{Sender, Receiver};
 
 use super::ColorType;
 use super::CompressionLevel;
-use super::DeflateStrategy;
+use super::Strategy;
 use super::Header;
 use super::Mode;
 use super::Mode::{Adaptive, Fixed};
@@ -56,7 +56,7 @@ use super::utils::*;
 pub struct Options<'a> {
     chunk_size: usize,
     compression_level: CompressionLevel,
-    strategy_mode: Mode<DeflateStrategy>,
+    strategy_mode: Mode<Strategy>,
     filter_mode: Mode<Filter>,
     streaming: bool,
     thread_pool: Option<&'a ThreadPool>,
@@ -122,7 +122,7 @@ impl<'a> Options<'a> {
         Ok(())
     }
 
-    pub fn set_strategy_mode(&mut self, strategy_mode: Mode<DeflateStrategy>) -> IoResult {
+    pub fn set_strategy_mode(&mut self, strategy_mode: Mode<Strategy>) -> IoResult {
         self.strategy_mode = strategy_mode;
         Ok(())
     }
@@ -292,7 +292,7 @@ struct DeflateChunk {
     is_end: bool,
 
     compression_level: CompressionLevel,
-    strategy: DeflateStrategy,
+    strategy: Strategy,
 
     // The filtered pixels for chunk n-1
     // Empty on first chunk.
@@ -311,7 +311,7 @@ struct DeflateChunk {
 
 impl DeflateChunk {
     fn new(compression_level: CompressionLevel,
-           strategy: DeflateStrategy,
+           strategy: Strategy,
            prior_input: Option<Arc<FilterChunk>>,
            input: Arc<FilterChunk>) -> DeflateChunk {
 
@@ -658,12 +658,12 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
-    fn compression_strategy(&self) -> DeflateStrategy {
+    fn compression_strategy(&self) -> Strategy {
         match self.options.strategy_mode {
             Fixed(s) => s,
             Adaptive => match self.filter_mode() {
-                Fixed(Filter::None) => DeflateStrategy::Default,
-                _                   => DeflateStrategy::Filtered,
+                Fixed(Filter::None) => Strategy::Default,
+                _                   => Strategy::Filtered,
             },
         }
     }

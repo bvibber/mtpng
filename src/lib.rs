@@ -39,12 +39,13 @@ mod capi;
 pub use capi::*;
 
 mod deflate;
-pub mod filter;
+mod filter;
 pub mod encoder;
 pub mod utils;
 pub mod writer;
 
-pub type DeflateStrategy = deflate::Strategy;
+pub type Strategy = deflate::Strategy;
+pub type Filter = filter::Filter;
 
 use std::io;
 

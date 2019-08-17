@@ -46,8 +46,8 @@ extern crate mtpng;
 use mtpng::{ColorType, CompressionLevel, Header};
 use mtpng::Mode::{Adaptive, Fixed};
 use mtpng::encoder::{Encoder, Options};
-use mtpng::DeflateStrategy;
-use mtpng::filter::Filter;
+use mtpng::Strategy;
+use mtpng::Filter;
 
 pub fn err(payload: &str) -> Error
 {
@@ -125,11 +125,11 @@ fn write_png(pool: &ThreadPool,
     match args.value_of("strategy") {
         None             => {},
         Some("auto")     => options.set_strategy_mode(Adaptive)?,
-        Some("default")  => options.set_strategy_mode(Fixed(DeflateStrategy::Default))?,
-        Some("filtered") => options.set_strategy_mode(Fixed(DeflateStrategy::Filtered))?,
-        Some("huffman")  => options.set_strategy_mode(Fixed(DeflateStrategy::HuffmanOnly))?,
-        Some("rle")      => options.set_strategy_mode(Fixed(DeflateStrategy::RLE))?,
-        Some("fixed")    => options.set_strategy_mode(Fixed(DeflateStrategy::Fixed))?,
+        Some("default")  => options.set_strategy_mode(Fixed(Strategy::Default))?,
+        Some("filtered") => options.set_strategy_mode(Fixed(Strategy::Filtered))?,
+        Some("huffman")  => options.set_strategy_mode(Fixed(Strategy::HuffmanOnly))?,
+        Some("rle")      => options.set_strategy_mode(Fixed(Strategy::RLE))?,
+        Some("fixed")    => options.set_strategy_mode(Fixed(Strategy::Fixed))?,
         _                => return Err(err("Invalid compression strategy mode"))?,
     }
 
