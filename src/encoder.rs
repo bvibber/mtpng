@@ -52,6 +52,8 @@ use super::deflate::Flush;
 use super::utils::*;
 
 
+/// Options setup struct for the PNG encoder.
+/// May be modified and reused.
 #[derive(Copy, Clone)]
 pub struct Options<'a> {
     chunk_size: usize,
@@ -63,7 +65,16 @@ pub struct Options<'a> {
 }
 
 impl<'a> Options<'a> {
-    // Use default options
+    /// Create a new Options struct using default options:
+    /// * chunk_size: 256 KiB
+    /// * compression_level: Default
+    /// * strategy_mode: Adaptive
+    /// * filter_mode: Adaptive
+    /// * streaming: off
+    /// * thread_pool: global default
+    ///
+    /// The compression, strategy, and filtering use the same
+    /// defaults as libpng.
     pub fn new() -> Options<'a> {
         Options {
             //
@@ -95,14 +106,18 @@ impl<'a> Options<'a> {
             thread_pool: None,
         }
     }
-}
 
-impl<'a> Options<'a> {
+    /// Use a custom Rayon ThreadPool instance instead of the global pool.
     pub fn set_thread_pool(&mut self, thread_pool: &'a ThreadPool) -> IoResult {
         self.thread_pool = Some(thread_pool);
         Ok(())
     }
 
+    /// Set the size in bytes of chunks used for distributing data to threads.
+    /// The actual chunk size used will be a multiple of row lengths approximating
+    /// the requested size.
+    ///
+    /// Chunk size must be at least 32 KiB.
     pub fn set_chunk_size(&mut self, chunk_size: usize) -> IoResult {
         if chunk_size < 32768 {
             Err(invalid_input("chunk size must be at least 32768"))
@@ -112,21 +127,39 @@ impl<'a> Options<'a> {
         }
     }
 
+    /// Set the deflate compression level.
+    /// Currently supported are Fast (equivalent to gzip -1),
+    /// Default (gzip -6), and High (gzip -9).
     pub fn set_compression_level(&mut self, level: CompressionLevel) -> IoResult {
         self.compression_level = level;
         Ok(())
     }
 
+    /// Set the pixel filtering mode. By default it will use Adaptive,
+    /// which tries all filter modes and a heuristic to guess which will
+    /// compress better on a line-by-line basis.
+    /// 
+    /// The same logic and heuristic are used as in libpng,
+    /// which often does well but can pick poorly on some images.
+    /// Fixed<*> may be used to override the mode for the whole image,
+    /// which sometimes produces better results than the heuristic.
     pub fn set_filter_mode(&mut self, filter_mode: Mode<Filter>) -> IoResult {
         self.filter_mode = filter_mode;
         Ok(())
     }
 
+    /// Set the deflate compression strategy. By default it will use Adaptive,
+    /// which picks Default for Fixed<None> or Filtered for other filter types.
+    /// This matches libpng's logic as well.
     pub fn set_strategy_mode(&mut self, strategy_mode: Mode<Strategy>) -> IoResult {
         self.strategy_mode = strategy_mode;
         Ok(())
     }
 
+    /// Enable or disable streaming mode, which emits a separate "IDAT" PNG chunk
+    /// around each compressed data chunk. This allows for streaming a large file
+    /// over a network etc during compression, at a cost of a few more bytes at
+    /// chunk boundaries.
     pub fn set_streaming(&mut self, streaming: bool) -> IoResult {
         self.streaming = streaming;
         Ok(())
@@ -513,6 +546,9 @@ enum RowStatus {
     Done,
 }
 
+/// Parallel PNG encoder state.
+/// Takes an Options struct with initializer data and a Write struct
+/// to send output to.
 pub struct Encoder<'a, W: Write> {
     writer: Writer<W>,
     options: Options<'a>,
@@ -550,6 +586,7 @@ pub struct Encoder<'a, W: Write> {
 }
 
 impl<'a, W: Write> Encoder<'a, W> {
+    /// Creates a new Encoder instance with the given Write output sink and options.
     pub fn new(write: W, options: &Options<'a>) -> Encoder<'a, W> {
         let (tx, rx) = mpsc::channel();
         Encoder {
@@ -584,10 +621,8 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
-    //
-    // Flush output and return the Write sink for further manipulation.
-    // Consumes the encoder instance.
-    //
+    /// Flush output and return the Write sink for further manipulation.
+    /// Consumes the encoder instance.
     pub fn finish(mut self) -> io::Result<W> {
         self.flush()?;
         return if self.is_finished() {
@@ -784,10 +819,10 @@ impl<'a, W: Write> Encoder<'a, W> {
         Ok(())
     }
 
-    //
-    // Write the PNG signature and header chunk.
-    // Must be done before anything else is output.
-    //
+    /// Write the PNG signature and header chunk.
+    /// Must be done before anything else is output.
+    ///
+    /// Subsequent image data must match the given header data.
     pub fn write_header(&mut self, header: &Header) -> IoResult {
         if self.wrote_header {
             return Err(invalid_input("Cannot write header a second time."));
@@ -817,11 +852,12 @@ impl<'a, W: Write> Encoder<'a, W> {
         self.writer.write_header(self.header)
     }
 
-    //
-    // Write an indexed-color palette as a PLTE chunk.
-    //
-    // Note this chunk is allowed on truecolor images, though sPLT is preferred.
-    //
+    /// Write an indexed-color palette as a PLTE chunk.
+    ///
+    /// Data must be formatted per the spec matching the color mode:
+    /// https://www.w3.org/TR/2003/REC-PNG-20031110/#11PLTE
+    ///
+    /// Note this chunk is allowed on truecolor images, though sPLT is preferred.
     pub fn write_palette(&mut self, palette: &[u8]) -> io::Result<()> {
         if !self.wrote_header {
             return Err(invalid_input("Cannot write palette before header."));
@@ -847,17 +883,15 @@ impl<'a, W: Write> Encoder<'a, W> {
         self.writer.write_chunk(b"PLTE", palette)
     }
 
-    //
-    // Write a transparency info chunk.
-    //
-    // For indexed color, contains a single alpha value byte per palette
-    // entry, up to but not exceeding the number of palette entries.
-    //
-    // Note this chunk is allowed on greyscale and truecolor images,
-    // and there references a single color in 16-bit notation.
-    //
-    // https://www.w3.org/TR/PNG/#11tRNS
-    //
+    /// Write a transparency info chunk.
+    ///
+    /// For indexed color, contains a single alpha value byte per palette
+    /// entry, up to but not exceeding the number of palette entries.
+    ///
+    /// Note this chunk is allowed on greyscale and truecolor images,
+    /// and there references a single color in 16-bit notation.
+    ///
+    /// https://www.w3.org/TR/PNG/#11tRNS
     pub fn write_transparency(&mut self, data: &[u8]) -> io::Result<()> {
         if !self.wrote_header {
             return Err(invalid_input("Cannot write transparency before header."));
@@ -951,16 +985,14 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
-    //
-    // Encode and compress the given image data and write to output.
-    // Input data must be packed in the correct format for the given
-    // color type and depth, with no padding at the end of rows.
-    //
-    // An integral number of rows must be provided at once.
-    //
-    // If not all of the image rows are provided, multiple calls are
-    // required to finish out the data.
-    //
+    /// Encode and compress the given image data and write to output.
+    /// Input data must be packed in the correct format for the given
+    /// color type and depth, with no padding at the end of rows.
+    ///
+    /// An integral number of rows must be provided at once.
+    ///
+    /// If not all of the image rows are provided, multiple calls are
+    /// required to finish out the data.
     pub fn write_image_rows(&mut self, buf: &[u8]) -> IoResult {
         let stride = self.header.stride();
         if buf.len() % stride != 0 {
@@ -973,25 +1005,22 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
-    //
-    // Return completion progress as a fraction of 1.0
-    //
+    /// Return completion progress as a fraction of 1.0
+    ///
+    /// Currently progress is measured in chunks, so small files may
+    /// not report values between 0.0 and 1.0.
     pub fn progress(&self) -> f64 {
         self.chunks_output as f64 / self.chunks_total as f64
     }
 
-    //
-    // Return finished-ness state.
-    // Is it finished? Yeah or no.
-    //
+    /// Return finished-ness state.
+    /// Is it finished? Yeah or no.
     pub fn is_finished(&self) -> bool {
         self.chunks_output == self.chunks_total
     }
 
-    //
-    // Flush all currently in-progress data to output
-    // Warning: this may block.
-    //
+    /// Flush all currently in-progress data to output
+    /// Warning: this may block.
     pub fn flush(&mut self) -> IoResult {
         while self.chunks_output < self.pixel_index {
             // Dispatch any available async tasks and output.
