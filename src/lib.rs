@@ -41,7 +41,7 @@ pub use capi::*;
 mod deflate;
 mod filter;
 pub mod encoder;
-pub mod utils;
+mod utils;
 pub mod writer;
 
 pub type Strategy = deflate::Strategy;
