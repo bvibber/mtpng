@@ -147,7 +147,7 @@ impl<W: Write> Deflate<W> {
             initialized: false,
             finished: false,
             stream: Box::new(unsafe {
-                mem::zeroed()
+                mem::MaybeUninit::zeroed().assume_init()
             }),
         }
     }
