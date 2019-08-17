@@ -35,8 +35,6 @@ extern crate typenum;
 extern crate libc;
 #[cfg(feature="capi")]
 mod capi;
-#[cfg(feature="capi")]
-pub use capi::*;
 
 mod deflate;
 mod filter;
