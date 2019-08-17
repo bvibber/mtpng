@@ -42,7 +42,7 @@ mod deflate;
 mod filter;
 pub mod encoder;
 mod utils;
-pub mod writer;
+mod writer;
 
 pub type Strategy = deflate::Strategy;
 pub type Filter = filter::Filter;
