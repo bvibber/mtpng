@@ -4,7 +4,7 @@ Cargo.lock
 /out
 .DS_Store
 cachegrind.out.*
-perf.*
+/perf.*
 /build
 /darwin/mtpng
 xcuserdata

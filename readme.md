@@ -54,115 +54,49 @@ Note that unoptimized debug builds are about 50x slower than optimized release b
 
 As of September 26, 2018 with Rust 1.29.0, single-threaded performance on Linux x86_64 is ~30-40% faster than libpng saving the same [dual-4K screenshot sample image](https://raw.githubusercontent.com/brion/mtpng/master/samples/dual4k.png) on Linux and macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
 
-Times for re-encoding the dual-4K screenshot at default options:
+See [docs/perf.md](https://github.com/brion/mtpng/blob/master/docs/perf.md) for informal benchmarks on various devices.
 
-```
-MacBook Pro 13" 2015
-5th-gen Core i7 3.1 GHz
-2 cores + Hyper-Threading
-
-Linux x86_64:
-- libpng gcc         --  850 ms (target to beat)
-- libpng clang       --  900 ms
-- mtpng @  1 thread  --  555 ms -- 1.0x (victory!)
-- mtpng @  2 threads --  302 ms -- 1.8x
-- mtpng @  4 threads --  248 ms -- 2.2x (HT)
-
-macOS x86_64:
-- libpng clang       --  943 ms (slower than Linux/gcc)
-- mtpng @  1 thread  --  563 ms -- 1.0x (nice!)
-- mtpng @  2 threads --  299 ms -- 1.9x
-- mtpng @  4 threads --  252 ms -- 2.2x (HT)
-```
-
-macOS and Linux x86_64 perform about the same on the same machine, but libpng on macOS is built with clang, which seems to optimize libpng's filters worse than gcc does. This means we beat libpng on macOS by a larger margin than on Linux, where it's usually built with gcc.
-
-
-```
-Refurbed old Dell workstation
-Xeon E5520 2.26 GHz
-2x 4 cores + Hyper-Threading
-configured for SMP (NUMA disabled)
-
-Linux x86_64:
-- libpng gcc         -- 1695 ms (target to beat)
-- mtpng @  1 thread  -- 1124 ms -- 1.0x (winning!)
-- mtpng @  2 threads --  570 ms -- 2.0x
-- mtpng @  4 threads --  298 ms -- 3.8x
-- mtpng @  8 threads --  165 ms -- 6.8x
-- mtpng @ 16 threads --  155 ms -- 7.3x (HT)
-
-Windows 10 x86_64:
-- mtpng @  1 thread  -- 1377 ms -- 1.0x
-- mtpng @  2 threads --  708 ms -- 1.9x
-- mtpng @  4 threads --  375 ms -- 3.7x
-- mtpng @  8 threads --  214 ms -- 6.4x
-- mtpng @ 16 threads --  170 ms -- 8.1x (HT)
-
-Windows 10 i686:
-- mtpng @  1 thread  -- 1524 ms -- 1.0x
-- mtpng @  2 threads --  801 ms -- 1.9x
-- mtpng @  4 threads --  405 ms -- 3.8x
-- mtpng @  8 threads --  243 ms -- 6.3x
-- mtpng @ 16 threads --  194 ms -- 7.9x
-```
-
-Windows seems a little slower than Linux on the same machine, not quite sure why. The Linux build runs on Windows 10's WSL compatibility layer slightly slower than native Linux but faster than native Windows.
-
-32-bit builds are a bit slower still, but I don't have a Windows libpng comparison handy.
-
-```
-Raspberry Pi 3B+
-Cortex A53 1.4 GHz
-4 cores
-
-Linux armhf (Raspian):
-- libpng gcc         -- 5368 ms
-- mtpng @  1 thread  -- 6068 ms -- 1.0x
-- mtpng @  2 threads -- 3126 ms -- 1.9x
-- mtpng @  4 threads -- 1875 ms -- 3.2x
-
-Linux aarch64 (Fedora 29):
-- libpng gcc         -- 4692 ms
-- mtpng @  1 thread  -- 4311 ms -- 1.0x
-- mtpng @  2 threads -- 2140 ms -- 2.0x
-- mtpng @  4 threads -- 1416 ms -- 3.0x
-```
-
-On 32-bit ARM we don't quite beat libpng single-threaded, but multi-threaded still does well. 64-bit ARM does better, perhaps because libpng is less optimized there. Note this machine throttles aggressively if it heats up, making the second run of a repeat on a long file like that noticeably slower than the first.
-
-```
-iPhone X
-A11 2.39 GHz
-6 cores (2 big, 4 little)
-
-iOS aarch64:
-- mtpng @ 1 thread  -- 802 ms -- 1.0x
-- mtpng @ 2 threads -- 475 ms -- 1.7x
-- mtpng @ 4 threads -- 371 ms -- 2.2x
-- mtpng @ 6 threads -- 320 ms -- 2.5x
-```
-
-A high-end 64-bit ARM system is quite a bit faster! It scales ok to 2 cores, getting smaller but real benefits from scheduling further work on the additional little cores.
-
-```
-Lenovo C630 Yoga
-Snapdragon 850 2.96 GHz
-8 cores (4 big, 4 little?)
-
-Windows Subsystem for Linux aarch64 (Win10 1903):
-- mtpng @ 1 thread  -- 1029ms -- 1.0x
-- mtpng @ 2 threads --  516ms -- 2.0x
-- mtpng @ 4 threads --  317ms -- 3.2x
-- mtpng @ 6 threads --  262ms -- 3.9x
-- mtpng @ 8 threads --  241ms -- 4.3x
-```
-
-The Snapdragon 850 scores not as well as the A11 in single-threaded, but catches up with additional threads.
+At the default settings, files whose uncompressed data is less than 128 KiB will not see any multi-threading gains, but may still run faster than libpng due to faster filtering.
 
 ## Todos
 
 See the [projects list on GitHub](https://github.com/brion/mtpng/projects) for active details.
+
+# Usage
+
+Note: the Rust and C APIs are not yet stable, and will change before 1.0.
+
+## Rust usage
+
+See the [crate API docs](https://docs.rs/mtpng/latest/mtpng/) for details.
+
+The [mtpng CLI tool](https://github.com/brion/mtpng/blob/master/src/bin/mtpng.rs) can be used as an example of writing files.
+
+In short, something like this:
+
+```rust
+let mut writer = Vec::<u8>::new();
+
+let mut header = Header::new();
+header.set_size(640, 480)?;
+header.set_color(ColorType::TruecolorAlpha, 8)?;
+
+let mut options = Options::new();
+
+let mut encoder = Encoder::new(writer, &options);
+
+encoder.write_header(&header)?;
+encoder.write_image_rows(&data)?;
+encoder.finish()?;
+```
+
+## C usage
+
+See [c/mtpng.h](https://github.com/brion/mtpng/blob/master/c/mtpng.h) for a C header file which connects to unsafe-Rust wrapper functions in the [mtpng::capi](https://github.com/brion/mtpng/blob/master/src/capi.rs) module.
+
+To build the C sample on Linux or macOS, run `make`. On Windows, run `build-win.bat x64` for an x86-64 native build, or pass `x86` or `arm64` to build for those platforms.
+
+These will build a `sample` executable from [sample.c](https://github.com/brion/mtpng/blob/master/c/sample.c) as well as a `libmtpng.so`, `libmtpng.dylib`, or `mtpng.dll` for it to link. It produces an output file in `out/csample.png`.
 
 # Data flow
 
@@ -170,7 +104,7 @@ Encoding can be broken into many parallel blocks:
 
 ![Encoder data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/docs/data-flow-write.png)
 
-Decoding cannot; it must be run as a stream, but can pipeline.
+Decoding cannot; it must be run as a stream, but can pipeline (not yet implemented):
 
 ![Decoder data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/docs/data-flow-read.png)
 
@@ -184,13 +118,13 @@ Decoding cannot; it must be run as a stream, but can pipeline.
 
 [itertools](https://crates.io/crates/itertools) is used to manage iteration in the filters.
 
+[typenum](https://crates.io/crates/typenum) is used to do compile-time constant specialization via generics.
+
 [png](https://crates.io/crates/png) is used by the CLI tool to load input files to recompress for testing.
 
 [clap](https://crates.io/crates/clap) is used by the CLI tool to handle option parsing and help display.
 
 [time](https://crates.io/crates/time) is used by the CLI tool to time compression.
-
-[typenum](https://crates.io/crates/typenum) is used to do compile-time constant specialization via generics.
 
 # License
 
