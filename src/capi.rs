@@ -31,7 +31,7 @@ use std::io::Write;
 
 use std::ptr;
 
-use libc::{c_void, c_int, size_t, uint8_t, uint32_t};
+use libc::{c_void, c_int, size_t};
 
 use super::ColorType;
 use super::Mode::{Adaptive, Fixed};
@@ -62,11 +62,11 @@ impl From<Result<(),io::Error>> for CResult {
 
 /*
 pub type CReadFunc = unsafe extern "C"
-    fn(*const c_void, *mut uint8_t, size_t) -> size_t;
+    fn(*const c_void, *mut u8, size_t) -> size_t;
 */
 
 pub type CWriteFunc = unsafe extern "C"
-    fn(*const c_void, *const uint8_t, size_t) -> size_t;
+    fn(*const c_void, *const u8, size_t) -> size_t;
 
 pub type CFlushFunc = unsafe extern "C"
     fn(*const c_void) -> bool;
@@ -332,8 +332,8 @@ fn mtpng_header_release(pp_header: *mut PHeader)
 #[no_mangle]
 pub unsafe extern "C"
 fn mtpng_header_set_size(p_header: PHeader,
-                         width: uint32_t,
-                         height: uint32_t)
+                         width: u32,
+                         height: u32)
 -> CResult
 {
     CResult::from(|| -> io::Result<()> {
@@ -348,7 +348,7 @@ fn mtpng_header_set_size(p_header: PHeader,
 pub unsafe extern "C"
 fn mtpng_header_set_color(p_header: PHeader,
                                    color_type: c_int,
-                                   depth: uint8_t)
+                                   depth: u8)
 -> CResult
 {
     CResult::from(|| -> io::Result<()> {
@@ -437,7 +437,7 @@ fn mtpng_encoder_write_header(p_encoder: PEncoder,
 #[no_mangle]
 pub unsafe extern "C"
 fn mtpng_encoder_write_palette(p_encoder: PEncoder,
-                               p_bytes: *const uint8_t,
+                               p_bytes: *const u8,
                                len: size_t)
 -> CResult
 {
@@ -456,7 +456,7 @@ fn mtpng_encoder_write_palette(p_encoder: PEncoder,
 #[no_mangle]
 pub unsafe extern "C"
 fn mtpng_encoder_write_transparency(p_encoder: PEncoder,
-                                    p_bytes: *const uint8_t,
+                                    p_bytes: *const u8,
                                     len: size_t)
 -> CResult
 {
@@ -475,7 +475,7 @@ fn mtpng_encoder_write_transparency(p_encoder: PEncoder,
 #[no_mangle]
 pub unsafe extern "C"
 fn mtpng_encoder_write_image_rows(p_encoder: PEncoder,
-                                  p_bytes: *const uint8_t,
+                                  p_bytes: *const u8,
                                   len: size_t)
 -> CResult
 {
