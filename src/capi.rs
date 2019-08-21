@@ -26,6 +26,7 @@
 use rayon::ThreadPool;
 use rayon::ThreadPoolBuilder;
 
+use std::convert::TryFrom;
 use std::io;
 use std::io::Write;
 
@@ -273,7 +274,7 @@ fn mtpng_encoder_options_set_filter(p_options: PEncoderOptions,
         let mode = if filter_mode < 0 {
             Adaptive
         } else {
-            Fixed(Filter::try_from_u8(filter_mode as u8)?)
+            Fixed(Filter::try_from(filter_mode as u8)?)
         };
         (*p_options).set_filter_mode(mode)
     }())
@@ -358,7 +359,7 @@ fn mtpng_header_set_color(p_header: PHeader,
         if color_type < 0 || color_type > u8::max_value() as c_int {
             return Err(invalid_input("Invalid color type"));
         }
-        let color = ColorType::try_from_u8(color_type as u8)?;
+        let color = ColorType::try_from(color_type as u8)?;
         (*p_header).set_color(color, depth)
     }())
 }
