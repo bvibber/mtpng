@@ -36,13 +36,9 @@ use ::libz_sys::*;
 
 use super::utils::*;
 
-unsafe fn char_ptr(byte_ref: &u8) -> *mut u8 {
-    mem::transmute::<*const u8, *mut c_uchar>(byte_ref)
-}
-
 pub fn adler32(sum: u32, bytes: &[u8]) -> u32 {
     unsafe {
-        ::libz_sys::adler32(sum as c_ulong, &bytes[0], bytes.len() as c_uint) as u32
+        ::libz_sys::adler32(c_ulong::from(sum), &bytes[0], bytes.len() as c_uint) as u32
     }
 }
 
@@ -54,7 +50,7 @@ pub fn adler32_initial() -> u32 {
 
 pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
     unsafe {
-        ::libz_sys::adler32_combine(sum_a as c_ulong, sum_b as c_ulong, len_b as c_long) as u32
+        ::libz_sys::adler32_combine(c_ulong::from(sum_a), c_ulong::from(sum_b), len_b as c_long) as u32
     }
 }
 
@@ -182,17 +178,14 @@ impl<W: Write> Deflate<W> {
 
     fn deflate(&mut self, data: &[u8], flush: Flush) -> IoResult {
         self.init()?;
-        let buffer = [0u8; 128 * 1024];
+        let mut buffer = [0u8; 128 * 1024];
         let stream = &mut *self.stream;
-        unsafe {
-            stream.next_in = char_ptr(&data[0]);
-            stream.avail_in = data.len() as c_uint;
-        }
+        stream.next_in = &data[0] as *const u8 as *mut u8;
+        stream.avail_in = data.len() as c_uint;
         loop {
+            stream.next_out = &mut buffer[0] as *mut u8;
+            stream.avail_out = buffer.len() as c_uint;
             let ret = unsafe {
-                stream.next_out = char_ptr(&buffer[0]);
-                stream.avail_out = buffer.len() as c_uint;
-
                 deflate(stream, flush as c_int)
             };
             match ret {
