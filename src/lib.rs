@@ -98,8 +98,8 @@ impl ColorType {
     /// Check if the given bit depth is valid for this color type.
     ///
     /// See [the PNG standard](https://www.w3.org/TR/PNG/#table111) for valid types.
-    pub fn is_depth_valid(&self, depth: u8) -> bool {
-        match *self {
+    pub fn is_depth_valid(self, depth: u8) -> bool {
+        match self {
             Greyscale => match depth {
                 1 | 2 | 4 | 8 | 16 => true,
                 _ => false,
@@ -116,7 +116,7 @@ impl ColorType {
     }
 
     /// Calculate the number of channels per pixel.
-    pub fn channels(&self) -> usize {
+    pub fn channels(self) -> usize {
         match self {
             Greyscale => 1,
             Truecolor => 3,
@@ -325,6 +325,12 @@ impl Header {
         }
         self.interlace_method = interlace_method;
         Ok(())
+    }
+}
+
+impl Default for Header {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

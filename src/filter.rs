@@ -169,7 +169,7 @@ fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = Filter::Average as u8;
 
     filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
-        let avg = ((left as i16 + above as i16) / 2) as u8;
+        let avg = ((i16::from(left) + i16::from(above)) / 2) as u8;
         val.wrapping_sub(avg)
     })
 }
@@ -181,9 +181,9 @@ fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 // https://www.w3.org/TR/PNG/#9Filter-type-4-Paeth
 //
 fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
-    let a = left as i16;
-    let b = above as i16;
-    let c = upper_left as i16;
+    let a = i16::from(left);
+    let b = i16::from(above);
+    let c = i16::from(upper_left);
 
     let p = a + b - c;        // initial estimate
     let pa = i16::abs(p - a); // distances to a, b, c
@@ -227,7 +227,7 @@ fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 // as it's expecting, well, a filter delta. :D
 //
 fn filter_complexity_delta(val: u8) -> u32 {
-    i32::abs(val as i8 as i32) as u32
+    i32::abs(i32::from(val as i8)) as u32
 }
 
 //

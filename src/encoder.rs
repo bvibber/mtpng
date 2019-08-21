@@ -166,6 +166,12 @@ impl<'a> Options<'a> {
     }
 }
 
+impl<'a> Default for Options<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // Accumulates a set of pixels, then gets sent off as input
 // to the deflate jobs.
 struct PixelChunk {
@@ -389,14 +395,9 @@ impl DeflateChunk {
         let mut encoder = Deflate::new(options, data);
 
 
-        match self.prior_input {
-            Some(ref filter) => {
-                let trailer = filter.get_trailer();
-                encoder.set_dictionary(trailer)?;
-            },
-            None => {
-                // do nothing.
-            }
+        if let Some(ref filter) = self.prior_input {
+            let trailer = filter.get_trailer();
+            encoder.set_dictionary(trailer)?;
         }
 
         encoder.write(&self.input.data, if self.is_end {
@@ -473,7 +474,7 @@ impl<T> ChunkMap<T> {
         if index > self.cursor_in {
             panic!("Tried to land a future chunk");
         }
-        self.running = self.running - 1;
+        self.running -= 1;
         match self.live_chunks.insert(index, chunk) {
             None => {},
             Some(_x) => panic!("Tried to re-append an existing chunk"),
@@ -593,7 +594,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             writer: Writer::new(write),
 
             header: Header::new(),
-            options: options.clone(),
+            options: *options,
 
             wrote_header: false,
             wrote_palette: false,
@@ -779,47 +780,40 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
 
         // If we have output to run, write it!
-        loop {
-            match self.deflate_chunks.pop_front() {
-                Some((_previous, current)) => {
-                    if self.chunks_output >= self.chunks_total {
-                        panic!("Got extra output after end of file; should not happen.");
-                    }
-
-                    // Combine the checksums!
-                    self.adler32 = deflate::adler32_combine(self.adler32,
-                                                            current.adler32,
-                                                            current.input.data.len());
-
-                    // if not streaming, append to an in-memory buffer
-                    // and output a giant tag later.
-                    if self.options.streaming {
-                        self.writer.write_chunk(b"IDAT", &current.data)?;
-
-                        if current.is_end {
-                            let mut chunk = Vec::<u8>::new();
-                            if !current.is_start {
-                                write_be32(&mut chunk, self.adler32)?;
-                            }
-                            self.writer.write_chunk(b"IDAT", &chunk)?;
-                        }
-                    } else {
-                        self.idat_buffer.write_all(&current.data)?;
-
-                        if current.is_end {
-                            if !current.is_start {
-                                write_be32(&mut self.idat_buffer, self.adler32)?;
-                            }
-                            self.writer.write_chunk(b"IDAT", &self.idat_buffer)?;
-                        }
-                    }
-
-                    self.chunks_output += 1;
-                },
-                None => {
-                    break;
-                },
+        while let Some((_previous, current)) = self.deflate_chunks.pop_front() {
+            if self.chunks_output >= self.chunks_total {
+                panic!("Got extra output after end of file; should not happen.");
             }
+
+            // Combine the checksums!
+            self.adler32 = deflate::adler32_combine(self.adler32,
+                                                    current.adler32,
+                                                    current.input.data.len());
+
+            // if not streaming, append to an in-memory buffer
+            // and output a giant tag later.
+            if self.options.streaming {
+                self.writer.write_chunk(b"IDAT", &current.data)?;
+
+                if current.is_end {
+                    let mut chunk = Vec::<u8>::new();
+                    if !current.is_start {
+                        write_be32(&mut chunk, self.adler32)?;
+                    }
+                    self.writer.write_chunk(b"IDAT", &chunk)?;
+                }
+            } else {
+                self.idat_buffer.write_all(&current.data)?;
+
+                if current.is_end {
+                    if !current.is_start {
+                        write_be32(&mut self.idat_buffer, self.adler32)?;
+                    }
+                    self.writer.write_chunk(b"IDAT", &self.idat_buffer)?;
+                }
+            }
+
+            self.chunks_output += 1;
         }
 
         Ok(())
@@ -834,7 +828,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             return Err(invalid_input("Cannot write header a second time."));
         }
 
-        self.header = header.clone();
+        self.header = *header;
 
         let stride = self.header.stride() + 1;
         let height = self.header.height as usize;
@@ -920,7 +914,7 @@ impl<'a, W: Write> Encoder<'a, W> {
                 if !self.wrote_palette {
                     return Err(invalid_input("Cannot write transparency before palette."));
                 }
-                if data.len() < 1 {
+                if data.is_empty() {
                     return Err(invalid_input("Transparency data too short."));
                 }
                 if data.len() > self.palette_length {
@@ -948,13 +942,10 @@ impl<'a, W: Write> Encoder<'a, W> {
         if !self.wrote_header {
             return Err(invalid_input("Cannot write image data before header."));
         }
-        match self.header.color_type {
-            ColorType::IndexedColor => {
-                if !self.wrote_palette {
-                    return Err(invalid_input("Cannot write indexed-color image data before palette."));
-                }
-            },
-            _ => {},
+        if let ColorType::IndexedColor = self.header.color_type {
+            if !self.wrote_palette {
+                return Err(invalid_input("Cannot write indexed-color image data before palette."));
+            }
         }
         if !self.started_image {
             self.started_image = true;
