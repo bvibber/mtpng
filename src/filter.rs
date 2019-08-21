@@ -329,6 +329,12 @@ impl Filterator {
         self.do_filter(prev, src)
     }
 
+    #[cfg(target_arch = "arm")]
+    #[target_feature(enable = "neon")]
+    unsafe fn do_filter_neon(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
+        self.do_filter(prev, src)
+    }
+
     fn filter(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
@@ -340,6 +346,14 @@ impl Filterator {
             if is_x86_feature_detected!("avx") {
                 return unsafe {
                     self.do_filter_avx(prev, src)
+                };
+            }
+        }
+        #[cfg(target_arch = "arm")]
+        {
+            if is_arm_feature_detected!("neon") {
+                return unsafe {
+                    self.do_filter_neon(prev, src)
                 };
             }
         }
