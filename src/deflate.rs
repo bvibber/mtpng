@@ -130,7 +130,7 @@ impl<W: Write> Deflate<W> {
     pub fn new(options: Options, w: W) -> Deflate<W> {
         Deflate {
             output: w,
-            options: options,
+            options,
             initialized: false,
             finished: false,
             stream: Box::new(unsafe {
@@ -153,7 +153,7 @@ impl<W: Write> Deflate<W> {
                               zlibVersion(),
                               mem::size_of::<z_stream>() as c_int)
             };
-            return match ret {
+            match ret {
                 Z_OK => {
                     self.initialized = true;
                     Ok(())
@@ -236,7 +236,7 @@ impl<W: Write> Deflate<W> {
     // Deallocate the zlib state and return the writer.
     //
     pub fn finish(mut self) -> io::Result<W> {
-        return if self.initialized {
+        if self.initialized {
             let ret = unsafe {
                 deflateEnd(&mut *self.stream)
             };

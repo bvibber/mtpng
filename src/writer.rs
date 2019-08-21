@@ -45,7 +45,7 @@ impl<W: Write> Writer<W> {
     //
     pub fn new(output: W) -> Writer<W> {
         Writer {
-            output: output,
+            output,
         }
     }
 

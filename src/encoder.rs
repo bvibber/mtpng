@@ -191,11 +191,11 @@ impl PixelChunk {
         assert!(end_row <= height);
 
         PixelChunk {
-            header: header,
+            header,
 
-            index: index,
-            start_row: start_row,
-            end_row: end_row,
+            index,
+            start_row,
+            end_row,
             is_start: start_row == 0,
             is_end: end_row == height,
 
@@ -223,7 +223,7 @@ impl PixelChunk {
         } else if row >= self.end_row {
             panic!("Tried to access row from later chunk: {} >= {}", row, self.end_row);
         } else {
-            return &self.rows[row - self.start_row];
+            &self.rows[row - self.start_row]
         }
     }
 }
@@ -266,11 +266,11 @@ impl FilterChunk {
             is_start: input.is_start,
             is_end: input.is_end,
 
-            stride: stride,
-            filter_mode: filter_mode,
+            stride,
+            filter_mode,
 
-            prior_input: prior_input,
-            input: input,
+            prior_input,
+            input,
             data: Vec::with_capacity(nbytes),
         }
     }
@@ -281,9 +281,9 @@ impl FilterChunk {
         let trailer = 32768;
         let len = self.data.len();
         if len > trailer {
-            return &self.data[len - trailer .. len];
+            &self.data[len - trailer .. len]
         } else {
-            return &self.data[0 .. len];
+            &self.data[0 .. len]
         }
     }
 
@@ -353,11 +353,11 @@ impl DeflateChunk {
             is_start: input.is_start,
             is_end: input.is_end,
 
-            compression_level: compression_level,
-            strategy: strategy,
+            compression_level,
+            strategy,
 
-            prior_input: prior_input,
-            input: input,
+            prior_input,
+            input,
             data: Vec::new(),
             adler32: deflate::adler32_initial(),
         }
@@ -408,7 +408,7 @@ impl DeflateChunk {
         // In raw deflate mode we have to calculate the checksum ourselves.
         self.adler32 = deflate::adler32(1, &self.input.data);
 
-        return match encoder.finish() {
+        match encoder.finish() {
             Ok(data) => {
                 // This seems lame to move the vector back, but it's actually cheap.
                 self.data = data;
@@ -459,8 +459,8 @@ impl<T> ChunkMap<T> {
     // Record that this job is now in-flight
     //
     fn advance(&mut self) {
-        self.cursor_in = self.cursor_in + 1;
-        self.running = self.running + 1;
+        self.cursor_in += 1;
+        self.running += 1;
     }
 
     //
@@ -500,7 +500,7 @@ impl<T> ChunkMap<T> {
                 (Some(p), Some(c)) => {
                     // Next pipeline stage needs the current
                     // and previous items from this stage.
-                    self.cursor_out = self.cursor_out + 1;
+                    self.cursor_out += 1;
                     let prev_chunk = p.clone();
                     let cur_chunk = c.clone();
 
@@ -509,20 +509,20 @@ impl<T> ChunkMap<T> {
                     // it while they run.
                     self.retire(index - 1);
 
-                    return Some((Some(prev_chunk), cur_chunk));
+                    Some((Some(prev_chunk), cur_chunk))
                 },
                 _ => {
-                    return None;
+                    None
                 }
             }
         } else {
             match current {
                 Some(c) => {
-                    self.cursor_out = self.cursor_out + 1;
-                    return Some((None, c.clone()));
+                    self.cursor_out += 1;
+                    Some((None, c.clone()))
                 },
                 _ => {
-                    return None;
+                    None
                 }
             }
         }
@@ -616,8 +616,8 @@ impl<'a, W: Write> Encoder<'a, W> {
             adler32: deflate::adler32_initial(),
             idat_buffer: Vec::new(),
 
-            tx: tx,
-            rx: rx,
+            tx,
+            rx,
         }
     }
 
@@ -625,7 +625,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     /// Consumes the encoder instance.
     pub fn finish(mut self) -> io::Result<W> {
         self.flush()?;
-        return if self.is_finished() {
+        if self.is_finished() {
             self.writer.write_end()?;
             self.writer.finish()
         } else {
@@ -677,7 +677,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     fn receive(&mut self, blocking: DispatchMode) -> Option<ThreadMessage> {
-        return match blocking {
+        match blocking {
             DispatchMode::Blocking => match self.rx.recv() {
                 Ok(msg) => Some(msg),
                 _ => None,
@@ -814,7 +814,7 @@ impl<'a, W: Write> Encoder<'a, W> {
                         }
                     }
 
-                    self.chunks_output = self.chunks_output + 1;
+                    self.chunks_output += 1;
                 },
                 None => {
                     break;
@@ -967,7 +967,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             self.pixel_chunks.land(self.pixel_index, self.pixel_accumulator.clone());
 
             // Make a nice new buffer to accumulate data into.
-            self.pixel_index = self.pixel_index + 1;
+            self.pixel_index += 1;
             if self.pixel_index < self.chunks_total {
                 self.pixel_chunks.advance();
                 self.pixel_accumulator = Arc::new(PixelChunk::new(self.header,
@@ -983,7 +983,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             self.dispatch(DispatchMode::NonBlocking)?;
         }
 
-        self.current_row = self.current_row + 1;
+        self.current_row += 1;
         if self.current_row == self.header.height {
             Ok(RowStatus::Done)
         } else {
@@ -1005,7 +1005,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             Err(invalid_input("Buffer must be an integral number of rows"))
         } else {
             for row in buf.chunks(stride) {
-                self.process_row(&mut &*row)?;
+                self.process_row(& &*row)?;
             }
             Ok(())
         }

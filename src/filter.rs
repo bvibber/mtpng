@@ -269,14 +269,14 @@ fn estimate_complexity(data: &[u8]) -> u32 {
     //
     if complexity_big_row(data.len()) {
         for iter in data.iter() {
-            sum = sum + filter_complexity_delta(*iter);
+            sum += filter_complexity_delta(*iter);
             if sum > complexity_max() {
                 return complexity_max();
             }
         }
     } else {
         for iter in data.iter() {
-            sum = sum + filter_complexity_delta(*iter);
+            sum += filter_complexity_delta(*iter);
         }
     }
 
@@ -297,8 +297,8 @@ struct Filterator {
 impl Filterator {
     fn new(filter: Filter, bpp: usize, stride: usize) -> Filterator {
         Filterator {
-            filter: filter,
-            bpp: bpp,
+            filter,
+            bpp,
             data: vec![0u8; stride + 1],
             complexity: 0,
         }
@@ -369,7 +369,7 @@ impl AdaptiveFilter {
         let stride = header.stride();
         let bpp = header.bytes_per_pixel();
         AdaptiveFilter {
-            mode: mode,
+            mode,
             filter_none:    Filterator::new(Filter::None,    bpp, stride),
             filter_up:      Filterator::new(Filter::Up,      bpp, stride),
             filter_sub:     Filterator::new(Filter::Sub,     bpp, stride),
