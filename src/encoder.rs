@@ -644,6 +644,12 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
     }
 
+    fn max_threads(&self) -> usize {
+        // Keep the threads busy by queueing a couple extra jobs
+        // But not so busy that we don't interleave types
+        self.threads() + 2
+    }
+
     fn dispatch_func<F>(&self, func: F)
         where F: Fn(&Sender<ThreadMessage>) + Send + 'static
     {
@@ -727,6 +733,51 @@ impl<'a, W: Write> Encoder<'a, W> {
             blocking_mode = DispatchMode::NonBlocking;
         }
 
+        // If we have more deflate work to do, dispatch them!
+        while self.running_jobs() < self.max_threads() {
+            match self.filter_chunks.pop_front() {
+                Some((previous, current)) => {
+                    // Prepare to dispatch the deflate job:
+                    let level = self.options.compression_level;
+                    let strategy = self.compression_strategy();
+                    self.deflate_chunks.advance();
+                    self.dispatch_func(move |tx| {
+                        let mut deflate = DeflateChunk::new(level, strategy, previous.clone(), current.clone());
+                        tx.send(match deflate.run() {
+                            Ok(()) => ThreadMessage::DeflateDone(Arc::new(deflate)),
+                            Err(e) => ThreadMessage::Error(e),
+                        }).unwrap();
+                    });
+                },
+                None => {
+                    break;
+                }
+            }
+        }
+
+        // If we have more filter work to do, dispatch them!
+        while self.running_jobs() < self.max_threads() {
+            match self.pixel_chunks.pop_front() {
+                Some((previous, current)) => {
+                    // Prepare to dispatch the filter job:
+                    self.filter_chunks.advance();
+                    let filter_mode = self.filter_mode();
+                    self.dispatch_func(move |tx| {
+                        let mut filter = FilterChunk::new(previous.clone(),
+                                                          current.clone(),
+                                                          filter_mode);
+                        tx.send(match filter.run() {
+                            Ok(()) => ThreadMessage::FilterDone(Arc::new(filter)),
+                            Err(e) => ThreadMessage::Error(e),
+                        }).unwrap();
+                    });
+                },
+                None => {
+                    break;
+                }
+            }
+        }
+
         // If we have output to run, write it!
         loop {
             match self.deflate_chunks.pop_front() {
@@ -768,51 +819,6 @@ impl<'a, W: Write> Encoder<'a, W> {
                 None => {
                     break;
                 },
-            }
-        }
-
-        // If we have more deflate work to do, dispatch them!
-        while self.running_jobs() < self.threads() {
-            match self.filter_chunks.pop_front() {
-                Some((previous, current)) => {
-                    // Prepare to dispatch the deflate job:
-                    let level = self.options.compression_level;
-                    let strategy = self.compression_strategy();
-                    self.deflate_chunks.advance();
-                    self.dispatch_func(move |tx| {
-                        let mut deflate = DeflateChunk::new(level, strategy, previous.clone(), current.clone());
-                        tx.send(match deflate.run() {
-                            Ok(()) => ThreadMessage::DeflateDone(Arc::new(deflate)),
-                            Err(e) => ThreadMessage::Error(e),
-                        }).unwrap();
-                    });
-                },
-                None => {
-                    break;
-                }
-            }
-        }
-
-        // If we have more filter work to do, dispatch them!
-        while self.running_jobs() < self.threads() {
-            match self.pixel_chunks.pop_front() {
-                Some((previous, current)) => {
-                    // Prepare to dispatch the filter job:
-                    self.filter_chunks.advance();
-                    let filter_mode = self.filter_mode();
-                    self.dispatch_func(move |tx| {
-                        let mut filter = FilterChunk::new(previous.clone(),
-                                                          current.clone(),
-                                                          filter_mode);
-                        tx.send(match filter.run() {
-                            Ok(()) => ThreadMessage::FilterDone(Arc::new(filter)),
-                            Err(e) => ThreadMessage::Error(e),
-                        }).unwrap();
-                    });
-                },
-                None => {
-                    break;
-                }
             }
         }
 
@@ -971,7 +977,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             }
 
             // Dispatch any available async tasks and output.
-            while self.running_jobs() >= self.threads() {
+            while self.running_jobs() >= self.max_threads() {
                 self.dispatch(DispatchMode::Blocking)?;
             }
             self.dispatch(DispatchMode::NonBlocking)?;
