@@ -804,7 +804,7 @@ impl<'a, W: Write> Encoder<'a, W> {
                             self.writer.write_chunk(b"IDAT", &chunk)?;
                         }
                     } else {
-                        self.idat_buffer.write(&current.data)?;
+                        self.idat_buffer.write_all(&current.data)?;
 
                         if current.is_end {
                             if !current.is_start {
