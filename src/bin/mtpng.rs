@@ -23,6 +23,7 @@
 // THE SOFTWARE.
 //
 
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io;
 use std::io::{Error, ErrorKind};
@@ -68,7 +69,7 @@ fn read_png(filename: &str)
 
     let mut header = Header::new();
     header.set_size(info.width, info.height)?;
-    header.set_color(ColorType::try_from_u8(info.color_type as u8)?,
+    header.set_color(ColorType::try_from(info.color_type as u8)?,
                      info.bit_depth as u8)?;
 
     let palette = reader.info().palette.clone();

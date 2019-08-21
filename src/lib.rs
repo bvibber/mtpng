@@ -45,9 +45,10 @@ mod writer;
 pub type Strategy = deflate::Strategy;
 pub type Filter = filter::Filter;
 
+use std::convert::TryFrom;
 use std::io;
 
-use utils::{invalid_input, other};
+use utils::invalid_input;
 
 /// Wrapper for filter and compression modes.
 #[derive(Copy, Clone)]
@@ -75,24 +76,25 @@ pub enum ColorType {
 }
 use ColorType::*;
 
-impl ColorType {
+impl TryFrom<u8> for ColorType {
+    type Error = io::Error;
+
     /// Validate and produce a ColorType from one of the PNG header constants.
     ///
     /// Will return an error on invalid input.
-    //
-    // Todo: use TryFrom trait when it's stable.
-    //
-    pub fn try_from_u8(val: u8) -> io::Result<ColorType> {
-        return match val {
+    fn try_from(val: u8) -> Result<Self, Self::Error> {
+        match val {
             0 => Ok(Greyscale),
             2 => Ok(Truecolor),
             3 => Ok(IndexedColor),
             4 => Ok(GreyscaleAlpha),
             6 => Ok(TruecolorAlpha),
-            _ => Err(other("Inalid color type value")),
+            _ => Err(invalid_input("Invalid color type")),
         }
     }
+}
 
+impl ColorType {
     /// Check if the given bit depth is valid for this color type.
     ///
     /// See [the PNG standard](https://www.w3.org/TR/PNG/#table111) for valid types.

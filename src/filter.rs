@@ -24,6 +24,7 @@
 //
 
 use std::cmp;
+use std::convert::TryFrom;
 use std::io;
 
 use typenum::Unsigned;
@@ -45,18 +46,17 @@ pub enum Filter {
     Paeth = 4,
 }
 
-impl Filter {
-    //
-    // Todo: use TryFrom trait when it's stable.
-    //
-    pub fn try_from_u8(val: u8) -> io::Result<Filter> {
+impl TryFrom<u8> for Filter {
+    type Error = io::Error;
+
+    fn try_from(val: u8) -> Result<Self, Self::Error> {
         match val {
             0 => Ok(Filter::None),
             1 => Ok(Filter::Sub),
             2 => Ok(Filter::Up),
             3 => Ok(Filter::Average),
             4 => Ok(Filter::Paeth),
-            _ => Err(invalid_input("Invalid filter constant value")),
+            _ => Err(invalid_input("Invalid type constant")),
         }
     }
 }
