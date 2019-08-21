@@ -1,6 +1,6 @@
 [package]
 name = "mtpng"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Brion Vibber <brion@pobox.com>"]
 license = "MIT"
 description = "Multithreaded PNG encoder library"
