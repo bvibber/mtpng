@@ -317,6 +317,18 @@ impl Filterator {
         &self.data
     }
 
+    #[cfg(target_arch = "x86")]
+    #[target_feature(enable = "sse2")]
+    unsafe fn do_filter_sse2(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
+        self.do_filter(prev, src)
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[target_feature(enable = "sse4.2")]
+    unsafe fn do_filter_sse42(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
+        self.do_filter(prev, src)
+    }
+
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[target_feature(enable = "avx")]
     unsafe fn do_filter_avx(&mut self, prev: &[u8], src: &[u8]) -> &[u8] {
@@ -340,6 +352,21 @@ impl Filterator {
             if is_x86_feature_detected!("avx") {
                 return unsafe {
                     self.do_filter_avx(prev, src)
+                };
+            }
+            if is_x86_feature_detected!("sse4.2") {
+                return unsafe {
+                    self.do_filter_sse42(prev, src)
+                };
+            }
+        }
+        #[cfg(target_arch = "x86")]
+        {
+            // SSE2 is guaranteed on x86_64
+            // but may not be present on x86
+            if is_x86_feature_detected!("sse2") {
+                return unsafe {
+                    self.do_filter_sse2(prev, src)
                 };
             }
         }
