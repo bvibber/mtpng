@@ -35,6 +35,7 @@ use std::ptr;
 use libc::{c_void, c_int, size_t};
 
 use super::ColorType;
+use super::Strategy;
 use super::Mode::{Adaptive, Fixed};
 use super::Header;
 
@@ -277,6 +278,28 @@ fn mtpng_encoder_options_set_filter(p_options: PEncoderOptions,
             Fixed(Filter::try_from(filter_mode as u8)?)
         };
         (*p_options).set_filter_mode(mode)
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_options_set_strategy(p_options: PEncoderOptions,
+                                      strategy_mode: c_int)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_options.is_null() {
+            return Err(invalid_input("p_options must not be null"));
+        }
+        if strategy_mode > u8::max_value() as c_int {
+            return Err(invalid_input("Invalid strategy mode"));
+        }
+        let mode = if strategy_mode < 0 {
+            Adaptive
+        } else {
+            Fixed(Strategy::try_from(strategy_mode as u8)?)
+        };
+        (*p_options).set_strategy_mode(mode)
     }())
 }
 

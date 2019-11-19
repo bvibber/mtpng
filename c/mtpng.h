@@ -65,6 +65,20 @@ typedef enum mtpng_filter_t {
 } mtpng_filter;
 
 //
+// Strategy types for mtpng_encoder_set_strategy_mode().
+//
+// MTPNG_STRATEGY_ADAPTIVE is the default behavior.
+//
+typedef enum mtpng_strategy_t {
+    MTPNG_STRATEGY_ADAPTIVE = -1,
+    MTPNG_STRATEGY_DEFAULT = 0,
+    MTPNG_STRATEGY_FILTERED = 1,
+    MTPNG_STRATEGY_HUFFMAN = 2,
+    MTPNG_STRATEGY_RLE = 3,
+    MTPNG_STRATEGY_FIXED = 4
+} mtpng_strategy;
+
+//
 // Color types for mtpng_encoder_set_color().
 //
 typedef enum mtpng_color_t {
@@ -254,6 +268,15 @@ mtpng_encoder_options_set_thread_pool(mtpng_encoder_options* p_options,
 extern mtpng_result
 mtpng_encoder_options_set_filter(mtpng_encoder_options* p_options,
                                  mtpng_filter filter_mode);
+
+//
+// Override the default PNG strategy mode selection.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_options_set_strategy(mtpng_encoder_options* p_options,
+                                   mtpng_strategy strategy_mode);
 
 //
 // Override the default chunk size for parallel encoding

@@ -30,6 +30,8 @@ use std::mem;
 
 use std::ptr;
 
+use std::convert::TryFrom;
+
 use std::os::raw::*;
 
 use ::libz_sys::*;
@@ -70,6 +72,21 @@ pub enum Strategy {
     HuffmanOnly = Z_HUFFMAN_ONLY,
     RLE = Z_RLE,
     Fixed = Z_FIXED,
+}
+
+impl TryFrom<u8> for Strategy {
+    type Error = io::Error;
+
+    fn try_from(val: u8) -> Result<Self, Self::Error> {
+        match val {
+            0 => Ok(Strategy::Default),
+            1 => Ok(Strategy::Filtered),
+            2 => Ok(Strategy::HuffmanOnly),
+            3 => Ok(Strategy::RLE),
+            4 => Ok(Strategy::Fixed),
+            _ => Err(invalid_input("Invalid strategy constant")),
+        }
+    }
 }
 
 impl Options {
