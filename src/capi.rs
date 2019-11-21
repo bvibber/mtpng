@@ -36,6 +36,7 @@ use libc::{c_void, c_int, size_t};
 
 use super::ColorType;
 use super::Strategy;
+use super::CompressionLevel;
 use super::Mode::{Adaptive, Fixed};
 use super::Header;
 
@@ -300,6 +301,24 @@ fn mtpng_encoder_options_set_strategy(p_options: PEncoderOptions,
             Fixed(Strategy::try_from(strategy_mode as u8)?)
         };
         (*p_options).set_strategy_mode(mode)
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_options_set_compression_level(p_options: PEncoderOptions,
+                                               compression_level: c_int)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_options.is_null() {
+            return Err(invalid_input("p_options must not be null"));
+        }
+        if compression_level < 0 || compression_level > 9 {
+            return Err(invalid_input("Invalid compression level"));
+        }
+        let level = CompressionLevel::try_from(compression_level as u8)?;
+        (*p_options).set_compression_level(level)
     }())
 }
 
