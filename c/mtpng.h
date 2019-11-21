@@ -26,6 +26,10 @@
 #ifndef MTPNG_H_INCLUDED
 #define MTPNG_H_INCLUDED 1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -518,5 +522,8 @@ mtpng_encoder_finish(mtpng_encoder** pp_encoder);
 
 #pragma mark footer
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MTPNG_H_INCLUDED */
