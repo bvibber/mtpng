@@ -344,3 +344,19 @@ pub enum CompressionLevel {
     /// Best compression but slow (zlib level 9).
     High
 }
+
+impl TryFrom<u8> for CompressionLevel {
+    type Error = io::Error;
+
+    /// Validate and convert u8 to CompressionLevel.
+    ///
+    /// Will return an error on invalid input.
+    fn try_from(val: u8) -> Result<Self, Self::Error> {
+        match val {
+            1 => Ok(CompressionLevel::Fast),
+            6 => Ok(CompressionLevel::Default),
+            9 => Ok(CompressionLevel::High),
+            _ => Err(invalid_input("Compression level not supported")),
+        }
+    }
+}

@@ -26,6 +26,10 @@
 #ifndef MTPNG_H_INCLUDED
 #define MTPNG_H_INCLUDED 1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -77,6 +81,15 @@ typedef enum mtpng_strategy_t {
     MTPNG_STRATEGY_RLE = 3,
     MTPNG_STRATEGY_FIXED = 4
 } mtpng_strategy;
+
+//
+// Compression levels for mtpng_encoder_options_set_compression_level().
+//
+typedef enum mtpng_compression_level_t {
+    MTPNG_COMPRESSION_LEVEL_FAST = 1,
+    MTPNG_COMPRESSION_LEVEL_DEFAULT = 6,
+    MTPNG_COMPRESSION_LEVEL_HIGH = 9
+} mtpng_compression_level;
 
 //
 // Color types for mtpng_encoder_set_color().
@@ -277,6 +290,15 @@ mtpng_encoder_options_set_filter(mtpng_encoder_options* p_options,
 extern mtpng_result
 mtpng_encoder_options_set_strategy(mtpng_encoder_options* p_options,
                                    mtpng_strategy strategy_mode);
+
+//
+// Override the default PNG compression level.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_options_set_compression_level(mtpng_encoder_options* p_options,
+                                            mtpng_compression_level compression_level);
 
 //
 // Override the default chunk size for parallel encoding
@@ -500,5 +522,8 @@ mtpng_encoder_finish(mtpng_encoder** pp_encoder);
 
 #pragma mark footer
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MTPNG_H_INCLUDED */
