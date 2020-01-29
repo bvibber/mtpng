@@ -931,6 +931,15 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     //
+    // Write a custom ancillary chunk to the output stream.
+    // The tag must be a 4-byte slice. The data should be provided
+    // in the appropriate format for the tag.
+    //
+    pub fn write_chunk(&mut self, tag: &[u8], data: &[u8]) -> io::Result<()> {
+        self.writer.write_chunk(tag, data)
+    }
+
+    //
     // Copy a row's pixel data into buffers for async compression.
     // Returns immediately after copying.
     //

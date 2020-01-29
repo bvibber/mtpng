@@ -481,6 +481,19 @@ mtpng_encoder_write_transparency(mtpng_encoder* p_encoder,
                                  size_t len);
 
 //
+// Write a custom ancillary chunk to the output stream.
+// The tag must be a 4-byte string. The data should be provided
+// in the appropriate format for the tag.
+//
+// Check the return value for errors.
+//
+extern mtpng_result
+mtpng_encoder_write_chunk(mtpng_encoder* p_encoder,
+                          const char* p_tag,
+                          const uint8_t* p_bytes,
+                          size_t len);
+
+//
 // Load one or more rows of input data into the encoder, to be
 // filtered and compressed as data is provided.
 //

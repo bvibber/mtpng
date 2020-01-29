@@ -27,10 +27,14 @@ use rayon::ThreadPool;
 use rayon::ThreadPoolBuilder;
 
 use std::convert::TryFrom;
+
 use std::io;
 use std::io::Write;
 
 use std::ptr;
+
+use std::ffi::CStr;
+use std::os::raw::c_char;
 
 use libc::{c_void, c_int, size_t};
 
@@ -512,6 +516,30 @@ fn mtpng_encoder_write_transparency(p_encoder: PEncoder,
         }
         let slice = ::std::slice::from_raw_parts(p_bytes, len);
         (*p_encoder).write_transparency(slice)
+    }())
+}
+
+#[no_mangle]
+pub unsafe extern "C"
+fn mtpng_encoder_write_chunk(p_encoder: PEncoder,
+                             p_tag: *const c_char,
+                             p_bytes: *const u8,
+                             len: size_t)
+-> CResult
+{
+    CResult::from(|| -> io::Result<()> {
+        if p_encoder.is_null() {
+            return Err(invalid_input("p_encoder must not be null"));
+        }
+        if p_tag.is_null() {
+            return Err(invalid_input("p_tag must not be null"));
+        }
+        if p_bytes.is_null() {
+            return Err(invalid_input("p_bytes must not be null"));
+        }
+        let tag = CStr::from_ptr(p_tag).to_bytes();
+        let slice = ::std::slice::from_raw_parts(p_bytes, len);
+        (*p_encoder).write_chunk(tag, slice)
     }())
 }
 
