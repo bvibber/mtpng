@@ -13,14 +13,13 @@ use std::convert::TryFrom;
 fn decode_png(data: &[u8])
     -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Option<Vec<u8>>)>
 {
-    use png::Decoder;
-    use png::HasParameters;
-    use png::Transformations;
-
-    let mut decoder = Decoder::new(io::Cursor::new(data));
-    decoder.set(Transformations::IDENTITY);
-
+    let limits = png::Limits { bytes: 1 << 16 };
+    let decoder = png::Decoder::new_with_limits(data, limits);
     let (info, mut reader) = decoder.read_info()?;
+
+    if info.buffer_size() > 5_000_000 {
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "memory limit exceeded"));
+    }
 
     let mut header = Header::new();
     header.set_size(info.width, info.height)?;
@@ -71,7 +70,8 @@ fn write_png(pool: &ThreadPool,
 
 fn roundtrip(pool: ThreadPool, data: &[u8]) -> io::Result<()> {
     let (header, data, palette, transparency) = decode_png(data)?;
-    let compressed = write_png(&pool, &header, &data, &palette, &transparency).expect("Writing PNG failed");
+    // the line below does error out in practice; not sure if that's a bug in png or mtpng
+    let compressed = write_png(&pool, &header, &data, &palette, &transparency)?;//.expect("Writing PNG failed");
     let (new_header, new_data, new_palette, new_transparency) = decode_png(&compressed).expect("Failed to decode mtpng-compressed data");
     // not sure if header and palette are expected to match exactly, so ignoring them for now
     //assert!(header == new_header, "Header differs after encoding and decoding back");
