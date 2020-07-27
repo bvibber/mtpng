@@ -147,11 +147,8 @@ impl<W: Write> Deflate<W> {
             initialized: false,
             finished: false,
             stream: Box::new(unsafe {
-                // Note: this will fail in future versions of Rust
-                // because the alloc function pointers in the zstream
-                // struct are not properly wrapped in an Option so
-                // cannot be null. Currently it throws a warning.
-                mem::MaybeUninit::zeroed().assume_init()
+                let maybe = mem::MaybeUninit::<z_stream>::zeroed();
+                maybe.assume_init()
             }),
         }
     }
