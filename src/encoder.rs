@@ -25,7 +25,7 @@
 
 use rayon::ThreadPool;
 
-use std::collections::HashMap;
+use std::collections::VecDeque;
 
 use std::io;
 use std::io::Write;
@@ -434,8 +434,8 @@ struct ChunkMap<T> {
     cursor_out: usize,
     running: usize,
 
-    // todo use a VecDeque for this maybe
-    live_chunks: HashMap<usize, Arc<T>>,
+    chunks: VecDeque<Option<Arc<T>>>,
+    prev: Option<Arc<T>>,
 }
 
 impl<T> ChunkMap<T> {
@@ -444,7 +444,8 @@ impl<T> ChunkMap<T> {
             cursor_in: 0,
             cursor_out: 0,
             running: 0,
-            live_chunks: HashMap::new(),
+            chunks: VecDeque::new(),
+            prev: None,
         }
     }
 
@@ -475,56 +476,56 @@ impl<T> ChunkMap<T> {
             panic!("Tried to land a future chunk");
         }
         self.running -= 1;
-        match self.live_chunks.insert(index, chunk) {
-            None => {},
-            Some(_x) => panic!("Tried to re-append an existing chunk"),
+        let len = self.chunks.len();
+        let offset = index - self.cursor_out;
+        if len < offset {
+            let n = offset - len;
+            for _ in 0..n {
+                self.chunks.push_back(None);
+            }
         }
-    }
-
-    fn get(&self, index: usize) -> Option<Arc<T>> {
-        match self.live_chunks.get(&index) {
-            Some(item) => Some(Arc::clone(item)),
-            _ => None,
+        match self.chunks.get_mut(offset) {
+            Some(mutref) => {
+                mutref.replace(chunk);
+            },
+            None => {
+                self.chunks.push_back(Some(chunk));
+            },
         }
-    }
-
-    fn retire(&mut self, index: usize) {
-        self.live_chunks.remove(&index);
     }
 
     fn pop_front(&mut self) -> Option<(Option<Arc<T>>, Arc<T>)> {
-        let index = self.cursor_out;
-        let current = self.get(index);
-        if index > 0 {
-            let prev = self.get(index - 1);
-            match (prev, current) {
-                (Some(p), Some(c)) => {
-                    // Next pipeline stage needs the current
-                    // and previous items from this stage.
-                    self.cursor_out += 1;
-                    let prev_chunk = p;
-                    let cur_chunk = c;
-
-                    // Drop the previous item off the list;
-                    // it'll be kept alive by whatever needs
-                    // it while they run.
-                    self.retire(index - 1);
-
-                    Some((Some(prev_chunk), cur_chunk))
-                },
-                _ => {
-                    None
-                }
+        if self.chunks.len() == 0 {
+            return None;
+        }
+        match self.chunks.get(0) {
+            Some(Some(_)) => {
+                // Ok we're good we have something
+            },
+            Some(None) => {
+                // Not ready yet but a later chunk landed.
+                return None;
+            },
+            None => {
+                // Nothing yet.
+                return None;
             }
-        } else {
-            match current {
-                Some(c) => {
-                    self.cursor_out += 1;
-                    Some((None, c))
-                },
-                _ => {
-                    None
-                }
+        };
+        self.cursor_out += 1;
+        match self.chunks.pop_front() {
+            Some(Some(item)) => {
+                let prev = match &self.prev {
+                    Some(prev_item) => Some(Arc::clone(prev_item)),
+                    None => None,
+                };
+                self.prev = Some(Arc::clone(&item));
+                Some((prev, item))
+            },
+            Some(None) => {
+                panic!("Bad job queue state (padding)")
+            },
+            None => {
+                panic!("Bad job queue state (empty)")
             }
         }
     }
