@@ -502,8 +502,8 @@ impl<T> ChunkMap<T> {
                     // Next pipeline stage needs the current
                     // and previous items from this stage.
                     self.cursor_out += 1;
-                    let prev_chunk = p.clone();
-                    let cur_chunk = c.clone();
+                    let prev_chunk = p;
+                    let cur_chunk = c;
 
                     // Drop the previous item off the list;
                     // it'll be kept alive by whatever needs
@@ -520,7 +520,7 @@ impl<T> ChunkMap<T> {
             match current {
                 Some(c) => {
                     self.cursor_out += 1;
-                    Some((None, c.clone()))
+                    Some((None, c))
                 },
                 _ => {
                     None
