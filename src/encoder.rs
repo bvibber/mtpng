@@ -494,18 +494,11 @@ impl<T> ChunkMap<T> {
                 self.cursor_out += 1;
                 match self.chunks.pop_front() {
                     Some(Some(item)) => {
-                        let prev = match &self.prev {
-                            Some(prev_item) => Some(Arc::clone(prev_item)),
-                            None => None,
-                        };
-                        self.prev = Some(Arc::clone(&item));
+                        let prev = std::mem::replace(&mut self.prev, Some(Arc::clone(&item)));
                         Some((prev, item))
                     },
-                    Some(None) => {
-                        panic!("Bad job queue state (padding)")
-                    },
-                    None => {
-                        panic!("Bad job queue state (empty)")
+                    _ => {
+                        panic!("Bad job queue state")
                     }
                 }
             },
