@@ -491,31 +491,31 @@ impl<T> ChunkMap<T> {
         match self.chunks.get(0) {
             Some(Some(_)) => {
                 // Ok we're good we have something
+                self.cursor_out += 1;
+                match self.chunks.pop_front() {
+                    Some(Some(item)) => {
+                        let prev = match &self.prev {
+                            Some(prev_item) => Some(Arc::clone(prev_item)),
+                            None => None,
+                        };
+                        self.prev = Some(Arc::clone(&item));
+                        Some((prev, item))
+                    },
+                    Some(None) => {
+                        panic!("Bad job queue state (padding)")
+                    },
+                    None => {
+                        panic!("Bad job queue state (empty)")
+                    }
+                }
             },
             Some(None) => {
                 // Not ready yet but a later chunk landed.
-                return None;
+                None
             },
             None => {
                 // Nothing yet.
-                return None;
-            }
-        };
-        self.cursor_out += 1;
-        match self.chunks.pop_front() {
-            Some(Some(item)) => {
-                let prev = match &self.prev {
-                    Some(prev_item) => Some(Arc::clone(prev_item)),
-                    None => None,
-                };
-                self.prev = Some(Arc::clone(&item));
-                Some((prev, item))
-            },
-            Some(None) => {
-                panic!("Bad job queue state (padding)")
-            },
-            None => {
-                panic!("Bad job queue state (empty)")
+                None
             }
         }
     }
