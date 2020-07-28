@@ -488,9 +488,6 @@ impl<T> ChunkMap<T> {
     }
 
     fn pop_front(&mut self) -> Option<(Option<Arc<T>>, Arc<T>)> {
-        if self.chunks.len() == 0 {
-            return None;
-        }
         match self.chunks.get(0) {
             Some(Some(_)) => {
                 // Ok we're good we have something
