@@ -486,7 +486,7 @@ impl<T> ChunkMap<T> {
         }
         match self.chunks.get_mut(offset) {
             Some(mutref) => {
-                mutref.replace(chunk);
+                *mutref = Some(chunk);
             },
             None => {
                 self.chunks.push_back(Some(chunk));
