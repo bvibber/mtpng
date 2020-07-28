@@ -476,21 +476,14 @@ impl<T> ChunkMap<T> {
             panic!("Tried to land a future chunk");
         }
         self.running -= 1;
-        let len = self.chunks.len();
         let offset = index - self.cursor_out;
-        if len < offset {
-            let n = offset - len;
-            for _ in 0..n {
-                self.chunks.push_back(None);
-            }
+        while offset > self.chunks.len() {
+            self.chunks.push_back(None);
         }
-        match self.chunks.get_mut(offset) {
-            Some(mutref) => {
-                *mutref = Some(chunk);
-            },
-            None => {
-                self.chunks.push_back(Some(chunk));
-            },
+        if offset == self.chunks.len() {
+            self.chunks.push_back(Some(chunk));
+        } else {
+            self.chunks[offset] = Some(chunk);
         }
     }
 
