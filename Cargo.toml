@@ -12,7 +12,7 @@ categories = ["multimedia::images"]
 
 [features]
 default=[]
-cli=["png", "clap", "time"]
+cli=["png", "clap"]
 capi=["libc"]
 
 [[bin]]
@@ -30,7 +30,6 @@ typenum = "1.12"
 # for cli
 png = { version = "0.16", optional = true }
 clap = { version = "2.33", optional = true }
-time = { version = "0.2", optional = true }
 
 # for capi
 libc = { version = "0.2", optional = true }

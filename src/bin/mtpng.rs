@@ -27,6 +27,7 @@ use std::convert::TryFrom;
 use std::fs::File;
 use std::io;
 use std::io::{Error, ErrorKind};
+use std::time::SystemTime;
 
 // CLI options
 extern crate clap;
@@ -37,10 +38,6 @@ extern crate png;
 
 extern crate rayon;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-
-// For timing!
-extern crate time;
-use time::precise_time_s;
 
 // Hey that's us!
 extern crate mtpng;
@@ -59,11 +56,10 @@ fn read_png(filename: &str)
     -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Option<Vec<u8>>)>
 {
     use png::Decoder;
-    use png::HasParameters;
     use png::Transformations;
 
     let mut decoder = Decoder::new(File::open(filename)?);
-    decoder.set(Transformations::IDENTITY);
+    decoder.set_transformations(Transformations::IDENTITY);
 
     let (info, mut reader) = decoder.read_info()?;
 
@@ -187,11 +183,11 @@ fn doit(args: ArgMatches) -> io::Result<()> {
     let (header, data, palette, transparency) = read_png(&infile)?;
 
     for _i in 0 .. reps {
-        let start_time = precise_time_s();
+        let start_time =  SystemTime::now();
         write_png(&pool, &args, &outfile, &header, &data, &palette, &transparency)?;
-        let delta = precise_time_s() - start_time;
+        let delta = start_time.elapsed().unwrap();
 
-        println!("Done in {} ms", (delta * 1000.0).round());
+        println!("Done in {} ms", delta.as_millis());
     }
 
     Ok(())
