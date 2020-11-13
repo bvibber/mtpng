@@ -30,17 +30,10 @@ use std::io::{Error, ErrorKind};
 use std::time::SystemTime;
 
 // CLI options
-extern crate clap;
 use clap::{Arg, App, ArgMatches};
 
-// For reading an existing file
-extern crate png;
-
-extern crate rayon;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
-// Hey that's us!
-extern crate mtpng;
 use mtpng::{ColorType, CompressionLevel, Header};
 use mtpng::Mode::{Adaptive, Fixed};
 use mtpng::encoder::{Encoder, Options};
@@ -127,7 +120,7 @@ fn write_png(pool: &ThreadPool,
         Some("huffman")  => options.set_strategy_mode(Fixed(Strategy::HuffmanOnly))?,
         Some("rle")      => options.set_strategy_mode(Fixed(Strategy::RLE))?,
         Some("fixed")    => options.set_strategy_mode(Fixed(Strategy::Fixed))?,
-        _                => return Err(err("Invalid compression strategy mode"))?,
+        _                => return Err(err("Invalid compression strategy mode")),
     }
 
     match args.value_of("streaming") {

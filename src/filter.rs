@@ -27,6 +27,8 @@ use std::cmp;
 use std::convert::TryFrom;
 use std::io;
 
+use itertools::izip;
+
 use typenum::Unsigned;
 use typenum::consts::*;
 
