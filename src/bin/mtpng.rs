@@ -27,23 +27,13 @@ use std::convert::TryFrom;
 use std::fs::File;
 use std::io;
 use std::io::{Error, ErrorKind};
+use std::time::SystemTime;
 
 // CLI options
-extern crate clap;
 use clap::{Arg, App, ArgMatches};
 
-// For reading an existing file
-extern crate png;
-
-extern crate rayon;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
-// For timing!
-extern crate time;
-use time::precise_time_s;
-
-// Hey that's us!
-extern crate mtpng;
 use mtpng::{ColorType, CompressionLevel, Header};
 use mtpng::Mode::{Adaptive, Fixed};
 use mtpng::encoder::{Encoder, Options};
@@ -59,11 +49,10 @@ fn read_png(filename: &str)
     -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Option<Vec<u8>>)>
 {
     use png::Decoder;
-    use png::HasParameters;
     use png::Transformations;
 
     let mut decoder = Decoder::new(File::open(filename)?);
-    decoder.set(Transformations::IDENTITY);
+    decoder.set_transformations(Transformations::IDENTITY);
 
     let (info, mut reader) = decoder.read_info()?;
 
@@ -131,7 +120,7 @@ fn write_png(pool: &ThreadPool,
         Some("huffman")  => options.set_strategy_mode(Fixed(Strategy::HuffmanOnly))?,
         Some("rle")      => options.set_strategy_mode(Fixed(Strategy::RLE))?,
         Some("fixed")    => options.set_strategy_mode(Fixed(Strategy::Fixed))?,
-        _                => return Err(err("Invalid compression strategy mode"))?,
+        _                => return Err(err("Invalid compression strategy mode")),
     }
 
     match args.value_of("streaming") {
@@ -187,11 +176,11 @@ fn doit(args: ArgMatches) -> io::Result<()> {
     let (header, data, palette, transparency) = read_png(&infile)?;
 
     for _i in 0 .. reps {
-        let start_time = precise_time_s();
+        let start_time =  SystemTime::now();
         write_png(&pool, &args, &outfile, &header, &data, &palette, &transparency)?;
-        let delta = precise_time_s() - start_time;
+        let delta = start_time.elapsed().unwrap();
 
-        println!("Done in {} ms", (delta * 1000.0).round());
+        println!("Done in {} ms", delta.as_millis());
     }
 
     Ok(())
