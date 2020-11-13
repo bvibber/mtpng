@@ -14,6 +14,7 @@ categories = ["multimedia::images"]
 default=[]
 cli=["png", "clap", "time"]
 capi=["libc"]
+zlib-ng=["libz-sys/zlib-ng"]
 
 [[bin]]
 name="mtpng"
@@ -23,7 +24,7 @@ required-features=["cli"]
 [dependencies]
 rayon = "1.0.2"
 crc = "1.8.1"
-libz-sys = "1.0.23"
+libz-sys = { version = "1.1", default-features = false, features = ["libc"] }
 itertools = "0.7.8"
 typenum = "1.10.0"
 

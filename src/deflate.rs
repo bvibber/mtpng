@@ -52,7 +52,7 @@ pub fn adler32_initial() -> u32 {
 
 pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
     unsafe {
-        ::libz_sys::adler32_combine(c_ulong::from(sum_a), c_ulong::from(sum_b), len_b as c_long) as u32
+        ::libz_sys::adler32_combine(c_ulong::from(sum_a), c_ulong::from(sum_b), len_b as z_off_t) as u32
     }
 }
 
