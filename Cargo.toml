@@ -10,6 +10,11 @@ repository = "https://github.com/brion/mtpng.git"
 keywords = ["png", "multithreaded", "threaded", "parallel"]
 categories = ["multimedia::images"]
 edition = "2018"
+include = [
+  "license.md",
+  "readme.md",
+  "src/",
+]
 
 [features]
 default=[]
