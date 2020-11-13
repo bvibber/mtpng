@@ -23,9 +23,6 @@
 // THE SOFTWARE.
 //
 
-use crc::crc32;
-use crc::Hasher32;
-
 use std::io;
 use std::io::Write;
 
@@ -102,10 +99,10 @@ impl<W: Write> Writer<W> {
         }
 
         // CRC covers both tag and data.
-        let mut digest = crc32::Digest::new(crc32::IEEE);
-        digest.write(tag);
-        digest.write(data);
-        let checksum = digest.sum32();
+        let mut digest = crc32fast::Hasher::new();
+        digest.update(tag);
+        digest.update(data);
+        let checksum = digest.finalize();
 
         // Write data...
         self.write_be32(data.len() as u32)?;
