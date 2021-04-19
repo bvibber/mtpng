@@ -105,3 +105,18 @@ Windows Subsystem for Linux aarch64 (Win10 1903):
 ```
 
 The Snapdragon 850 scores not as well as the A11 in single-threaded, but catches up with additional threads.
+
+
+
+```
+MacBook Air (M1, 2020)
+Apple M1 3.2 GHz
+8 cores (4 big, 4 little?)
+
+macOS 11.1 (20C69):
+- mtpng @ 1 thread  --  534ms -- 1.0x
+- mtpng @ 2 threads --  279ms -- 2.0x
+- mtpng @ 4 threads --  148ms -- 3.2x
+- mtpng @ 6 threads --  125ms -- 3.9x
+- mtpng @ 8 threads --  108ms -- 4.3x
+```
