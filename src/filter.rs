@@ -442,14 +442,14 @@ impl AdaptiveFilter {
         self.filter_paeth.filter(prev, src);
         min = cmp::min(min, self.filter_paeth.get_complexity());
 
-        if min == self.filter_paeth.get_complexity() {
-            self.filter_paeth.get_data()
-        } else if min == self.filter_average.get_complexity() {
-            self.filter_average.get_data()
+        if min == self.filter_sub.get_complexity()  {
+            self.filter_sub.get_data()
         } else if min == self.filter_up.get_complexity() {
             self.filter_up.get_data()
-        } else /*if min == self.filter_sub.get_complexity() */ {
-            self.filter_sub.get_data()
+        } else if min == self.filter_average.get_complexity() {
+            self.filter_average.get_data()
+        } else /* if min == self.filter_paeth.get_complexity() */ {
+            self.filter_paeth.get_data()
         }
     }
 
