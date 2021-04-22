@@ -40,7 +40,7 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 
 // For timing!
 extern crate time;
-use time::precise_time_s;
+use time::OffsetDateTime;
 
 // Hey that's us!
 extern crate mtpng;
@@ -59,11 +59,10 @@ fn read_png(filename: &str)
     -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Option<Vec<u8>>)>
 {
     use png::Decoder;
-    use png::HasParameters;
     use png::Transformations;
 
     let mut decoder = Decoder::new(File::open(filename)?);
-    decoder.set(Transformations::IDENTITY);
+    decoder.set_transformations(Transformations::IDENTITY);
 
     let (info, mut reader) = decoder.read_info()?;
 
@@ -187,11 +186,11 @@ fn doit(args: ArgMatches) -> io::Result<()> {
     let (header, data, palette, transparency) = read_png(&infile)?;
 
     for _i in 0 .. reps {
-        let start_time = precise_time_s();
+        let start_time = OffsetDateTime::now_utc();
         write_png(&pool, &args, &outfile, &header, &data, &palette, &transparency)?;
-        let delta = precise_time_s() - start_time;
+        let delta = OffsetDateTime::now_utc() - start_time;
 
-        println!("Done in {} ms", (delta * 1000.0).round());
+        println!("Done in {} ms", (delta.as_seconds_f64() * 1000.0).round());
     }
 
     Ok(())
@@ -199,7 +198,7 @@ fn doit(args: ArgMatches) -> io::Result<()> {
 
 pub fn main() {
     let matches = App::new("mtpng parallel PNG encoder")
-        .version("0.1.0")
+        .version("0.3.5")
         .author("Brion Vibber <brion@pobox.com>")
         .about("Re-encodes PNG images using multiple CPU cores to exercise the mtpng library.")
         .arg(Arg::with_name("chunk-size")

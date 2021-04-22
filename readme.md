@@ -48,6 +48,8 @@ Compression ratio is a tiny fraction worse than libpng with the dual-4K screensh
 
 Using a smaller chunk size, or enabling streaming mode, will increase the file size slightly more in exchange for greater parallelism (small chunks) and lower latency to bytes hitting the wire (streaming).
 
+In 0.3.5 a correction was made to the filter heuristic algorithm to match libpng in some circumstances where it differs; this should provide very similar results to libpng when used as a drop-in replacement now. Later research may involve changing the heuristic, as it fails to correctly predict good performance of the "none" filter on many screenshot-style true color images.
+
 ## Performance
 
 Note that unoptimized debug builds are about 50x slower than optimized release builds. Always run with `--release`!
@@ -130,7 +132,7 @@ Decoding cannot; it must be run as a stream, but can pipeline (not yet implement
 
 You may use this software under the following MIT-style license:
 
-Copyright (c) 2018 Brion Vibber
+Copyright (c) 2018-2021 Brion Vibber
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
