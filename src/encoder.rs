@@ -27,8 +27,8 @@ use rayon::ThreadPool;
 
 use std::collections::VecDeque;
 
-use std::io;
 use std::io::Write;
+use std::io::{self, ErrorKind};
 
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -223,19 +223,25 @@ impl PixelChunk {
         self.rows.push(row_copy);
     }
 
-    fn get_row(&self, row: usize) -> &[u8] {
+    fn get_row(&self, row: usize) -> Result<&[u8], std::io::Error> {
         if row < self.start_row {
-            panic!(
-                "Tried to access row from earlier chunk: {} < {}",
-                row, self.start_row
-            );
+            Err(std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!(
+                    "Tried to access row from earlier chunk: {} < {}",
+                    row, self.start_row
+                ),
+            ))
         } else if row >= self.end_row {
-            panic!(
-                "Tried to access row from later chunk: {} >= {}",
-                row, self.end_row
-            );
+            Err(std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!(
+                    "Tried to access row from later chunk: {} >= {}",
+                    row, self.end_row
+                ),
+            ))
         } else {
-            &self.rows[row - self.start_row]
+            Ok(&self.rows[row - self.start_row])
         }
     }
 }
@@ -315,9 +321,9 @@ impl FilterChunk {
             } else {
                 &self.input
             };
-            let prev = if i == 0 { &zero } else { prior.get_row(i - 1) };
+            let prev = if i == 0 { &zero } else { prior.get_row(i - 1)? };
 
-            let row = self.input.get_row(i);
+            let row = self.input.get_row(i)?;
 
             let output = filter.filter(prev, row);
 
@@ -476,10 +482,16 @@ impl<T> ChunkMap<T> {
     //
     fn land(&mut self, index: usize, chunk: Arc<T>) -> IoResult {
         if index < self.cursor_out {
-            return Err(std::io::Error::new(io::ErrorKind::InvalidInput, "Tried to land an expired chunk"));
+            return Err(std::io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Tried to land an expired chunk",
+            ));
         }
         if index > self.cursor_in {
-            return Err(std::io::Error::new(io::ErrorKind::InvalidData, "Tried to land a future chunk"));
+            return Err(std::io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Tried to land a future chunk",
+            ));
         }
         self.running -= 1;
         let offset = index - self.cursor_out;
@@ -505,7 +517,8 @@ impl<T> ChunkMap<T> {
                         Some((prev, item))
                     }
                     _ => {
-                        panic!("Bad job queue state")
+                        println!("[mtpng] Bad job queue state");
+                        None
                     }
                 }
             }
@@ -740,7 +753,8 @@ impl<'a, W: Write> Encoder<'a, W> {
                         tx.send(match deflate.run() {
                             Ok(()) => ThreadMessage::DeflateDone(Arc::new(deflate)),
                             Err(e) => ThreadMessage::Error(e),
-                        }).unwrap();
+                        })
+                        .unwrap();
                     });
                 }
                 None => {
@@ -775,7 +789,7 @@ impl<'a, W: Write> Encoder<'a, W> {
         // If we have output to run, write it!
         while let Some((_previous, current)) = self.deflate_chunks.pop_front() {
             if self.chunks_output >= self.chunks_total {
-                panic!("Got extra output after end of file; should not happen.");
+                return Err(std::io::Error::new(ErrorKind::InvalidInput, "Got extra output after end of file; should not happen."));
             }
 
             // Combine the checksums!

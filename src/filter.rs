@@ -77,7 +77,7 @@ where
         4 => filter_iter_generic::<F, U4>(prev, src, out, func), // truecolor@8, greyscale+alpha@16
         6 => filter_iter_generic::<F, U6>(prev, src, out, func), // truecolor@16
         8 => filter_iter_generic::<F, U8>(prev, src, out, func), // truecolor+alpha@16
-        _ => panic!("Invalid bpp, should never happen."),
+        _ => (),
     }
 }
 
