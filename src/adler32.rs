@@ -34,14 +34,14 @@ pub fn adler32_initial() -> u32 {
 #[cfg(feature = "miniz")]
 pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
     const BASE: u32 = 65521;
-  
+
     /* the derivation of this formula is left as an exercise for the reader */
     let rem = len_b as u32;
-    
+
     let mut sum1 = sum_a & 0xffff;
     let mut sum2 = rem * sum_a;
     sum2 %= BASE;
-    
+
     sum1 += (sum_b & 0xffff) + BASE - 1;
     sum2 += ((sum_a >> 16) & 0xffff) + ((sum_b >> 16) & 0xffff) + BASE - rem;
 

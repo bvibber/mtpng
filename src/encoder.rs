@@ -789,7 +789,10 @@ impl<'a, W: Write> Encoder<'a, W> {
         // If we have output to run, write it!
         while let Some((_previous, current)) = self.deflate_chunks.pop_front() {
             if self.chunks_output >= self.chunks_total {
-                return Err(std::io::Error::new(ErrorKind::InvalidInput, "Got extra output after end of file; should not happen."));
+                return Err(std::io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "Got extra output after end of file; should not happen.",
+                ));
             }
 
             // Combine the checksums!

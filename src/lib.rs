@@ -28,6 +28,7 @@
 #[cfg(feature = "capi")]
 pub mod capi;
 
+mod adler32;
 #[cfg(feature = "zlib")]
 mod deflate;
 #[cfg(feature = "miniz")]
@@ -36,7 +37,6 @@ pub mod encoder;
 mod filter;
 mod utils;
 mod writer;
-mod adler32;
 
 #[cfg(feature = "miniz")]
 use deflate_minz as deflate;
