@@ -31,14 +31,14 @@ pub mod capi;
 mod adler32;
 #[cfg(feature = "zlib")]
 mod deflate;
-#[cfg(feature = "miniz")]
+#[cfg(all(feature = "miniz", not(feature = "zlib")))]
 mod deflate_minz;
 pub mod encoder;
 mod filter;
 mod utils;
 mod writer;
 
-#[cfg(feature = "miniz")]
+#[cfg(all(feature = "miniz", not(feature = "zlib")))]
 use deflate_minz as deflate;
 
 pub type Strategy = deflate::Strategy;
