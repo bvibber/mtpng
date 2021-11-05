@@ -23,7 +23,6 @@
 // THE SOFTWARE.
 //
 
-use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io;
@@ -126,7 +125,7 @@ fn write_png(
         Some("huffman") => options.set_strategy_mode(Fixed(Strategy::HuffmanOnly))?,
         Some("rle") => options.set_strategy_mode(Fixed(Strategy::RLE))?,
         Some("fixed") => options.set_strategy_mode(Fixed(Strategy::Fixed))?,
-        _ => return Err(err("Invalid compression strategy mode"))?,
+        _ => return Err(err("Invalid compression strategy mode")),
     }
 
     match args.value_of("streaming") {
@@ -139,16 +138,16 @@ fn write_png(
     let mut encoder = Encoder::new(writer, &options);
 
     // Image data
-    encoder.write_header(&header)?;
+    encoder.write_header(header)?;
     match palette {
-        Some(v) => encoder.write_palette(&v)?,
+        Some(v) => encoder.write_palette(v)?,
         None => {}
     }
     match transparency {
-        Some(v) => encoder.write_transparency(&v)?,
+        Some(v) => encoder.write_transparency(v)?,
         None => {}
     }
-    encoder.write_image_rows(&data)?;
+    encoder.write_image_rows(data)?;
     encoder.finish()?;
 
     Ok(())
@@ -176,14 +175,14 @@ fn doit(args: ArgMatches) -> io::Result<()> {
     let outfile = args.value_of("output").unwrap();
 
     println!("{} -> {}", infile, outfile);
-    let (header, data, palette, transparency) = read_png(&infile)?;
+    let (header, data, palette, transparency) = read_png(infile)?;
 
     for _i in 0..reps {
         let start_time = OffsetDateTime::now_utc();
         write_png(
             &pool,
             &args,
-            &outfile,
+            outfile,
             &header,
             &data,
             &palette,
