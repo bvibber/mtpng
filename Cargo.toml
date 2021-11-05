@@ -13,32 +13,29 @@ edition = "2021"
 
 [features]
 default=["miniz"]
-cli=["png", "clap", "time"]
 capi=["libc"]
 zlib = ["libz-sys"]
 miniz = ["miniz_oxide", "simd-adler32"]
 
-[[bin]]
-name="mtpng"
-path="src/bin/mtpng.rs"
-required-features=["cli"]
-
 [dependencies]
-rayon = "1.5"
-crc = "2.1"
+rayon = "1.5.1"
+crc = "2.1.0"
 libz-sys = { version = "1.1.3", optional = true}
-itertools = "0.10"
-miniz_oxide = { version = "0.4", optional = true }
-simd-adler32 = { version = "0.3", optional = true }
-typenum = "1.14"
+itertools = "0.10.1"
+miniz_oxide = { version = "0.4.4", optional = true }
+simd-adler32 = { version = "0.3.4", optional = true }
+typenum = "1.14.0"
 
 # for cli
-png = { version = "0.16", optional = true }
-clap = { version = "2.33", optional = true }
-time = { version = "0.3", optional = true }
-
 # for capi
-libc = { version = "0.2", optional = true }
+libc = { version = "0.2.106", optional = true }
+
+[dev-dependencies]
+clap = "2.33.3"
+png = "0.17.2"
+rand = "0.8.4"
+time = "0.3.4"
+walkdir = "2.3.2"
 
 [lib]
 crate-type = ["rlib", "cdylib", "staticlib"]

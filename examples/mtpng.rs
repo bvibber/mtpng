@@ -23,23 +23,19 @@
 // THE SOFTWARE.
 //
 
+use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io;
 use std::io::{Error, ErrorKind};
 
 // CLI options
-extern crate clap;
 use clap::{App, Arg, ArgMatches};
 
 // For reading an existing file
-extern crate png;
-
-extern crate rayon;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
 // For timing!
-extern crate time;
 use time::OffsetDateTime;
 
 // Hey that's us!
@@ -61,7 +57,9 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Opt
     let mut decoder = Decoder::new(File::open(filename)?);
     decoder.set_transformations(Transformations::IDENTITY);
 
-    let (info, mut reader) = decoder.read_info()?;
+    let mut reader = decoder.read_info()?;
+    let mut data = vec![0u8; reader.output_buffer_size()];
+    let info = reader.next_frame(&mut data)?;
 
     let mut header = Header::new();
     header.set_size(info.width, info.height)?;
@@ -70,11 +68,10 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Opt
         info.bit_depth as u8,
     )?;
 
-    let palette = reader.info().palette.clone();
-    let transparency = reader.info().trns.clone();
-
-    let mut data = vec![0u8; info.buffer_size()];
-    reader.next_frame(&mut data)?;
+    let info = reader.info();
+    // Very ugly hack to run from the Cow and ownership
+    let palette = info.palette.clone().map(|x| x.iter().cloned().collect::<Vec<u8>>());
+    let transparency = info.trns.clone().map(|x| x.iter().cloned().collect::<Vec<u8>>());
 
     Ok((header, data, palette, transparency))
 }
