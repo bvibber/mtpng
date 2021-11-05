@@ -43,6 +43,7 @@ fn write_png(
     Ok(())
 }
 
+#[ignore]
 #[test]
 pub fn fuzz() {
     println!("started fuzzing");
