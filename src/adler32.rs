@@ -68,14 +68,14 @@ mod tests {
 
     #[test]
     fn adler_combine_test() {
-        const len_b: usize = 307320;
+        const LEN_B: usize = 307320;
         let parts = [
             [0x732CBF4D_u32, 0xADC515B1_u32, 0x9F7ED4FD_u32],
             [0x9F7ED4FD_u32, 0x99AD44FE_u32, 0xD80F1A09_u32],
             [0xD80F1A09_u32, 0x67BD47A0_u32, 0x1B1261A8_u32],
         ];
         for part in parts.iter() {
-            let r = adler32_combine(part[0], part[1], len_b);
+            let r = adler32_combine(part[0], part[1], LEN_B);
             assert_eq!(r, part[2]);
         }
     }

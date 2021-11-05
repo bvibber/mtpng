@@ -1125,7 +1125,7 @@ mod tests {
             // Should trigger all blocks!
             encoder.flush()?;
             assert!(encoder.is_finished());
-            assert!(encoder.progress() < f64::EPSILON);
+            assert!(encoder.progress() > f64::EPSILON);
 
             Ok(())
         });
