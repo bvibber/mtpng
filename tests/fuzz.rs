@@ -1,7 +1,7 @@
 use std::{borrow::Cow, ffi::OsStr, fs::File, io, panic::catch_unwind, path::PathBuf};
 
 use mtpng::{
-    encoder::{self, Encoder, Options},
+    encoder::{Encoder, Options},
     ColorType, CompressionLevel, Filter, Header, Mode, Strategy,
 };
 use rand::{prelude::StdRng, Rng};
@@ -86,10 +86,11 @@ pub fn fuzz() {
             use png::Decoder;
             use png::Transformations;
             let result = catch_unwind(move || {
-
                 let mut options = Options::new();
                 options
-                    .set_compression_level(compression_level[mutation as usize % compression_level.len()])
+                    .set_compression_level(
+                        compression_level[mutation as usize % compression_level.len()],
+                    )
                     .unwrap();
                 options
                     .set_filter_mode(filter_mode[mutation as usize % filter_mode.len()])
@@ -133,7 +134,8 @@ pub fn fuzz() {
                     &data,
                     &palette,
                     &transparency,
-                ).unwrap()
+                )
+                .unwrap()
             });
             if let Err(e) = result {
                 println!(" PANIC! [{:?}]", e);

@@ -69,8 +69,14 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Opt
 
     let info = reader.info();
     // Very ugly hack to run from the Cow and ownership
-    let palette = info.palette.clone().map(|x| x.iter().cloned().collect::<Vec<u8>>());
-    let transparency = info.trns.clone().map(|x| x.iter().cloned().collect::<Vec<u8>>());
+    let palette = info
+        .palette
+        .clone()
+        .map(|x| x.iter().cloned().collect::<Vec<u8>>());
+    let transparency = info
+        .trns
+        .clone()
+        .map(|x| x.iter().cloned().collect::<Vec<u8>>());
 
     Ok((header, data, palette, transparency))
 }

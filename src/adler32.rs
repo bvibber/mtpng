@@ -43,7 +43,10 @@ pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
     sum2 %= BASE;
 
     sum1 += (sum_b & 0xffff).wrapping_add(BASE - 1);
-    sum2 += ((sum_a >> 16) & 0xffff).wrapping_add((sum_b >> 16) & 0xffff).wrapping_add(BASE).wrapping_sub(rem);
+    sum2 += ((sum_a >> 16) & 0xffff)
+        .wrapping_add((sum_b >> 16) & 0xffff)
+        .wrapping_add(BASE)
+        .wrapping_sub(rem);
 
     if sum1 >= BASE {
         sum1 = sum1.wrapping_sub(BASE);
@@ -51,14 +54,14 @@ pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
     if sum1 >= BASE {
         sum1 = sum1.wrapping_sub(BASE);
     }
-    
+
     if sum2 >= (BASE << 1) {
         sum2 = sum2.wrapping_sub(BASE << 1);
     }
     if sum2 >= BASE {
         sum2 = sum2.wrapping_sub(BASE);
     }
-    
+
     sum1 | (sum2 << 16)
 }
 
