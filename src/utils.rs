@@ -28,6 +28,10 @@ use ::std::io::{Error, ErrorKind, Write};
 
 pub type IoResult = io::Result<()>;
 
+pub fn invalid_data(payload: &str) -> Error {
+    Error::new(ErrorKind::InvalidData, payload)
+}
+
 pub fn invalid_input(payload: &str) -> Error {
     Error::new(ErrorKind::InvalidInput, payload)
 }

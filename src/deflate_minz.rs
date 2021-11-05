@@ -24,7 +24,7 @@
 //
 
 use std::io::Write;
-use std::io::{self, ErrorKind};
+use std::io;
 
 use std::convert::TryFrom;
 
@@ -126,6 +126,7 @@ impl<W: Write> Deflate<W> {
         if self.initialized {
             Ok(())
         } else {
+            self.stream.reset();
             self.initialized = true;
             Ok(())
         }
@@ -163,23 +164,20 @@ impl<W: Write> Deflate<W> {
                     break;
                 }
                 TDEFLStatus::Okay => {
-                    if bytes_in < data.len() {
+                    if out_pos < output.len() {
+                        output.truncate(out_pos);
+                        break;
+                    } else if bytes_in > 0 {
                         // We need more space, so resize the vector.
-                        println!("Need more space");
+
                         if output.len().saturating_sub(out_pos) < 30 {
                             output.resize(output.len() * 2, 0)
                         }
-                    } else {
-                        output.truncate(out_pos);
-                        break;
                     }
                 }
                 // Not supposed to happen unless there is a bug.
                 _ => {
-                    return Err(std::io::Error::new(
-                        ErrorKind::InvalidData,
-                        "Bug compressing data.",
-                    ))
+                    return Err(invalid_data("Bug compressing data."))
                 }
             }
         }
