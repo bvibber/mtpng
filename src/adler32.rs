@@ -16,7 +16,7 @@ pub fn adler32_initial() -> u32 {
 pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
     use std::os::raw::c_long;
 
-    unsafe { libz_sys::adler32_combine(sum_a, sum_b, len_b as c_long) as u32 };
+    unsafe { libz_sys::adler32_combine(sum_a, sum_b, len_b as c_long) as u32 }
 }
 
 #[cfg(all(feature = "miniz", not(feature = "zlib")))]
@@ -28,7 +28,7 @@ pub fn adler32(sum: u32, bytes: &[u8]) -> u32 {
 
 #[cfg(all(feature = "miniz", not(feature = "zlib")))]
 pub fn adler32_initial() -> u32 {
-    0
+    1
 }
 
 #[cfg(all(feature = "miniz", not(feature = "zlib")))]
