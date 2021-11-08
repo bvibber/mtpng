@@ -164,6 +164,7 @@ impl<W: Write> Deflate<W> {
                     break;
                 }
                 TDEFLStatus::Okay => {
+                    // We have too much space allocated.
                     if out_pos < output.len() {
                         output.truncate(out_pos);
                         break;
@@ -173,7 +174,10 @@ impl<W: Write> Deflate<W> {
                         if output.len().saturating_sub(out_pos) < 30 {
                             output.resize(output.len() * 2, 0)
                         }
+                        continue;
                     }
+                    // This shouldn't be reached, but we break to avoid infinite loops.
+                    break;
                 }
                 // Not supposed to happen unless there is a bug.
                 _ => {
