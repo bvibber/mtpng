@@ -130,6 +130,25 @@ impl<W: Write> Writer<W> {
         self.write_chunk(b"IHDR", &data)
     }
 
+    pub fn write_srgb(&mut self) -> IoResult {
+        self.write_chunk(b"sRGB", &[0])?;
+
+        let mut data = Vec::<u8>::new();
+        write_be32(&mut data, 45455)?;
+        self.write_chunk(b"gAMA", &data)?;
+
+        let mut data = Vec::<u8>::new();
+        write_be32(&mut data, 31270)?;
+        write_be32(&mut data, 32900)?;
+        write_be32(&mut data, 64000)?;
+        write_be32(&mut data, 33000)?;
+        write_be32(&mut data, 30000)?;
+        write_be32(&mut data, 60000)?;
+        write_be32(&mut data, 15000)?;
+        write_be32(&mut data, 6000)?;
+        self.write_chunk(b"cHRM", &data)
+    }
+
     //
     // IEND - last chunk in the file.
     // https://www.w3.org/TR/PNG/#11IEND

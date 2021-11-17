@@ -859,6 +859,13 @@ impl<'a, W: Write> Encoder<'a, W> {
         self.writer.write_header(self.header)
     }
 
+    pub fn write_srgb(&mut self) -> IoResult {
+        if self.started_image {
+            return Err(invalid_data("Cannot write sRGB after image started."));
+        }
+        self.writer.write_srgb()
+    }
+
     /// Write an indexed-color palette as a PLTE chunk.
     ///
     /// Data must be formatted per the spec matching the color mode:
