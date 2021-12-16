@@ -84,7 +84,7 @@ impl<W: Write> Writer<W> {
     }
 
     fn write_bytes(&mut self, data: &[u8]) -> IoResult {
-        self.output.write_all(&data)
+        self.output.write_all(data)
     }
 
     //

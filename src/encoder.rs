@@ -302,7 +302,7 @@ impl FilterChunk {
         for i in self.start_row .. self.end_row {
             let prior = if i == self.start_row {
                 match self.prior_input {
-                    Some(ref input) => &input,
+                    Some(ref input) => input,
                     None => &self.input, // Won't get used.
                 }
             } else {
@@ -989,7 +989,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             Err(invalid_input("Buffer must be an integral number of rows"))
         } else {
             for row in buf.chunks(stride) {
-                self.process_row(& &*row)?;
+                self.process_row(&*row)?;
             }
             Ok(())
         }

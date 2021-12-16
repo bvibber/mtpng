@@ -128,7 +128,7 @@ fn write_png(pool: &ThreadPool,
         Some("default")  => options.set_strategy_mode(Fixed(Strategy::Default))?,
         Some("filtered") => options.set_strategy_mode(Fixed(Strategy::Filtered))?,
         Some("huffman")  => options.set_strategy_mode(Fixed(Strategy::HuffmanOnly))?,
-        Some("rle")      => options.set_strategy_mode(Fixed(Strategy::RLE))?,
+        Some("rle")      => options.set_strategy_mode(Fixed(Strategy::Rle))?,
         Some("fixed")    => options.set_strategy_mode(Fixed(Strategy::Fixed))?,
         _                => return Err(err("Invalid compression strategy mode"))?,
     }

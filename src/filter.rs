@@ -138,7 +138,7 @@ fn filter_none(_bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
 fn filter_sub(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = Filter::Sub as u8;
 
-    filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, left, _above, _upper_left| -> u8 {
+    filter_iter_specialized(bpp, prev, src, &mut dest[1 ..], |val, left, _above, _upper_left| -> u8 {
         val.wrapping_sub(left)
     })
 }
@@ -154,7 +154,7 @@ fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     // Does not need specialization.
     dest[0] = Filter::Up as u8;
 
-    filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, _left, above, _upper_left| -> u8 {
+    filter_iter_specialized(bpp, prev, src, &mut dest[1 ..], |val, _left, above, _upper_left| -> u8 {
         val.wrapping_sub(above)
     })
 }
@@ -168,7 +168,7 @@ fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = Filter::Average as u8;
 
-    filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
+    filter_iter_specialized(bpp, prev, src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
         let avg = ((i16::from(left) + i16::from(above)) / 2) as u8;
         val.wrapping_sub(avg)
     })
@@ -213,7 +213,7 @@ fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
 fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = Filter::Paeth as u8;
 
-    filter_iter_specialized(bpp, &prev, &src, &mut dest[1 ..], |val, left, above, upper_left| -> u8 {
+    filter_iter_specialized(bpp, prev, src, &mut dest[1 ..], |val, left, above, upper_left| -> u8 {
         val.wrapping_sub(paeth_predictor(left, above, upper_left))
     })
 }

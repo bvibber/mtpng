@@ -100,18 +100,9 @@ impl ColorType {
     /// See [the PNG standard](https://www.w3.org/TR/PNG/#table111) for valid types.
     pub fn is_depth_valid(self, depth: u8) -> bool {
         match self {
-            Greyscale => match depth {
-                1 | 2 | 4 | 8 | 16 => true,
-                _ => false,
-            },
-            GreyscaleAlpha | Truecolor | TruecolorAlpha => match depth {
-                8 | 16 => true,
-                _ => false,
-            },
-            IndexedColor => match depth {
-                1 | 2 | 4 | 8 => true,
-                _ => false,
-            },
+            Greyscale => matches!(depth, 1 | 2 | 4 | 8 | 16),
+            GreyscaleAlpha | Truecolor | TruecolorAlpha => matches!(depth, 8 | 16),
+            IndexedColor => matches!(depth, 1 | 2 | 4 | 8),
         }
     }
 
