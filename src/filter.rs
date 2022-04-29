@@ -59,23 +59,6 @@ impl TryFrom<u8> for Filter {
 }
 
 //
-// Using runtime bpp variable in the inner loop slows things down;
-// specialize the filter functions for each possible constant size.
-//
-fn filter_iter_specialized<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
-    where F : Fn(u8, u8, u8, u8) -> u8 {
-    match bpp {
-        1 => filter_iter_generic::<F, 1>(prev, src, out, func), // indexed, greyscale@8
-        2 => filter_iter_generic::<F, 2>(prev, src, out, func), // greyscale@16, greyscale+alpha@8
-        3 => filter_iter_generic::<F, 3>(prev, src, out, func), // truecolor@8
-        4 => filter_iter_generic::<F, 4>(prev, src, out, func), // truecolor@8, greyscale+alpha@16
-        6 => filter_iter_generic::<F, 6>(prev, src, out, func), // truecolor@16
-        8 => filter_iter_generic::<F, 8>(prev, src, out, func), // truecolor+alpha@16
-        _ => panic!("Invalid bpp, should never happen."),
-    }
-}
-
-//
 // Iterator helper for the filter functions.
 //
 // Filters are all byte-wise, and accept four input pixels:
@@ -86,7 +69,7 @@ fn filter_iter_specialized<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8
 // so far plus the offset.
 //
 #[inline(always)]
-fn filter_iter_generic<F, const BPP: usize>(prev: &[u8], src: &[u8], out: &mut [u8], func: F)
+fn filter_iter<F>(bpp: usize, prev: &[u8], src: &[u8], out: &mut [u8], func: F)
     where F : Fn(u8, u8, u8, u8) -> u8
 {
     //
@@ -97,19 +80,19 @@ fn filter_iter_generic<F, const BPP: usize>(prev: &[u8], src: &[u8], out: &mut [
     //
 
     for (dest, cur, up) in
-        izip!(&mut out[0 .. BPP],
-              &src[0 .. BPP],
-              &prev[0 .. BPP]) {
+        izip!(&mut out[0 .. bpp],
+              &src[0 .. bpp],
+              &prev[0 .. bpp]) {
         *dest = func(*cur, 0, *up, 0);
     }
 
     let len = out.len();
     for (dest, cur, left, up, above_left) in
-        izip!(&mut out[BPP .. len],
-              &src[BPP .. len],
-              &src[0 .. len - BPP],
-              &prev[BPP .. len],
-              &prev[0 .. len - BPP]) {
+        izip!(&mut out[bpp .. len],
+              &src[bpp .. len],
+              &src[0 .. len - bpp],
+              &prev[bpp .. len],
+              &prev[0 .. len - bpp]) {
         *dest = func(*cur, *left, *up, *above_left);
     }
 }
@@ -135,7 +118,7 @@ fn filter_none(_bpp: usize, _prev: &[u8], src: &[u8], dest: &mut [u8]) {
 fn filter_sub(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = Filter::Sub as u8;
 
-    filter_iter_specialized(bpp, prev, src, &mut dest[1 ..], |val, left, _above, _upper_left| -> u8 {
+    filter_iter(bpp, prev, src, &mut dest[1 ..], |val, left, _above, _upper_left| -> u8 {
         val.wrapping_sub(left)
     })
 }
@@ -151,7 +134,7 @@ fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     // Does not need specialization.
     dest[0] = Filter::Up as u8;
 
-    filter_iter_specialized(bpp, prev, src, &mut dest[1 ..], |val, _left, above, _upper_left| -> u8 {
+    filter_iter(bpp, prev, src, &mut dest[1 ..], |val, _left, above, _upper_left| -> u8 {
         val.wrapping_sub(above)
     })
 }
@@ -165,7 +148,7 @@ fn filter_up(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
 fn filter_average(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = Filter::Average as u8;
 
-    filter_iter_specialized(bpp, prev, src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
+    filter_iter(bpp, prev, src, &mut dest[1 ..], |val, left, above, _upper_left| -> u8 {
         let avg = ((i16::from(left) + i16::from(above)) / 2) as u8;
         val.wrapping_sub(avg)
     })
@@ -210,7 +193,7 @@ fn paeth_predictor(left: u8, above: u8, upper_left: u8) -> u8 {
 fn filter_paeth(bpp: usize, prev: &[u8], src: &[u8], dest: &mut [u8]) {
     dest[0] = Filter::Paeth as u8;
 
-    filter_iter_specialized(bpp, prev, src, &mut dest[1 ..], |val, left, above, upper_left| -> u8 {
+    filter_iter(bpp, prev, src, &mut dest[1 ..], |val, left, above, upper_left| -> u8 {
         val.wrapping_sub(paeth_predictor(left, above, upper_left))
     })
 }
