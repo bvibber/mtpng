@@ -1,6 +1,6 @@
 [package]
 name = "mtpng"
-version = "0.3.5"
+version = "0.4.0"
 authors = ["Brion Vibber <brion@pobox.com>"]
 license = "MIT"
 description = "Multithreaded PNG encoder library"
@@ -25,7 +25,6 @@ rayon = "1.5.0"
 crc = "1.8.1"
 libz-sys = "1.0.23"
 itertools = "0.10.0"
-typenum = "1.13.0"
 
 # for cli
 png = { version = "0.16.8", optional = true }

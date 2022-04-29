@@ -120,8 +120,6 @@ Decoding cannot; it must be run as a stream, but can pipeline (not yet implement
 
 [itertools](https://crates.io/crates/itertools) is used to manage iteration in the filters.
 
-[typenum](https://crates.io/crates/typenum) is used to do compile-time constant specialization via generics.
-
 [png](https://crates.io/crates/png) is used by the CLI tool to load input files to recompress for testing.
 
 [clap](https://crates.io/crates/clap) is used by the CLI tool to handle option parsing and help display.

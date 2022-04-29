@@ -29,7 +29,6 @@ extern crate rayon;
 extern crate crc;
 extern crate libz_sys;
 #[macro_use] extern crate itertools;
-extern crate typenum;
 
 #[cfg(feature="capi")]
 extern crate libc;
