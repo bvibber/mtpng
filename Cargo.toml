@@ -27,7 +27,7 @@ libz-sys = "1.0.23"
 itertools = "0.10.0"
 
 # for cli
-png = { version = "0.16.8", optional = true }
+png = { version = "0.17.5", optional = true }
 clap = { version = "3.1.12", optional = true }
 time = { version = "0.3.9", optional = true }
 

@@ -26,7 +26,7 @@
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io;
-use std::io::{Error, ErrorKind};
+use std::io::{Error, ErrorKind, Write};
 
 // CLI options
 extern crate clap;
@@ -55,6 +55,13 @@ pub fn err(payload: &str) -> Error
     Error::new(ErrorKind::Other, payload)
 }
 
+fn expand(src: &[u8]) -> io::Result<Vec<u8>>
+{
+    let mut v = Vec::new();
+    v.write_all(src)?;
+    Ok(v)
+}
+
 fn read_png(filename: &str)
     -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Option<Vec<u8>>)>
 {
@@ -64,17 +71,24 @@ fn read_png(filename: &str)
     let mut decoder = Decoder::new(File::open(filename)?);
     decoder.set_transformations(Transformations::IDENTITY);
 
-    let (info, mut reader) = decoder.read_info()?;
+    let mut reader = decoder.read_info()?;
+    let info = reader.info();
 
     let mut header = Header::new();
     header.set_size(info.width, info.height)?;
     header.set_color(ColorType::try_from(info.color_type as u8)?,
                      info.bit_depth as u8)?;
 
-    let palette = reader.info().palette.clone();
-    let transparency = reader.info().trns.clone();
+    let palette = match info.palette {
+        Some(ref cow) => Some(expand(&cow[..])?),
+        None => None,
+    };
+    let transparency = match info.trns {
+        Some(ref cow) => Some(expand(&cow[..])?),
+        None => None,
+    };
 
-    let mut data = vec![0u8; info.buffer_size()];
+    let mut data = vec![0u8; reader.output_buffer_size()];
     reader.next_frame(&mut data)?;
 
     Ok((header, data, palette, transparency))
