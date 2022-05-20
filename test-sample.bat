@@ -29,6 +29,8 @@ if "x%1"=="xx86" (
     set target=x86_64-pc-windows-msvc
 )
 
+call VsDevCmd -arch=%arch% -host_arch=%hostarch%
+
 set x=%1
 shift
 cd samples

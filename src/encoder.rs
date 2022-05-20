@@ -754,7 +754,7 @@ impl<'a, W: Write> Encoder<'a, W> {
                             Ok(()) => ThreadMessage::DeflateDone(Arc::new(deflate)),
                             Err(e) => ThreadMessage::Error(e),
                         })
-                        .unwrap();
+                        .ok();
                     });
                 }
                 None => {
@@ -777,7 +777,7 @@ impl<'a, W: Write> Encoder<'a, W> {
                             Ok(()) => ThreadMessage::FilterDone(Arc::new(filter)),
                             Err(e) => ThreadMessage::Error(e),
                         })
-                        .unwrap();
+                        .ok();
                     });
                 }
                 None => {

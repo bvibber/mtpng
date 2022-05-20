@@ -19,10 +19,10 @@ miniz = ["miniz_oxide", "simd-adler32"]
 
 [dependencies]
 rayon = "1.5.1"
-crc = "2.1.0"
+crc = "3.0.0"
 libz-sys = { version = "1.1.3", optional = true}
 itertools = "0.10.1"
-miniz_oxide = { version = "0.4.4", optional = true }
+miniz_oxide = { version = "0.5.1", optional = true }
 simd-adler32 = { version = "0.3.4", optional = true }
 typenum = "1.14.0"
 
@@ -31,7 +31,7 @@ typenum = "1.14.0"
 libc = { version = "0.2.106", optional = true }
 
 [dev-dependencies]
-clap = "2.33.3"
+clap = "3.1.18"
 png = "0.17.2"
 rand = "0.8.4"
 time = "0.3.4"

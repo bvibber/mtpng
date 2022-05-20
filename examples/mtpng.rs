@@ -26,7 +26,7 @@
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io;
-use std::io::{Error, ErrorKind};
+use std::io::{Error, ErrorKind, Write};
 
 // CLI options
 use clap::{App, Arg, ArgMatches};
@@ -203,44 +203,44 @@ fn doit(args: ArgMatches) -> io::Result<()> {
 }
 
 pub fn main() {
-    let matches = App::new("mtpng parallel PNG encoder")
-        .version("0.3.5")
+    let matches = clap::Command::new("mtpng parallel PNG encoder")
+        .version("0.4.0")
         .author("Brion Vibber <brion@pobox.com>")
         .about("Re-encodes PNG images using multiple CPU cores to exercise the mtpng library.")
-        .arg(Arg::with_name("chunk-size")
+        .arg(Arg::new("chunk-size")
             .long("chunk-size")
             .value_name("bytes")
             .help("Divide image into chunks of at least this given size.")
             .takes_value(true))
-        .arg(Arg::with_name("filter")
+        .arg(Arg::new("filter")
             .long("filter")
             .value_name("filter")
             .help("Set a fixed filter: one of none, sub, up, average, or paeth."))
-        .arg(Arg::with_name("level")
+        .arg(Arg::new("level")
             .long("level")
             .value_name("level")
             .help("Set deflate compression level, from 1-9."))
-        .arg(Arg::with_name("strategy")
+        .arg(Arg::new("strategy")
             .long("strategy")
             .value_name("strategy")
             .help("Deflate strategy: one of filtered, huffman, rle, or fixed."))
-        .arg(Arg::with_name("streaming")
+        .arg(Arg::new("streaming")
             .long("streaming")
             .value_name("streaming")
             .help("Use streaming output mode; trades off file size for lower latency and memory usage"))
-        .arg(Arg::with_name("threads")
+        .arg(Arg::new("threads")
             .long("threads")
             .value_name("threads")
             .help("Override default number of threads."))
-        .arg(Arg::with_name("repeat")
+        .arg(Arg::new("repeat")
             .long("repeat")
             .value_name("n")
             .help("Run conversion n times, as load benchmarking helper."))
-        .arg(Arg::with_name("input")
+        .arg(Arg::new("input")
             .help("Input filename, must be another PNG.")
             .required(true)
             .index(1))
-        .arg(Arg::with_name("output")
+        .arg(Arg::new("output")
             .help("Output filename.")
             .required(true)
             .index(2))

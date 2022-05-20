@@ -2,34 +2,7 @@
 setlocal
 
 rem C API build script for Windows.
-
-
-rem no really, this is how you look this up
-rem https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/how-to-set-environment-variables-for-the-visual-studio-command-line
-
-set prog=C:\Program Files
-set prog86=C:\Program Files (x86)
-set vs=Microsoft Visual Studio\2019
-set common=Common7\Tools\VsDevCmd.bat
-if exist "%prog%\%vs%\Community\%common%" (
-    set VsDevCmd="%prog%\%vs%\Community\%common%"
-) else if exist "%prog%\%vs%\Professional\%common%" (
-    set VsDevCmd="%prog%\%vs%\Professional\%common%"
-) else if exist "%prog%\%vs%\Enterprise\%common%" (
-    set VsDevCmd="%prog%\%vs%\Enterprise\%common%"
-) else if exist "%prog%\%vs%\BuildTools\%common%" (
-    set VsDevCmd="%prog%\%vs%\BuildTools\%common%"
-) else if exist "%prog86%\%vs%\Community\%common%" (
-    set VsDevCmd="%prog86%\%vs%\Community\%common%"
-) else if exist "%prog86%\%vs%\Professional\%common%" (
-    set VsDevCmd="%prog86%\%vs%\Professional\%common%"
-) else if exist "%prog86%\%vs%\Enterprise\%common%" (
-    set VsDevCmd="%prog86%\%vs%\Enterprise\%common%"
-) else if exist "%prog86%\%vs%\BuildTools\%common%" (
-    set VsDevCmd="%prog86%\%vs%\BuildTools\%common%"
-) else (
-    echo "Could not find Visual Studio dev tools."
-)
+rem Must be run from a Visual Studio Dev Tools console window
 
 if "x%1"=="xx86" (
     set arch=x86
@@ -74,7 +47,7 @@ copy %RUSTLIBDIR%\mtpng.dll build\mtpng.dll
 
 
 rem Now set up and build our C app!
-call %VsDevCmd% -arch=%arch% -host_arch=%hostarch%
+call VsDevCmd -arch=%arch% -host_arch=%hostarch%
 
 %CC% %CFLAGS% /Fe%EXE% %SOURCES%  %LDFLAGS% /link
 if %errorlevel% neq 0 exit /b %errorlevel%
