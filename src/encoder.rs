@@ -989,7 +989,7 @@ impl<'a, W: Write> Encoder<'a, W> {
             Err(invalid_input("Buffer must be an integral number of rows"))
         } else {
             for row in buf.chunks(stride) {
-                self.process_row(&*row)?;
+                self.process_row(row)?;
             }
             Ok(())
         }
