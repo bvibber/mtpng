@@ -49,7 +49,23 @@ pub fn err(payload: &str) -> Error {
     Error::new(ErrorKind::Other, payload)
 }
 
-fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Option<Vec<u8>>)> {
+fn expand(src: &[u8]) -> io::Result<Vec<u8>>
+{
+    let mut v = Vec::new();
+    v.write_all(src)?;
+    Ok(v)
+}
+
+struct Image {
+    header: Header,
+    data: Vec<u8>,
+    palette: Option<Vec<u8>>,
+    transparency: Option<Vec<u8>>,
+}
+
+fn read_png(filename: &str)
+    -> io::Result<Image>
+{
     use png::Decoder;
     use png::Transformations;
 
@@ -78,18 +94,20 @@ fn read_png(filename: &str) -> io::Result<(Header, Vec<u8>, Option<Vec<u8>>, Opt
         .clone()
         .map(|x| x.iter().cloned().collect::<Vec<u8>>());
 
-    Ok((header, data, palette, transparency))
+    Ok(Image {
+        header,
+        data,
+        palette,
+        transparency
+    })
 }
 
-fn write_png(
-    pool: &ThreadPool,
-    args: &ArgMatches,
-    filename: &str,
-    header: &Header,
-    data: &[u8],
-    palette: &Option<Vec<u8>>,
-    transparency: &Option<Vec<u8>>,
-) -> io::Result<()> {
+fn write_png(pool: &ThreadPool,
+             args: &ArgMatches,
+             filename: &str,
+             image: &Image)
+   -> io::Result<()>
+{
     let writer = File::create(filename)?;
     let mut options = Options::new();
 
@@ -144,16 +162,16 @@ fn write_png(
     let mut encoder = Encoder::new(writer, &options);
 
     // Image data
-    encoder.write_header(header)?;
-    match palette {
+    encoder.write_header(&image.header)?;
+    match &image.palette {
         Some(v) => encoder.write_palette(v)?,
-        None => {}
+        None => {},
     }
-    match transparency {
+    match &image.transparency {
         Some(v) => encoder.write_transparency(v)?,
-        None => {}
+        None => {},
     }
-    encoder.write_image_rows(data)?;
+    encoder.write_image_rows(&image.data)?;
     encoder.finish()?;
 
     Ok(())
@@ -181,19 +199,11 @@ fn doit(args: ArgMatches) -> io::Result<()> {
     let outfile = args.value_of("output").unwrap();
 
     println!("{} -> {}", infile, outfile);
-    let (header, data, palette, transparency) = read_png(infile)?;
+    let image = read_png(infile)?;
 
     for _i in 0..reps {
         let start_time = OffsetDateTime::now_utc();
-        write_png(
-            &pool,
-            &args,
-            outfile,
-            &header,
-            &data,
-            &palette,
-            &transparency,
-        )?;
+        write_png(&pool, &args, outfile, &image)?;
         let delta = OffsetDateTime::now_utc() - start_time;
 
         println!("Done in {} ms", (delta.as_seconds_f64() * 1000.0).round());
