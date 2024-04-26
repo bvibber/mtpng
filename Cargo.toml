@@ -1,18 +1,24 @@
 [package]
 name = "mtpng"
-version = "0.4.0"
-authors = ["Brion Vibber <brion@pobox.com>"]
+version = "0.4.1"
+authors = ["Brooke Vibber <bvibber@pobox.com>"]
 license = "MIT"
 description = "Multithreaded PNG encoder library"
 readme = "readme.md"
-homepage = "https://github.com/brion/mtpng"
-repository = "https://github.com/brion/mtpng.git"
+homepage = "https://github.com/bvibber/mtpng"
+repository = "https://github.com/bvibber/mtpng.git"
 keywords = ["png", "multithreaded", "threaded", "parallel"]
 categories = ["multimedia::images"]
 
 [features]
+
+# Rust-only
 default=[]
+
+# include command-line tool
 cli=["png", "clap", "time"]
+
+# include C symbol exports
 capi=["libc"]
 
 [[bin]]
@@ -26,12 +32,12 @@ crc = "1.8.1"
 libz-sys = "1.0.23"
 itertools = "0.10.0"
 
-# for cli
+# implied deps for cli
 png = { version = "0.17.5", optional = true }
 clap = { version = "3.1.12", optional = true }
 time = { version = "0.3.9", optional = true }
 
-# for capi
+# implied deps for capi
 libc = { version = "0.2.43", optional = true }
 
 [lib]

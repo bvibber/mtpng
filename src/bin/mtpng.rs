@@ -2,7 +2,7 @@
 // mtpng - a multithreaded parallel PNG encoder in Rust
 // mtpng.rs - CLI utility for testing and Rust API example
 //
-// Copyright (c) 2018 Brion Vibber
+// Copyright (c) 2018-2024 Brooke Vibber
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -221,8 +221,8 @@ fn doit(args: ArgMatches) -> io::Result<()> {
 
 pub fn main() {
     let matches = Command::new("mtpng parallel PNG encoder")
-        .version("0.4.0")
-        .author("Brion Vibber <brion@pobox.com>")
+        .version("0.4.1")
+        .author("Brooke Vibber <bvibber@pobox.com>")
         .about("Re-encodes PNG images using multiple CPU cores to exercise the mtpng library.")
         .arg(Arg::new("chunk-size")
             .long("chunk-size")

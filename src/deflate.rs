@@ -2,7 +2,7 @@
 // mtpng - a multithreaded parallel PNG encoder in Rust
 // deflate.rs - wrapper for libz_sys suitable for making chunked deflate streams
 //
-// Copyright (c) 2018 Brion Vibber
+// Copyright (c) 2018-2024 Brooke Vibber
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
