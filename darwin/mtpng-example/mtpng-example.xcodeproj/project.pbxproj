@@ -113,7 +113,7 @@
 			attributes = {
 				LastSwiftUpdateCheck = 1000;
 				LastUpgradeCheck = 1000;
-				ORGANIZATIONNAME = "Brion Vibber";
+				ORGANIZATIONNAME = "Brooke Vibber";
 				TargetAttributes = {
 					D4CCEB3B21527618001DB9D9 = {
 						CreatedOnToolsVersion = 10.0;
@@ -317,7 +317,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../mtpng/";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.brionv.mtpng-example";
+				PRODUCT_BUNDLE_IDENTIFIER = "net.vibber.brooke.mtpng-example";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../mtpng";
 				SWIFT_VERSION = 4.2;
@@ -340,7 +340,7 @@
 					"@executable_path/Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../mtpng/";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.brionv.mtpng-example";
+				PRODUCT_BUNDLE_IDENTIFIER = "net.vibber.brooke.mtpng-example";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../mtpng";
 				SWIFT_VERSION = 4.2;

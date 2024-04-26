@@ -2,7 +2,7 @@
 
 A parallelized PNG encoder in Rust
 
-by Brion Vibber <brion@pobox.com>
+by Brooke Vibber <bvibber@pobox.com>
 
 # Background
 
@@ -44,7 +44,7 @@ Compatibility:
 
 ## Compression
 
-Compression ratio is a tiny fraction worse than libpng with the dual-4K screenshot and the [arch photo](https://raw.githubusercontent.com/brion/mtpng/master/samples/arch-640.png) at the current default 256 KiB chunk size, getting closer the larger you increase it.
+Compression ratio is a tiny fraction worse than libpng with the dual-4K screenshot and the [arch photo](https://raw.githubusercontent.com/bvibber/mtpng/master/samples/arch-640.png) at the current default 256 KiB chunk size, getting closer the larger you increase it.
 
 Using a smaller chunk size, or enabling streaming mode, will increase the file size slightly more in exchange for greater parallelism (small chunks) and lower latency to bytes hitting the wire (streaming).
 
@@ -54,15 +54,25 @@ In 0.3.5 a correction was made to the filter heuristic algorithm to match libpng
 
 Note that unoptimized debug builds are about 50x slower than optimized release builds. Always run with `--release`!
 
-As of September 26, 2018 with Rust 1.29.0, single-threaded performance on Linux x86_64 is ~30-40% faster than libpng saving the same [dual-4K screenshot sample image](https://raw.githubusercontent.com/brion/mtpng/master/samples/dual4k.png) on Linux and macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
+As of September 26, 2018 with Rust 1.29.0, single-threaded performance on Linux x86_64 is ~30-40% faster than libpng saving the same [dual-4K screenshot sample image](https://raw.githubusercontent.com/bvibber/mtpng/master/samples/dual4k.png) on Linux and macOS x86_64. Using multiple threads consistently beats libpng by a lot, and scales reasonably well at least to 8 physical cores.
 
-See [docs/perf.md](https://github.com/brion/mtpng/blob/master/docs/perf.md) for informal benchmarks on various devices.
+See [docs/perf.md](https://github.com/bvibber/mtpng/blob/master/docs/perf.md) for informal benchmarks on various devices.
 
 At the default settings, files whose uncompressed data is less than 128 KiB will not see any multi-threading gains, but may still run faster than libpng due to faster filtering.
 
 ## Todos
 
-See the [projects list on GitHub](https://github.com/brion/mtpng/projects) for active details.
+See the [projects list on GitHub](https://github.com/bvibber/mtpng/projects) for active details.
+
+# Build instructions
+
+A Cargo build process is used; note that libz_sys is pulled in which may build the zlib C library on some platforms that don't ship it standard like Windows.
+
+There are two user-visible feature flags:
+* `capi` builds and exports the C-compatible API symbols; only needed if you're going to link the resulting library with C/C++ code that calls it
+* `cli` builds the command-line tool for testing/demo as well as the library
+
+To use mtpng in a pure Rust program, or only in the Rust part of a mixed C-Rust program, it is not required to use either flag.
 
 # Usage
 
@@ -72,7 +82,7 @@ Note: the Rust and C APIs are not yet stable, and will change before 1.0.
 
 See the [crate API docs](https://docs.rs/mtpng/latest/mtpng/) for details.
 
-The [mtpng CLI tool](https://github.com/brion/mtpng/blob/master/src/bin/mtpng.rs) can be used as an example of writing files.
+The [mtpng CLI tool](https://github.com/bvibber/mtpng/blob/master/src/bin/mtpng.rs) can be used as an example of writing files.
 
 In short, something like this:
 
@@ -94,21 +104,21 @@ encoder.finish()?;
 
 ## C usage
 
-See [c/mtpng.h](https://github.com/brion/mtpng/blob/master/c/mtpng.h) for a C header file which connects to unsafe-Rust wrapper functions in the [mtpng::capi](https://github.com/brion/mtpng/blob/master/src/capi.rs) module.
+See [c/mtpng.h](https://github.com/bvibber/mtpng/blob/master/c/mtpng.h) for a C header file which connects to unsafe-Rust wrapper functions in the [mtpng::capi](https://github.com/bvibber/mtpng/blob/master/src/capi.rs) module.
 
 To build the C sample on Linux or macOS, run `make`. On Windows, run `build-win.bat x64` for an x86-64 native build, or pass `x86` or `arm64` to build for those platforms.
 
-These will build a `sample` executable from [sample.c](https://github.com/brion/mtpng/blob/master/c/sample.c) as well as a `libmtpng.so`, `libmtpng.dylib`, or `mtpng.dll` for it to link. It produces an output file in `out/csample.png`.
+These will build a `sample` executable from [sample.c](https://github.com/bvibber/mtpng/blob/master/c/sample.c) as well as a `libmtpng.so`, `libmtpng.dylib`, or `mtpng.dll` for it to link. It produces an output file in `out/csample.png`.
 
 # Data flow
 
 Encoding can be broken into many parallel blocks:
 
-![Encoder data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/docs/data-flow-write.png)
+![Encoder data flow diagram](https://raw.githubusercontent.com/bvibber/mtpng/master/docs/data-flow-write.png)
 
 Decoding cannot; it must be run as a stream, but can pipeline (not yet implemented):
 
-![Decoder data flow diagram](https://raw.githubusercontent.com/brion/mtpng/master/docs/data-flow-read.png)
+![Decoder data flow diagram](https://raw.githubusercontent.com/bvibber/mtpng/master/docs/data-flow-read.png)
 
 # Dependencies
 
@@ -130,7 +140,7 @@ Decoding cannot; it must be run as a stream, but can pipeline (not yet implement
 
 You may use this software under the following MIT-style license:
 
-Copyright (c) 2018-2022 Brion Vibber
+Copyright (c) 2018-2024 Brooke Vibber
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

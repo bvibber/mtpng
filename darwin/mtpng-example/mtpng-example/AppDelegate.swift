@@ -2,8 +2,8 @@
 //  AppDelegate.swift
 //  mtpng-example
 //
-//  Created by Brion on 9/19/18.
-//  Copyright © 2018 Brion Vibber. All rights reserved.
+//  Created by Brooke on 9/19/18.
+//  Copyright © 2018-2024 Brooke Vibber. All rights reserved.
 //
 
 import UIKit
