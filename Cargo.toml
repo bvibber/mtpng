@@ -13,7 +13,16 @@ categories = ["multimedia::images"]
 [features]
 
 # Rust-only
-default=[]
+default=["zlib-rs"]
+
+# use zlib-rs, a Rust implementation of zlib API that's safer and much faster than the C one
+zlib-rs = ["libz-rs-sys"]
+
+# Use plain old zlib that's slow and not memory-safe.
+# Use this together with `--no-default-features` to avoid linking conflicts
+# when using C API when other parts of the C program also use plain old zlib.
+# If both zlib and zlib-rs features are enabled (e.g. via --all-features), zlib-rs is used.
+zlib = ["libz-sys"]
 
 # include command-line tool
 cli=["png", "clap", "time"]
@@ -29,7 +38,6 @@ required-features=["cli"]
 [dependencies]
 rayon = "1.5.0"
 crc = "1.8.1"
-libz-sys = "1.0.23"
 itertools = "0.10.0"
 
 # implied deps for cli
@@ -39,6 +47,10 @@ time = { version = "0.3.9", optional = true }
 
 # implied deps for capi
 libc = { version = "0.2.43", optional = true }
+
+
+libz-rs-sys = { version = "0.4.0", optional = true }
+libz-sys = { version = "1.0.23", optional = true }
 
 [lib]
 crate-type = ["rlib", "cdylib", "staticlib"]
