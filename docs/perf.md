@@ -1,5 +1,102 @@
 # Performance
 
+Testing encoding the dual-4K screenshot at default options, single-threaded and again with all logical processors engaged; use fastest run in each command:
+
+```
+cargo run --release --features=cli -- --repeat=10 samples/dual4k.png /dev/null
+cargo run --release --features=cli -- --repeat=10 --threads=1 samples/dual4k.png /dev/null
+```
+
+(substitute `NUL` for `/dev/null` on Windows native builds)
+
+@fixme how did I measure those libpng times? need to recreate that
+
+@fixme how do we reliably get a faster zlib for win32?
+
+
+## 2026 data
+
+### Apple M3 Max
+
+MacBook Pro 16" Nov 2023
+Apple M3 Max
+16 logical cores (12P/4E)
+
+macOS 15:
+- mtpng @ 16 threads:  23 ms
+- mtpng @ 1 thread:   237 ms
+
+### AMD Ryzen 9 5950X
+
+Home-built PC (2020s, AM4 socket)
+AMD Ryzen 9 5950X
+32 logical cores (16C/32T)
+
+Linux Debian 13:
+- mtpng @ 32 threads:  25 ms
+- mtpng @ 1 thread:   301 ms
+
+Windows 11:
+- mtpng @ 32 threads:  31 ms
+- mtpng @ 1 thread:   403 ms
+
+### Apple M1
+
+MacBook Air 13" 2020
+Apple M1
+8 logical cores (4P/4E)
+
+macOS 15:
+- mtpng @ 8 threads:   62 ms
+- mtpng @ 1 thread:   296 ms
+
+### Intel Xeon E5520
+
+Dell Precision 5500T Workstation (2009)
+2x Intel Xeon E5520
+16 logical cores (8C/16T)
+
+Linux Debian 13:
+- mtpng @ 16 threads: 113 ms
+- mtpng @ 1 threads:  923 ms
+
+### Microsoft SQ1
+
+Surface Pro X (2020)
+Microsoft SQ1 (customized Qualcomm Snapdragon 8cx)
+8 logical cores (4P/4E)
+
+Linux Debian 13 (WSL2):
+* mtpng @ 8 threads: 151 ms
+* mtpng @ 1 thread:  655 ms
+
+Windows 11 25H2:
+* mtpng @ 8 threads: 157 ms
+* mtpng @ 1 thread:  679 ms
+
+### Raspberry Pi 4b
+
+Raspberry Pi 4b
+(Some kind of aarch64)
+4 logical cores (4C)
+
+Linux Debian 13:
+- mtpng @ 4 threads:  512 ms
+- mtpng @ 1 thread:  1645 ms
+
+### Raspberry Pi 3b+
+
+Raspberry Pi 3b+
+(Some kind of aarch64)
+4 logical cores (4C)
+
+Linux Debian 13:
+- mtpng @ 4 threads: 1008 ms
+- mtpng @ 1 thread:  2977 ms
+
+
+## Old performance data
+
 Times for re-encoding the dual-4K screenshot at default options:
 
 ```
