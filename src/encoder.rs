@@ -1029,8 +1029,14 @@ mod tests {
     use super::IoResult;
 
     use std::io;
-
+    
     fn test_encoder<F>(width: u32, height: u32, func: F)
+        where F: Fn(&mut Encoder<Vec<u8>>, &[u8]) -> IoResult
+    {
+        test_encoder_with_options(width, height, Options::default(), func)
+    }
+
+    fn test_encoder_with_options<F>(width: u32, height: u32, options: Options, func: F)
         where F: Fn(&mut Encoder<Vec<u8>>, &[u8]) -> IoResult
     {
         match {
@@ -1088,6 +1094,24 @@ mod tests {
             encoder.flush()?;
             assert_eq!(encoder.is_finished(), true);
             assert_eq!(encoder.progress(), 1.0);
+
+            Ok(())
+        });
+    }
+    
+    #[test]
+    fn test_chunk_size_less_than_one_row() {
+        let mut options = Options::new();
+        options.set_chunk_size(256 * 1024).expect("Chunk size is at least 32 KiB");
+        
+        test_encoder_with_options((256 + 1) * 1024, 256, options, |encoder, data| {
+            assert_eq!(encoder.is_finished(), false);
+            assert_eq!(encoder.progress(), 0.0);
+
+            // We must finish out the file or it'll whinge.
+            for _y in 0 .. 256 {
+                encoder.write_image_rows(data)?;
+            }
 
             Ok(())
         });
