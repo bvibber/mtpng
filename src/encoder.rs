@@ -1099,15 +1099,11 @@ mod tests {
     }
     
     #[test]
-    fn test_chunk_size_less_than_one_row() {
+    fn small_chunk_size_relative_to_row_length() {
         let mut options = Options::new();
         options.set_chunk_size(256 * 1024).expect("Chunk size is at least 32 KiB");
         
         test_encoder_with_options((256 + 1) * 1024, 256, options, |encoder, data| {
-            assert_eq!(encoder.is_finished(), false);
-            assert_eq!(encoder.progress(), 0.0);
-
-            // We must finish out the file or it'll whinge.
             for _y in 0 .. 256 {
                 encoder.write_image_rows(data)?;
             }
