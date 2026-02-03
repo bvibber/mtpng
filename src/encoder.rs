@@ -818,7 +818,7 @@ impl<'a, W: Write> Encoder<'a, W> {
         self.header = *header;
         
         let chunk_size = self.options.chunk_size;
-        let stride = self.header.stride();
+        let stride = self.header.stride() + 1;
         let height = self.header.height as usize;
         
         self.rows_per_chunk = chunk_size.div_ceil(stride);
