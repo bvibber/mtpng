@@ -548,6 +548,7 @@ pub struct Encoder<'a, W: Write> {
 
     chunks_total: usize,
     chunks_output: usize,
+    rows_per_chunk: usize,
 
     // Accumulates input rows until enough are ready to fire off a filter job.
     pixel_accumulator: Arc<PixelChunk>,
@@ -588,6 +589,7 @@ impl<'a, W: Write> Encoder<'a, W> {
 
             chunks_total: 0,
             chunks_output: 0,
+            rows_per_chunk: 0,
 
             // hack, clean this up later
             pixel_accumulator: Arc::new(PixelChunk::new(Header::new(), 0, 0, 0)),
@@ -654,11 +656,12 @@ impl<'a, W: Write> Encoder<'a, W> {
     }
 
     fn start_row(&self, index: usize) -> usize {
-        index * self.header.height() as usize / self.chunks_total
+        index * self.rows_per_chunk
     }
 
     fn end_row(&self, index: usize) -> usize {
         self.start_row(index + 1)
+            .min(self.header.height as usize)
     }
 
     fn receive(&mut self, blocking: DispatchMode) -> Option<ThreadMessage> {
@@ -813,16 +816,13 @@ impl<'a, W: Write> Encoder<'a, W> {
         }
 
         self.header = *header;
-
+        
+        let chunk_size = self.options.chunk_size;
         let stride = self.header.stride() + 1;
         let height = self.header.height as usize;
-
-        let chunks = stride * height / self.options.chunk_size;
-        self.chunks_total = if chunks < 1 {
-            1
-        } else {
-            chunks
-        };
+        
+        self.rows_per_chunk = chunk_size.div_ceil(stride);
+        self.chunks_total = height.div_ceil(self.rows_per_chunk);
 
         self.pixel_chunks.advance();
         self.pixel_accumulator = Arc::new(PixelChunk::new(self.header,
@@ -1029,8 +1029,14 @@ mod tests {
     use super::IoResult;
 
     use std::io;
-
+    
     fn test_encoder<F>(width: u32, height: u32, func: F)
+        where F: Fn(&mut Encoder<Vec<u8>>, &[u8]) -> IoResult
+    {
+        test_encoder_with_options(width, height, Options::default(), func)
+    }
+
+    fn test_encoder_with_options<F>(width: u32, height: u32, options: Options, func: F)
         where F: Fn(&mut Encoder<Vec<u8>>, &[u8]) -> IoResult
     {
         match {
@@ -1041,7 +1047,6 @@ mod tests {
                 }
 
                 let writer = Vec::<u8>::new();
-                let options = Options::new();
                 let mut encoder = Encoder::new(writer, &options);
 
                 let mut header = Header::new();
@@ -1088,6 +1093,20 @@ mod tests {
             encoder.flush()?;
             assert_eq!(encoder.is_finished(), true);
             assert_eq!(encoder.progress(), 1.0);
+
+            Ok(())
+        });
+    }
+    
+    #[test]
+    fn small_chunk_size_relative_to_row_length() {
+        let mut options = Options::new();
+        options.set_chunk_size(256 * 1024).expect("Chunk size is at least 32 KiB");
+        
+        test_encoder_with_options((256 + 1) * 1024, 256, options, |encoder, data| {
+            for _y in 0 .. 256 {
+                encoder.write_image_rows(data)?;
+            }
 
             Ok(())
         });
