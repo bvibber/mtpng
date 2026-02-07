@@ -34,25 +34,31 @@ use std::convert::TryFrom;
 
 use std::os::raw::*;
 
-use ::libz_sys::*;
+#[cfg(feature = "zlib-rs")]
+use libz_rs_sys as libz_sys;
+#[cfg(feature = "zlib-rs")]
+use libz_rs_sys::*;
+#[cfg(all(feature = "zlib", not(feature = "zlib-rs")))]
+use libz_sys::*;
 
 use super::utils::*;
 
 pub fn adler32(sum: u32, bytes: &[u8]) -> u32 {
     unsafe {
-        ::libz_sys::adler32(c_ulong::from(sum), &bytes[0], bytes.len() as c_uint) as u32
+        libz_sys::adler32(c_ulong::from(sum), &bytes[0], bytes.len() as c_uint) as u32
     }
 }
 
 pub fn adler32_initial() -> u32 {
     unsafe {
-        ::libz_sys::adler32(0, ptr::null(), 0) as u32
+        libz_sys::adler32(0, ptr::null(), 0) as u32
     }
 }
 
 pub fn adler32_combine(sum_a: u32, sum_b: u32, len_b: usize) -> u32 {
+    #[allow(unused_unsafe)] // this function is marked safe in libz-rs-sys
     unsafe {
-        ::libz_sys::adler32_combine(c_ulong::from(sum_a), c_ulong::from(sum_b), len_b as c_long) as u32
+        libz_sys::adler32_combine(c_ulong::from(sum_a), c_ulong::from(sum_b), len_b as c_long) as u32
     }
 }
 

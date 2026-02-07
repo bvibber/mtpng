@@ -27,7 +27,13 @@
 
 extern crate rayon;
 extern crate crc;
+
+// Select the zlib implementation
+#[cfg(feature = "zlib-rs")]
+extern crate libz_rs_sys;
+#[cfg(all(feature = "zlib", not(feature = "zlib-rs")))]
 extern crate libz_sys;
+
 #[macro_use] extern crate itertools;
 
 #[cfg(feature="capi")]
