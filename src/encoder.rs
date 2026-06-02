@@ -929,11 +929,11 @@ impl<'a, W: Write> Encoder<'a, W> {
         if !self.wrote_header {
             return Err(invalid_input("Cannot write image data before header."));
         }
-        if let ColorType::IndexedColor = self.header.color_type {
-            if !self.wrote_palette {
-                return Err(invalid_input("Cannot write indexed-color image data before palette."));
-            }
+        if let ColorType::IndexedColor = self.header.color_type &&
+            !self.wrote_palette {
+            return Err(invalid_input("Cannot write indexed-color image data before palette."));
         }
+
         if !self.started_image {
             self.started_image = true;
         }

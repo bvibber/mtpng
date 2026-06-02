@@ -9,6 +9,7 @@ homepage = "https://github.com/bvibber/mtpng"
 repository = "https://github.com/bvibber/mtpng.git"
 keywords = ["png", "multithreaded", "threaded", "parallel"]
 categories = ["multimedia::images"]
+edition = "2024"
 
 [features]
 
