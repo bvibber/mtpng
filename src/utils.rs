@@ -35,7 +35,7 @@ pub fn invalid_input(payload: &str) -> Error
 
 pub fn other(payload: &str) -> Error
 {
-    Error::new(ErrorKind::Other, payload)
+    Error::other(payload)
 }
 
 pub fn write_be32<W: Write>(w: &mut W, val: u32) -> IoResult {

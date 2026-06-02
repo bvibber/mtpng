@@ -215,7 +215,7 @@ fn filter_complexity_delta(val: u8) -> u32 {
 // without overflow.
 //
 fn complexity_max() -> u32 {
-    u32::max_value() - 256
+    u32::MAX - 256
 }
 
 //

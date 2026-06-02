@@ -488,13 +488,13 @@ impl<T> ChunkMap<T> {
     }
 
     fn pop_front(&mut self) -> Option<(Option<Arc<T>>, Arc<T>)> {
-        match self.chunks.get(0) {
+        match self.chunks.front() {
             Some(Some(_)) => {
                 // Ok we're good we have something
                 self.cursor_out += 1;
                 match self.chunks.pop_front() {
                     Some(Some(item)) => {
-                        let prev = std::mem::replace(&mut self.prev, Some(Arc::clone(&item)));
+                        let prev = Option::replace(&mut self.prev, Arc::clone(&item));
                         Some((prev, item))
                     },
                     _ => {
@@ -666,14 +666,8 @@ impl<'a, W: Write> Encoder<'a, W> {
 
     fn receive(&mut self, blocking: DispatchMode) -> Option<ThreadMessage> {
         match blocking {
-            DispatchMode::Blocking => match self.rx.recv() {
-                Ok(msg) => Some(msg),
-                _ => None,
-            },
-            DispatchMode::NonBlocking => match self.rx.try_recv() {
-                Ok(msg) => Some(msg),
-                _ => None,
-            }
+            DispatchMode::Blocking => self.rx.recv().ok(),
+            DispatchMode::NonBlocking => self.rx.try_recv().ok()
         }
     }
 
@@ -858,7 +852,7 @@ impl<'a, W: Write> Encoder<'a, W> {
         if palette.len() < 3 {
             return Err(invalid_input("Palette must have at least one entry."));
         }
-        if palette.len() % 3 != 0 {
+        if !palette.len().is_multiple_of(3) {
             return Err(invalid_input("Palette must have an integral number of entries."));
         }
 
@@ -985,7 +979,7 @@ impl<'a, W: Write> Encoder<'a, W> {
     /// required to finish out the data.
     pub fn write_image_rows(&mut self, buf: &[u8]) -> IoResult {
         let stride = self.header.stride();
-        if buf.len() % stride != 0 {
+        if !buf.len().is_multiple_of(stride) {
             Err(invalid_input("Buffer must be an integral number of rows"))
         } else {
             for row in buf.chunks(stride) {

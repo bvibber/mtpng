@@ -97,7 +97,7 @@ impl<W: Write> Writer<W> {
         if tag.len() != 4 {
             return Err(invalid_input("Chunk tags must be 4 bytes"));
         }
-        if data.len() > u32::max_value() as usize {
+        if data.len() > u32::MAX as usize {
             return Err(invalid_input("Data chunks cannot exceed 4 GiB - 1 byte"));
         }
 
