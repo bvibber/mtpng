@@ -30,7 +30,7 @@ required-features=["cli"]
 [dependencies]
 rayon = "1.5.0"
 crc = "1.8.1"
-libz-sys = "1.0.23"
+libz-sys = "1.1.29"
 itertools = "0.10.0"
 
 # implied deps for cli
