@@ -6,6 +6,7 @@ Cargo.lock
 cachegrind.out.*
 /perf.*
 /build
+/sample.obj
 /darwin/mtpng
 xcuserdata
 .vscode
