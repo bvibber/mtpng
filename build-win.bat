@@ -27,12 +27,7 @@ if "x%1"=="xx86" (
 
 set CARGO=cargo
 set PROFILE=release
-set RUSTLIBDIR=target\%TARGET%\%PROFILE%
-
-rem This is all hacky and not gonna help with cross-compiling. :D
-set CC=cl
-set CFLAGS=
-set LDFLAGS=build\mtpng.lib
+set RUSTLIBDIR=target\%target%\%PROFILE%
 
 set SOURCES=c\sample.c
 set HEADERS=c\mtpng.h
@@ -49,6 +44,11 @@ copy %RUSTLIBDIR%\mtpng.dll build\mtpng.dll
 rem Now set up and build our C app!
 call VsDevCmd -arch=%arch% -host_arch=%hostarch%
 
+rem This is all hacky and not gonna help with cross-compiling. :D
+rem Warning: do not set CC before calling cargo! It will explode.
+set CC=cl
+set CFLAGS=
+set LDFLAGS=build\mtpng.lib
 %CC% %CFLAGS% /Fe%EXE% %SOURCES%  %LDFLAGS% /link
 if %errorlevel% neq 0 exit /b %errorlevel%
 

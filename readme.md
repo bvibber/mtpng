@@ -4,7 +4,7 @@ A parallelized PNG encoder in Rust
 
 by Brooke Vibber <bvibber@pobox.com>
 
-# Background
+## Background
 
 Compressing PNG files is a relatively slow operation at large image sizes, and can take from half a second to over a second for 4K resolution and beyond. See [my blog post series on the subject](https://brionv.com/log/2018/08/29/parallelizing-png-compression-part-1/) for more details.
 
@@ -14,17 +14,19 @@ The biggest CPU costs in traditional libpng seem to be the filtering, which is e
 
 I was also inspired by an experimental C++/OpenMP project called `png-parallel` by Pascal Beyeler, which didn't implement filtering but confirmed the basic theory.
 
-# State
+## State
 
 Creates correct files in all color formats (input must be pre-packed). Performs well on large files, but needs work for small files and ancillary chunks. Planning API stability soon, but not yet there -- things will change before 1.0.
 
-## Goals
+### Goals
 
 Performance:
+
 * ☑️ MUST be faster than libpng when multi-threaded
 * ☑️ SHOULD be as fast as or faster than libpng when single-threaded
 
 Functionality:
+
 * ☑️ MUST support all standard color types and depths
 * ☑️ MUST support all standard filter modes
 * ☑️ MUST compress within a few percent as well as libpng
@@ -33,6 +35,7 @@ Functionality:
 * MAY support interlacing
 
 Compatibility:
+
 * MUST have a good Rust API (in progress)
 * MUST have a good C API (in progress)
 * ☑️ MUST work on Linux x86, x86_64
@@ -42,7 +45,13 @@ Compatibility:
 * ☑️ SHOULD work on Windows x86, x86_64
 * ☑️️ SHOULD work on Windows arm64
 
-## Compression
+### History
+
+* 2026-06: 0.5.0 renames encoder binary to `mtpngenc` to avoid ambiguity with the library itself
+* ...
+* 2018: early experiments
+
+### Compression
 
 Compression ratio is a tiny fraction worse than libpng with the dual-4K screenshot and the [arch photo](https://raw.githubusercontent.com/bvibber/mtpng/master/samples/arch-640.png) at the current default 256 KiB chunk size, getting closer the larger you increase it.
 
@@ -50,7 +59,7 @@ Using a smaller chunk size, or enabling streaming mode, will increase the file s
 
 In 0.3.5 a correction was made to the filter heuristic algorithm to match libpng in some circumstances where it differs; this should provide very similar results to libpng when used as a drop-in replacement now. Later research may involve changing the heuristic, as it fails to correctly predict good performance of the "none" filter on many screenshot-style true color images.
 
-## Performance
+### Performance
 
 Note that unoptimized debug builds are about 50x slower than optimized release builds. Always run with `--release`!
 
@@ -60,25 +69,26 @@ See [docs/perf.md](https://github.com/bvibber/mtpng/blob/master/docs/perf.md) fo
 
 At the default settings, files whose uncompressed data is less than 128 KiB will not see any multi-threading gains, but may still run faster than libpng due to faster filtering.
 
-## Todos
+### Todos
 
 See the [projects list on GitHub](https://github.com/bvibber/mtpng/projects) for active details.
 
-# Build instructions
+## Build instructions
 
 A Cargo build process is used; note that libz_sys is pulled in which may build the zlib C library on some platforms that don't ship it standard like Windows.
 
 There are two user-visible feature flags:
-* `capi` builds and exports the C-compatible API symbols; only needed if you're going to link the resulting library with C/C++ code that calls it
-* `cli` builds the command-line tool for testing/demo as well as the library
+
+* `capi` builds and exports the C-compatible API symbols in `libmtpng.so` / `mtpng.dll`; only needed if you're going to link the resulting library with C/C++ code that calls it
+* `cli` builds the command-line tool `mtpngenc` for testing/demo as well as the library
 
 To use mtpng in a pure Rust program, or only in the Rust part of a mixed C-Rust program, it is not required to use either flag.
 
-# Usage
+## Usage
 
 Note: the Rust and C APIs are not yet stable, and will change before 1.0.
 
-## Rust usage
+### Rust usage
 
 See the [crate API docs](https://docs.rs/mtpng/latest/mtpng/) for details.
 
@@ -102,7 +112,7 @@ encoder.write_image_rows(&data)?;
 encoder.finish()?;
 ```
 
-## C usage
+### C usage
 
 See [c/mtpng.h](https://github.com/bvibber/mtpng/blob/master/c/mtpng.h) for a C header file which connects to unsafe-Rust wrapper functions in the [mtpng::capi](https://github.com/bvibber/mtpng/blob/master/src/capi.rs) module.
 
@@ -110,7 +120,7 @@ To build the C sample on Linux or macOS, run `make`. On Windows, run `build-win.
 
 These will build a `sample` executable from [sample.c](https://github.com/bvibber/mtpng/blob/master/c/sample.c) as well as a `libmtpng.so`, `libmtpng.dylib`, or `mtpng.dll` for it to link. It produces an output file in `out/csample.png`.
 
-# Data flow
+## Data flow
 
 Encoding can be broken into many parallel blocks:
 
@@ -120,7 +130,7 @@ Decoding cannot; it must be run as a stream, but can pipeline (not yet implement
 
 ![Decoder data flow diagram](https://raw.githubusercontent.com/bvibber/mtpng/master/docs/data-flow-read.png)
 
-# Dependencies
+## Dependencies
 
 [Rayon](https://crates.io/crates/rayon) is used for its ThreadPool implementation. You can create an encoder using either the default Rayon global pool or a custom ThreadPool instance.
 
@@ -136,11 +146,11 @@ Decoding cannot; it must be run as a stream, but can pipeline (not yet implement
 
 [time](https://crates.io/crates/time) is used by the CLI tool to time compression.
 
-# License
+## License
 
 You may use this software under the following MIT-style license:
 
-Copyright (c) 2018-2024 Brooke Vibber
+Copyright (c) 2018-2026 Brooke Vibber
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

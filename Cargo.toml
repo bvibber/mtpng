@@ -1,6 +1,6 @@
 [package]
 name = "mtpng"
-version = "0.4.1"
+version = "0.5.0"
 authors = ["Brooke Vibber <bvibber@pobox.com>"]
 license = "MIT"
 description = "Multithreaded PNG encoder library"
@@ -23,8 +23,8 @@ cli=["png", "clap", "time"]
 capi=["libc"]
 
 [[bin]]
-name="mtpng"
-path="src/bin/mtpng.rs"
+name="mtpngenc"
+path="src/bin/mtpngenc.rs"
 required-features=["cli"]
 
 [dependencies]
