@@ -174,7 +174,7 @@ pub type PEncoder = *mut CEncoder;
 pub type PHeader = *mut Header;
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_threadpool_new(pp_pool: *mut PThreadPool, threads: size_t)
 -> CResult
@@ -183,18 +183,20 @@ fn mtpng_threadpool_new(pp_pool: *mut PThreadPool, threads: size_t)
         if pp_pool.is_null() {
             return Err(invalid_input("pp_pool must not be null"));
         }
-        if !(*pp_pool).is_null() {
+        if !(unsafe { *pp_pool }).is_null() {
             return Err(invalid_input("*pp_pool must be null"))
         }
         let pool = ThreadPoolBuilder::new().num_threads(threads)
                                             .build()
                                             .map_err(|err| other(&err.to_string()))?;
-        *pp_pool = Box::into_raw(Box::new(pool));
+        unsafe {
+            *pp_pool = Box::into_raw(Box::new(pool));
+        }
         Ok(())
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_threadpool_release(pp_pool: *mut PThreadPool)
 -> CResult
@@ -203,17 +205,19 @@ fn mtpng_threadpool_release(pp_pool: *mut PThreadPool)
         if pp_pool.is_null() {
             return Err(invalid_input("pp_pool must not be null"));
         }
-        if (*pp_pool).is_null() {
+        if (unsafe { *pp_pool }).is_null() {
             return Err(invalid_input("*pp_pool must not be null"));
         }
-        drop(Box::from_raw(*pp_pool));
-        *pp_pool = ptr::null_mut();
+        unsafe {
+            drop(Box::from_raw(*pp_pool));
+            *pp_pool = ptr::null_mut();
+        }
         Ok(())
     }())
 }
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_options_new(pp_options: *mut PEncoderOptions)
 -> CResult
@@ -222,15 +226,17 @@ fn mtpng_encoder_options_new(pp_options: *mut PEncoderOptions)
         if pp_options.is_null() {
             return Err(invalid_input("pp_options must not be null"));
         }
-        if !(*pp_options).is_null() {
+        if !(unsafe { *pp_options }).is_null() {
             return Err(invalid_input("*pp_options must be null"))
         }
-        *pp_options = Box::into_raw(Box::new(Options::new()));
+        unsafe {
+            *pp_options = Box::into_raw(Box::new(Options::new()));
+        }
         Ok(())
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_options_release(pp_options: *mut PEncoderOptions)
 -> CResult
@@ -239,17 +245,19 @@ fn mtpng_encoder_options_release(pp_options: *mut PEncoderOptions)
         if pp_options.is_null() {
             return Err(invalid_input("pp_header must not be null"));
         }
-        if (*pp_options).is_null() {
+        if (unsafe { *pp_options }).is_null() {
             return Err(invalid_input("*pp_header must not be null"));
         }
-        drop(Box::from_raw(*pp_options));
-        *pp_options = ptr::null_mut();
+        unsafe {
+            drop(Box::from_raw(*pp_options));
+            *pp_options = ptr::null_mut();
+        }
         Ok(())
     }())
 }
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_options_set_thread_pool(p_options: PEncoderOptions,
                                          p_pool: PThreadPool)
@@ -259,12 +267,14 @@ fn mtpng_encoder_options_set_thread_pool(p_options: PEncoderOptions,
         if p_options.is_null() {
             return Err(invalid_input("p_options must not be null"));
         }
-        (*p_options).set_thread_pool(&*p_pool)
+        unsafe {
+            (*p_options).set_thread_pool(&*p_pool)
+        }
     }())
 }
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_options_set_filter(p_options: PEncoderOptions,
                                     filter_mode: c_int)
@@ -282,11 +292,13 @@ fn mtpng_encoder_options_set_filter(p_options: PEncoderOptions,
         } else {
             Fixed(Filter::try_from(filter_mode as u8)?)
         };
-        (*p_options).set_filter_mode(mode)
+        unsafe {
+            (*p_options).set_filter_mode(mode)
+        }
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_options_set_strategy(p_options: PEncoderOptions,
                                       strategy_mode: c_int)
@@ -304,11 +316,13 @@ fn mtpng_encoder_options_set_strategy(p_options: PEncoderOptions,
         } else {
             Fixed(Strategy::try_from(strategy_mode as u8)?)
         };
-        (*p_options).set_strategy_mode(mode)
+        unsafe {
+            (*p_options).set_strategy_mode(mode)
+        }
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_options_set_compression_level(p_options: PEncoderOptions,
                                                compression_level: c_int)
@@ -322,11 +336,13 @@ fn mtpng_encoder_options_set_compression_level(p_options: PEncoderOptions,
             return Err(invalid_input("Invalid compression level"));
         }
         let level = CompressionLevel::try_from(compression_level as u8)?;
-        (*p_options).set_compression_level(level)
+        unsafe {
+            (*p_options).set_compression_level(level)
+        }
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_options_set_chunk_size(p_options: PEncoderOptions,
                                         chunk_size: size_t)
@@ -336,12 +352,14 @@ fn mtpng_encoder_options_set_chunk_size(p_options: PEncoderOptions,
         if p_options.is_null() {
             return Err(invalid_input("p_encoder must not be null"));
         }
-        (*p_options).set_chunk_size(chunk_size)
+        unsafe {
+            (*p_options).set_chunk_size(chunk_size)
+        }
     }())
 }
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_header_new(pp_header: *mut PHeader)
 -> CResult
@@ -350,15 +368,17 @@ fn mtpng_header_new(pp_header: *mut PHeader)
         if pp_header.is_null() {
             return Err(invalid_input("pp_header must not be null"));
         }
-        if !(*pp_header).is_null() {
+        if !(unsafe { *pp_header }).is_null() {
             return Err(invalid_input("*pp_header must be null"))
         }
-        *pp_header = Box::into_raw(Box::new(Header::new()));
+        unsafe {
+            *pp_header = Box::into_raw(Box::new(Header::new()));
+        }
         Ok(())
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_header_release(pp_header: *mut PHeader)
 -> CResult
@@ -367,16 +387,18 @@ fn mtpng_header_release(pp_header: *mut PHeader)
         if pp_header.is_null() {
             return Err(invalid_input("pp_header must not be null"));
         }
-        if (*pp_header).is_null() {
+        if (unsafe { *pp_header }).is_null() {
             return Err(invalid_input("*pp_header must not be null"));
         }
-        drop(Box::from_raw(*pp_header));
-        *pp_header = ptr::null_mut();
+        unsafe {
+            drop(Box::from_raw(*pp_header));
+            *pp_header = ptr::null_mut();
+        }
         Ok(())
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_header_set_size(p_header: PHeader,
                          width: u32,
@@ -387,11 +409,13 @@ fn mtpng_header_set_size(p_header: PHeader,
         if p_header.is_null() {
             return Err(invalid_input("p_encoder must not be null"));
         }
-        (*p_header).set_size(width, height)
+        unsafe {
+            (*p_header).set_size(width, height)
+        }
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_header_set_color(p_header: PHeader,
                                    color_type: c_int,
@@ -406,13 +430,15 @@ fn mtpng_header_set_color(p_header: PHeader,
             return Err(invalid_input("Invalid color type"));
         }
         let color = ColorType::try_from(color_type as u8)?;
-        (*p_header).set_color(color, depth)
+        unsafe {
+            (*p_header).set_color(color, depth)
+        }
     }())
 }
 
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
                      write_func: Option<CWriteFunc>,
@@ -425,7 +451,7 @@ fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
         if pp_encoder.is_null() {
             return Err(invalid_input("pp_encoder must not be null"));
         }
-        if !(*pp_encoder).is_null() {
+        if !(unsafe { *pp_encoder }).is_null() {
             return Err(invalid_input("*pp_encoder must be null"));
         }
         let writer = match (write_func, flush_func) {
@@ -436,15 +462,19 @@ fn mtpng_encoder_new(pp_encoder: *mut PEncoder,
         let options = if p_options.is_null() {
             &default
         } else {
-            &*p_options
+            unsafe {
+                &*p_options
+            }
         };
         let encoder = Encoder::new(writer, options);
-        *pp_encoder = Box::into_raw(Box::new(encoder));
+        unsafe {
+            *pp_encoder = Box::into_raw(Box::new(encoder));
+        }
         Ok(())
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_release(pp_encoder: *mut PEncoder)
 -> CResult
@@ -453,17 +483,19 @@ fn mtpng_encoder_release(pp_encoder: *mut PEncoder)
         if pp_encoder.is_null() {
             return Err(invalid_input("pp_encoder must not be null"))
         }
-        if (*pp_encoder).is_null() {
+        if (unsafe { *pp_encoder }).is_null() {
             return Err(invalid_input("*pp_encoder must not be null"))
         }
-        drop(Box::from_raw(*pp_encoder));
-        *pp_encoder = ptr::null_mut();
+        unsafe {
+            drop(Box::from_raw(*pp_encoder));
+            *pp_encoder = ptr::null_mut();
+        }
         Ok(())
     }())
 }
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_write_header(p_encoder: PEncoder,
                               p_header: PHeader)
@@ -476,12 +508,14 @@ fn mtpng_encoder_write_header(p_encoder: PEncoder,
         if p_header.is_null() {
             return Err(invalid_input("p_header must not be null"));
         }
-        (*p_encoder).write_header(&*p_header)?;
+        unsafe {
+            (*p_encoder).write_header(&*p_header)?;
+        }
         Ok(())
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_write_palette(p_encoder: PEncoder,
                                p_bytes: *const u8,
@@ -495,12 +529,14 @@ fn mtpng_encoder_write_palette(p_encoder: PEncoder,
         if p_bytes.is_null() {
             return Err(invalid_input("p_bytes must not be null"));
         }
-        let slice = ::std::slice::from_raw_parts(p_bytes, len);
-        (*p_encoder).write_palette(slice)
+        unsafe {
+            let slice = ::std::slice::from_raw_parts(p_bytes, len);
+            (*p_encoder).write_palette(slice)
+        }
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_write_transparency(p_encoder: PEncoder,
                                     p_bytes: *const u8,
@@ -514,12 +550,14 @@ fn mtpng_encoder_write_transparency(p_encoder: PEncoder,
         if p_bytes.is_null() {
             return Err(invalid_input("p_bytes must not be null"));
         }
-        let slice = ::std::slice::from_raw_parts(p_bytes, len);
-        (*p_encoder).write_transparency(slice)
+        unsafe {
+            let slice = ::std::slice::from_raw_parts(p_bytes, len);
+            (*p_encoder).write_transparency(slice)
+        }
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_write_chunk(p_encoder: PEncoder,
                              p_tag: *const c_char,
@@ -537,13 +575,15 @@ fn mtpng_encoder_write_chunk(p_encoder: PEncoder,
         if p_bytes.is_null() {
             return Err(invalid_input("p_bytes must not be null"));
         }
-        let tag = CStr::from_ptr(p_tag).to_bytes();
-        let slice = ::std::slice::from_raw_parts(p_bytes, len);
-        (*p_encoder).write_chunk(tag, slice)
+        unsafe {
+            let tag = CStr::from_ptr(p_tag).to_bytes();
+            let slice = ::std::slice::from_raw_parts(p_bytes, len);
+            (*p_encoder).write_chunk(tag, slice)
+        }
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_write_image_rows(p_encoder: PEncoder,
                                   p_bytes: *const u8,
@@ -557,12 +597,14 @@ fn mtpng_encoder_write_image_rows(p_encoder: PEncoder,
         if p_bytes.is_null() {
             return Err(invalid_input("p_bytes must not be null"));
         }
-        let slice = ::std::slice::from_raw_parts(p_bytes, len);
-        (*p_encoder).write_image_rows(slice)
+        unsafe {
+            let slice = ::std::slice::from_raw_parts(p_bytes, len);
+            (*p_encoder).write_image_rows(slice)
+        }
     }())
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C"
 fn mtpng_encoder_finish(pp_encoder: *mut PEncoder)
 -> CResult
@@ -571,16 +613,18 @@ fn mtpng_encoder_finish(pp_encoder: *mut PEncoder)
         if pp_encoder.is_null() {
             return Err(invalid_input("pp_encoder must not be null"));
         }
-        if (*pp_encoder).is_null() {
+        if (unsafe { *pp_encoder }).is_null() {
             return Err(invalid_input("*pp_encoder must not be null"));
         }
 
         // Take ownership back from C...
-        let b_encoder = Box::from_raw(*pp_encoder);
-        *pp_encoder = ptr::null_mut();
+        unsafe {
+            let b_encoder = Box::from_raw(*pp_encoder);
+            *pp_encoder = ptr::null_mut();
 
-        // And finish it out.
-        b_encoder.finish()?;
+            // And finish it out.
+            b_encoder.finish()?;
+        }
         Ok(())
     }())
 }
