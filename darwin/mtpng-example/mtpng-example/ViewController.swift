@@ -9,16 +9,24 @@
 import UIKit
 import mtpng
 
-func write_func(_user_data: UnsafeMutableRawPointer?, _bytes: UnsafePointer<UInt8>?, _len: Int) -> Int
+func write_func(_user_data: UnsafeMutableRawPointer?, noisolation _bytes: UnsafePointer<UInt8>?, noisolation _len: Int) -> Int
 {
     let myself = Unmanaged<ViewController>.fromOpaque(_user_data!).takeUnretainedValue();
-    return myself.writeFunc(bytes: _bytes, len: _len);
+    if _bytes == nil {
+        return 0;
+    }
+    nonisolated(unsafe) let bytes = UnsafeBufferPointer.init(start: _bytes, count: _len);
+    return MainActor.assumeIsolated {
+        return myself.writeFunc(bytes: bytes);
+    }
 }
 
 func flush_func(_user_data: UnsafeMutableRawPointer?) -> Bool
 {
     let myself = Unmanaged<ViewController>.fromOpaque(_user_data!).takeUnretainedValue();
-    return myself.flushFunc();
+    return MainActor.assumeIsolated {
+        return myself.flushFunc();
+    }
 }
 
 class ViewController: UIViewController {
@@ -29,10 +37,12 @@ class ViewController: UIViewController {
     @IBOutlet weak var compressButton: UIButton!
     @IBOutlet weak var timeLabel: UILabel!
     
+    var buffer: [UInt8] = [];
+   
 
-    public func writeFunc(bytes: UnsafePointer<UInt8>?, len: Int) -> Int {
+    public func writeFunc(bytes: any Collection<UInt8>) -> Int {
         // fake output
-        return len;
+        return bytes.count;
     }
 
     public func flushFunc() -> Bool {
@@ -114,16 +124,7 @@ class ViewController: UIViewController {
             NSLog("Failure!");
         }
 
-        // @fixme for some reason this crashes:
-        //mtpng_encoder_write_image_rows(encoder, &(data[0]), stride * height);
-        // have to do row by row instead:
-        for y in 0..<height {
-            ret = mtpng_encoder_write_image_rows(encoder, &(data[y * stride]), stride);
-            if (ret != MTPNG_RESULT_OK) {
-                NSLog("Failure!");
-                return;
-            }
-        }
+        ret = mtpng_encoder_write_image_rows(encoder, &(data[0]), stride * height);
         ret = mtpng_encoder_finish(&encoder);
         if (ret != MTPNG_RESULT_OK) {
             NSLog("Failure!");
