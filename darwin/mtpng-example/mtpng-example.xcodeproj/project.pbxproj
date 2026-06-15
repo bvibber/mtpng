@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B40F025D2FDF53FD00491E1F /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B40F025C2FDF53FD00491E1F /* libz.tbd */; };
+		B4F5CC8B2FE074D50090C140 /* MTPNG.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F5CC8A2FE074C00090C140 /* MTPNG.swift */; };
 		D45DAFDE2153FC5F00C45312 /* dual4k.png in Resources */ = {isa = PBXBuildFile; fileRef = D45DAFDC2153FC5F00C45312 /* dual4k.png */; };
 		D45DAFDF2153FC5F00C45312 /* arch-640.png in Resources */ = {isa = PBXBuildFile; fileRef = D45DAFDD2153FC5F00C45312 /* arch-640.png */; };
 		D49519E821529B1500945F17 /* mtpng in Resources */ = {isa = PBXBuildFile; fileRef = D49519E721529B1500945F17 /* mtpng */; };
@@ -21,6 +22,7 @@
 
 /* Begin PBXFileReference section */
 		B40F025C2FDF53FD00491E1F /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		B4F5CC8A2FE074C00090C140 /* MTPNG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTPNG.swift; sourceTree = "<group>"; };
 		D45DAFDC2153FC5F00C45312 /* dual4k.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = dual4k.png; path = ../../samples/dual4k.png; sourceTree = "<group>"; };
 		D45DAFDD2153FC5F00C45312 /* arch-640.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "arch-640.png"; path = "../../samples/arch-640.png"; sourceTree = "<group>"; };
 		D49519E721529B1500945F17 /* mtpng */ = {isa = PBXFileReference; lastKnownFileType = folder; name = mtpng; path = ../mtpng; sourceTree = "<group>"; };
@@ -70,6 +72,7 @@
 		D4CCEB3E21527618001DB9D9 /* mtpng-example */ = {
 			isa = PBXGroup;
 			children = (
+				B4F5CC8A2FE074C00090C140 /* MTPNG.swift */,
 				D4CCEB3F21527618001DB9D9 /* AppDelegate.swift */,
 				D4CCEB4121527618001DB9D9 /* ViewController.swift */,
 				D4CCEB4321527618001DB9D9 /* Main.storyboard */,
@@ -165,6 +168,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D4CCEB4221527618001DB9D9 /* ViewController.swift in Sources */,
+				B4F5CC8B2FE074D50090C140 /* MTPNG.swift in Sources */,
 				D4CCEB4021527618001DB9D9 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
