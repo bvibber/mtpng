@@ -46,11 +46,17 @@ class ViewController: UIViewController {
         
         // And get the data out.
         let inputPointer = context.data!.assumingMemoryBound(to: UInt8.self);
-        let inputBuffer = UnsafeBufferPointer(start: inputPointer, count: width * height * stride);
+        let dataSize = height * stride;
+        print("width is \(width)")
+        print("height is \(height)")
+        print("stride is \(stride)")
+        print("dataSize is \(dataSize)")
+        let inputBuffer = UnsafeBufferPointer(start: inputPointer, count: dataSize);
         let data = inputBuffer.span;
 
         do {
             // Create a manual thread pool
+            NSLog("XXX");
             let pool = try MTPNGThreadPool.init(threads: threads);
 
             let options = try MTPNGEncoderOptions.init();
@@ -60,22 +66,30 @@ class ViewController: UIViewController {
 
             // Create the encoder
             var outputBuffer: [UInt8] = [];
-            var encoder = try MTPNGEncoder.init(
+            NSLog("YYY");
+            let encoder = try MTPNGEncoder.init(
                 write: { (bytes: Span<UInt8>) -> Int in
+                    print("write! - \(bytes.count) bytes")
                     bytes.withUnsafeBufferPointer { buffer in
                         outputBuffer.append(contentsOf: buffer)
                     }
                     return bytes.count;
                 },
-                flush: nil,
+                flush: { () -> Bool in
+                    print ("flush!")
+                    return true;
+                },
                 options: options);
 
-            var header = try MTPNGHeader.init();
+            NSLog("ZZZ");
+            let header = try MTPNGHeader.init();
             try header.setSize(width: UInt32(width), height: UInt32(height));
             try header.setColor(color: MTPNGColor.Truecolor, bits: 8);
             try encoder.writeHeader(header: header);
 
+            NSLog("QQQ");
             try encoder.writeImageRows(bytes: data);
+            NSLog("WWW");
             try encoder.finish();
 
             let delta = Date().timeIntervalSince(start);

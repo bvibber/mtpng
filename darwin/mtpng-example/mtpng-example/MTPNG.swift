@@ -161,7 +161,7 @@ class MTPNGEncoder {
         self.writeFunc = write;
         self.flushFunc = flush;
         let user_data = UnsafeMutableRawPointer.init(Unmanaged.passUnretained(self).toOpaque());
-        let ret = mtpng_encoder_new(&encoder,
+        let ret = mtpng_encoder_new(&self.encoder,
                           write_func,
                           flush_func,
                           user_data,
@@ -190,8 +190,10 @@ class MTPNGEncoder {
     
     func writeImageRows(bytes: Span<UInt8>) throws {
         try bytes.withUnsafeBufferPointer { (buffer: UnsafeBufferPointer) in
-            let ret = mtpng_encoder_write_image_rows(encoder, buffer.baseAddress, buffer.count);
+            print("bytes \(buffer.baseAddress!); count \(bytes.count)");
+            let ret = mtpng_encoder_write_image_rows(self.encoder, buffer.baseAddress, bytes.count);
             if ret != MTPNG_RESULT_OK {
+                print("failed in mtpng_encoder_write_image_rows");
                 throw MTPNGError.unknownError;
             }
         }
