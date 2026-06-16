@@ -84,7 +84,7 @@ class ViewController: UIViewController {
             NSLog("ZZZ");
             let header = try MTPNGHeader.init();
             try header.setSize(width: UInt32(width), height: UInt32(height));
-            try header.setColor(color: MTPNGColor.Truecolor, bits: 8);
+            try header.setColor(color: MTPNGColor.TruecolorAlpha, bits: 8);
             try encoder.writeHeader(header: header);
 
             NSLog("QQQ");
