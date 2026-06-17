@@ -37,10 +37,10 @@ class ViewController: UIViewController {
         context.draw(cgi, in: CGRect(x: 0, y: 0, width: width, height: height));
         
         // And get the data out.
-        let inputPointer = context.data!.assumingMemoryBound(to: UInt8.self);
-        let dataSize = height * stride;
-        let inputBuffer = UnsafeBufferPointer(start: inputPointer, count: dataSize);
-        let data = inputBuffer.span;
+        let dataSize = height * stride
+        let ptr = context.data!.bindMemory(to: UInt8.self, capacity: dataSize)
+        let bytes = UnsafeBufferPointer(start: ptr, count: dataSize)
+        let data = bytes.span
 
         do {
             // Create a manual thread pool

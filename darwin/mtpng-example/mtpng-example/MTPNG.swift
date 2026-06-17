@@ -135,7 +135,7 @@ private func write_func(_user_data: UnsafeMutableRawPointer?, noisolation _bytes
         if _bytes == nil {
             return 0;
         }
-        nonisolated(unsafe) let bytes = UnsafeBufferPointer.init(start: _bytes, count: _len);
+        nonisolated(unsafe) let bytes = UnsafeBufferPointer(start: _bytes, count: _len);
         return writeFunc(bytes.span);
     } else {
         return _len;
