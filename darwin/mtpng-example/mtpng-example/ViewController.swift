@@ -8,6 +8,65 @@
 
 import UIKit
 
+private func savePNGImage(file: String, threads: Int) throws -> TimeInterval {
+    let image = UIImage.init(named: file)!
+    
+    // Draw the UIImage into a CGImage with specified RGB order
+    let cgi = image.cgImage!;
+    
+    let width = cgi.width;
+    let height = cgi.height;
+    let stride = (cgi.bitsPerPixel / 8) * width;
+    
+    let context = CGContext(data: nil,
+                            width: width,
+                            height: height,
+                            bitsPerComponent: cgi.bitsPerComponent,
+                            bytesPerRow: cgi.bytesPerRow,
+                            space: cgi.colorSpace!,
+                            bitmapInfo: cgi.bitmapInfo)!;
+    context.draw(cgi, in: CGRect(x: 0, y: 0, width: width, height: height));
+    
+    // And get the data out.
+    let dataSize = height * stride
+    let ptr = context.data!.bindMemory(to: UInt8.self, capacity: dataSize)
+    let bytes = UnsafeBufferPointer(start: ptr, count: dataSize)
+    let data = bytes.span
+    
+    // Create a manual thread pool
+    let pool = try MTPNGThreadPool.init(threads: threads);
+    print("New pool with \(threads) threads")
+    
+    let options = try MTPNGEncoderOptions.init()
+    try options.setThreadPool(pool: pool)
+
+    let start = Date();
+
+    // Create the encoder
+    var outputBuffer: [UInt8] = [];
+    let encoder = try MTPNGEncoder.init(
+        write: { (bytes: Span<UInt8>) -> Int in
+            bytes.withUnsafeBufferPointer { buffer in
+                outputBuffer.append(contentsOf: buffer)
+            }
+            return bytes.count;
+        },
+        flush: nil,
+        options: options);
+
+    let header = try MTPNGHeader.init()
+    try header.setSize(width: UInt32(width), height: UInt32(height))
+    try header.setColor(color: MTPNGColor.TruecolorAlpha, bits: 8)
+    try encoder.writeHeader(header: header)
+
+    try encoder.writeImageRows(bytes: data)
+    try encoder.finish()
+    
+    let delta = Date().timeIntervalSince(start)
+    
+    return delta
+}
+
 class ViewController: UIViewController {
 
     @IBOutlet weak var threadSlider: UISlider!
@@ -18,75 +77,6 @@ class ViewController: UIViewController {
     
     var threads: Int = 0;
     var pool: MTPNGThreadPool? = nil;
-
-    func savePngImage(file: String, threads: Int) async -> TimeInterval {
-        let image = UIImage.init(named: file)!
-
-        // Draw the UIImage into a CGImage with specified RGB order
-        let cgi = image.cgImage!;
-        
-        let width = cgi.width;
-        let height = cgi.height;
-        let stride = (cgi.bitsPerPixel / 8) * width;
-
-        let context = CGContext(data: nil,
-                                width: width,
-                                height: height,
-                                bitsPerComponent: cgi.bitsPerComponent,
-                                bytesPerRow: cgi.bytesPerRow,
-                                space: cgi.colorSpace!,
-                                bitmapInfo: cgi.bitmapInfo)!;
-        context.draw(cgi, in: CGRect(x: 0, y: 0, width: width, height: height));
-        
-        // And get the data out.
-        let dataSize = height * stride
-        let ptr = context.data!.bindMemory(to: UInt8.self, capacity: dataSize)
-        let bytes = UnsafeBufferPointer(start: ptr, count: dataSize)
-        let data = bytes.span
-
-        do {
-            // Create a manual thread pool
-            if self.threads != threads {
-                self.threads = threads
-                pool = try MTPNGThreadPool.init(threads: threads);
-                print("New pool with \(threads) threads")
-            } else {
-                print("Reusing pool with \(threads) threads")
-            }
-
-            let options = try MTPNGEncoderOptions.init();
-            try options.setThreadPool(pool: pool!);
-
-            let start = Date();
-
-            // Create the encoder
-            var outputBuffer: [UInt8] = [];
-            let encoder = try MTPNGEncoder.init(
-                write: { (bytes: Span<UInt8>) -> Int in
-                    bytes.withUnsafeBufferPointer { buffer in
-                        outputBuffer.append(contentsOf: buffer)
-                    }
-                    return bytes.count;
-                },
-                flush: nil,
-                options: options);
-
-            let header = try MTPNGHeader.init();
-            try header.setSize(width: UInt32(width), height: UInt32(height));
-            try header.setColor(color: MTPNGColor.TruecolorAlpha, bits: 8);
-            try encoder.writeHeader(header: header);
-
-            try encoder.writeImageRows(bytes: data);
-            try encoder.finish();
-
-            let delta = Date().timeIntervalSince(start);
-
-            return delta;
-        } catch {
-            print("Unexpected error: \(error).")
-            return 0;
-        }
-    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -111,9 +101,13 @@ class ViewController: UIViewController {
         let file = self.samplePicker.titleForSegment(at: self.samplePicker.selectedSegmentIndex)!
         self.timeLabel.text = "Running..."
         let threads = Int(threadSlider.value)
-        Task {
-            let delta = await savePngImage(file: file, threads: threads)
-            showResult(delta: delta)
+        Task.detached {
+            do {
+                let delta = try savePNGImage(file: file, threads: threads)
+                await self.showResult(delta: delta)
+            } catch {
+                print("Unexpected error: \(error).")
+            }
         }
     }
     
