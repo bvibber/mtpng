@@ -32,9 +32,8 @@ class ViewController: UIViewController {
                                 height: height,
                                 bitsPerComponent: cgi.bitsPerComponent,
                                 bytesPerRow: cgi.bytesPerRow,
-                                space: CGColorSpaceCreateDeviceRGB(),
-                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue |
-                                    CGBitmapInfo.byteOrder32Big.rawValue)!;
+                                space: cgi.colorSpace!,
+                                bitmapInfo: cgi.bitmapInfo)!;
         context.draw(cgi, in: CGRect(x: 0, y: 0, width: width, height: height));
         
         // And get the data out.

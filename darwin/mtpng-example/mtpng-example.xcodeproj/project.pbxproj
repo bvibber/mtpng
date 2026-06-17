@@ -327,6 +327,7 @@
 				ENABLE_BITCODE = NO;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../mtpng/";
 				INFOPLIST_FILE = "mtpng-example/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "MTPNG Example";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -352,6 +353,7 @@
 				ENABLE_BITCODE = NO;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../mtpng/";
 				INFOPLIST_FILE = "mtpng-example/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "MTPNG Example";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
