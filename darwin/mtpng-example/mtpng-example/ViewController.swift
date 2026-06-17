@@ -19,7 +19,9 @@ class ViewController: UIViewController {
     var threads: Int = 0;
     var pool: MTPNGThreadPool? = nil;
 
-    func savePngImage(image: UIImage, threads: Int) -> TimeInterval {
+    func savePngImage(file: String, threads: Int) async -> TimeInterval {
+        let image = UIImage.init(named: file)!
+
         // Draw the UIImage into a CGImage with specified RGB order
         let cgi = image.cgImage!;
         
@@ -105,10 +107,17 @@ class ViewController: UIViewController {
     }
 
     @IBAction func compressTouch(_ sender: Any) {
-        self.timeLabel.text = "Loading...";
-        let image = UIImage.init(named: self.samplePicker.titleForSegment(at: self.samplePicker.selectedSegmentIndex)!)!;
-        self.timeLabel.text = "Running...";
-        let delta = savePngImage(image: image, threads: Int(threadSlider.value));
+        self.timeLabel.text = "Loading..."
+        let file = self.samplePicker.titleForSegment(at: self.samplePicker.selectedSegmentIndex)!
+        self.timeLabel.text = "Running..."
+        let threads = Int(threadSlider.value)
+        Task {
+            let delta = await savePngImage(file: file, threads: threads)
+            showResult(delta: delta)
+        }
+    }
+    
+    func showResult(delta: TimeInterval) {
         let ms = Int(delta * 1000.0);
         self.timeLabel.text = String(format: "Done in %d ms.", ms);
     }
