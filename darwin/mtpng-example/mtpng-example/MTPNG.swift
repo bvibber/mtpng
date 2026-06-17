@@ -42,10 +42,10 @@ class MTPNGThreadPool {
     deinit {
         let ret = mtpng_threadpool_release(&pool);
         if (ret != MTPNG_RESULT_OK) {
-            NSLog("Unexpected failure in mtpng_threadpool_release");
+            print("Unexpected failure in mtpng_threadpool_release");
         }
         if self.pool != nil {
-            NSLog("Invalid state after mtpng_threadpool_release");
+            print("Invalid state after mtpng_threadpool_release");
         }
     }
 }
@@ -67,10 +67,10 @@ class MTPNGEncoderOptions {
     deinit {
         let ret = mtpng_encoder_options_release(&self.options);
         if (ret != MTPNG_RESULT_OK) {
-            NSLog("Unexpected failure in mtpng_encoder_options_release");
+            print("Unexpected failure in mtpng_encoder_options_release");
         }
         if self.options != nil {
-            NSLog("Invalid state after mtpng_encoder_options_release");
+            print("Invalid state after mtpng_encoder_options_release");
         }
 
     }
@@ -104,10 +104,10 @@ class MTPNGHeader {
     deinit {
         let ret = mtpng_header_release(&self.header);
         if (ret != MTPNG_RESULT_OK) {
-            NSLog("Unexpected failure in mtpng_header_release!");
+            print("Unexpected failure in mtpng_header_release!");
         }
         if self.header != nil {
-            NSLog("Invalid state after mtpng_header_release!");
+            print("Invalid state after mtpng_header_release!");
         }
     }
     
@@ -128,7 +128,7 @@ class MTPNGHeader {
 
 }
 
-func write_func(_user_data: UnsafeMutableRawPointer?, noisolation _bytes: UnsafePointer<UInt8>?, noisolation _len: Int) -> Int
+private func write_func(_user_data: UnsafeMutableRawPointer?, noisolation _bytes: UnsafePointer<UInt8>?, noisolation _len: Int) -> Int
 {
     let myself = Unmanaged<MTPNGEncoder>.fromOpaque(_user_data!).takeUnretainedValue();
     if let writeFunc = myself.writeFunc {
@@ -142,7 +142,7 @@ func write_func(_user_data: UnsafeMutableRawPointer?, noisolation _bytes: Unsafe
     }
 }
 
-func flush_func(_user_data: UnsafeMutableRawPointer?) -> Bool
+private func flush_func(_user_data: UnsafeMutableRawPointer?) -> Bool
 {
     let myself = Unmanaged<MTPNGEncoder>.fromOpaque(_user_data!).takeUnretainedValue();
     if let flushFunc = myself.flushFunc {
@@ -161,27 +161,38 @@ class MTPNGEncoder {
         self.writeFunc = write;
         self.flushFunc = flush;
         let user_data = UnsafeMutableRawPointer.init(Unmanaged.passUnretained(self).toOpaque());
-        let ret = mtpng_encoder_new(&self.encoder,
+        let ret = mtpng_encoder_new(&encoder,
                           write_func,
                           flush_func,
                           user_data,
                           options.options);
         if ret != MTPNG_RESULT_OK {
+            print("error in mtpng_encoder_new");
+            throw MTPNGError.unknownError;
+        }
+        if encoder == nil {
+            print("failed to allocate in mtpng_encoder_new");
             throw MTPNGError.unknownError;
         }
     }
     
     deinit {
-        let ret = mtpng_encoder_release(&self.encoder);
-        if ret != MTPNG_RESULT_OK {
-            NSLog("Unexpected failure in mtpng_encoder_release");
-        }
-        if self.encoder != nil {
-            NSLog("Invalid state after mtpng_encoder_release");
+        if encoder != nil {
+            let ret = mtpng_encoder_release(&encoder);
+            if ret != MTPNG_RESULT_OK {
+                print("Unexpected failure in mtpng_encoder_release");
+            }
+            if encoder != nil {
+                print("Invalid state after mtpng_encoder_release");
+            }
         }
     }
     
     func writeHeader(header: MTPNGHeader) throws {
+        if encoder == nil {
+            print("encoder is already finished");
+            throw MTPNGError.unknownError;
+        }
         let ret = mtpng_encoder_write_header(self.encoder, header.header);
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.unknownError;
@@ -189,9 +200,12 @@ class MTPNGEncoder {
     }
     
     func writeImageRows(bytes: Span<UInt8>) throws {
-        try bytes.withUnsafeBufferPointer { (buffer: UnsafeBufferPointer) in
-            print("bytes \(buffer.baseAddress!); count \(bytes.count)");
-            let ret = mtpng_encoder_write_image_rows(self.encoder, buffer.baseAddress, bytes.count);
+        if encoder == nil {
+            print("encoder is already finished");
+            throw MTPNGError.unknownError;
+        }
+        try bytes.withUnsafeBufferPointer { buffer in
+            let ret = mtpng_encoder_write_image_rows(encoder, buffer.baseAddress, bytes.count);
             if ret != MTPNG_RESULT_OK {
                 print("failed in mtpng_encoder_write_image_rows");
                 throw MTPNGError.unknownError;
@@ -200,8 +214,16 @@ class MTPNGEncoder {
     }
     
     func finish() throws {
+        if encoder == nil {
+            print("encoder is already finished");
+            throw MTPNGError.unknownError;
+        }
         let ret = mtpng_encoder_finish(&encoder);
         if (ret != MTPNG_RESULT_OK) {
+            throw MTPNGError.unknownError;
+        }
+        if encoder != nil {
+            print("failed to release encoder in mtpng_finish");
             throw MTPNGError.unknownError;
         }
     }

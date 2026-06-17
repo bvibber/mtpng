@@ -3,7 +3,7 @@
 //  mtpng-example
 //
 //  Created by Brooke on 9/19/18.
-//  Copyright © 2018-2024 Brooke Vibber. All rights reserved.
+//  Copyright © 2018-2026 Brooke Vibber. All rights reserved.
 //
 
 import UIKit
@@ -15,16 +15,9 @@ class ViewController: UIViewController {
     @IBOutlet weak var samplePicker: UISegmentedControl!
     @IBOutlet weak var compressButton: UIButton!
     @IBOutlet weak var timeLabel: UILabel!
-
-    public func writeFunc(bytes: any Collection<UInt8>) -> Int {
-        // fake output
-        return bytes.count;
-    }
-
-    public func flushFunc() -> Bool {
-        return true;
-    }
-
+    
+    var threads: Int = 0;
+    var pool: MTPNGThreadPool? = nil;
 
     func savePngImage(image: UIImage, threads: Int) -> TimeInterval {
         // Draw the UIImage into a CGImage with specified RGB order
@@ -47,49 +40,42 @@ class ViewController: UIViewController {
         // And get the data out.
         let inputPointer = context.data!.assumingMemoryBound(to: UInt8.self);
         let dataSize = height * stride;
-        print("width is \(width)")
-        print("height is \(height)")
-        print("stride is \(stride)")
-        print("dataSize is \(dataSize)")
         let inputBuffer = UnsafeBufferPointer(start: inputPointer, count: dataSize);
         let data = inputBuffer.span;
 
         do {
             // Create a manual thread pool
-            NSLog("XXX");
-            let pool = try MTPNGThreadPool.init(threads: threads);
+            if self.threads != threads {
+                self.threads = threads
+                pool = try MTPNGThreadPool.init(threads: threads);
+                print("New pool with \(threads) threads")
+            } else {
+                print("Reusing pool with \(threads) threads")
+            }
 
             let options = try MTPNGEncoderOptions.init();
-            try options.setThreadPool(pool: pool);
+            try options.setThreadPool(pool: pool!);
 
             let start = Date();
 
             // Create the encoder
             var outputBuffer: [UInt8] = [];
-            NSLog("YYY");
             let encoder = try MTPNGEncoder.init(
                 write: { (bytes: Span<UInt8>) -> Int in
-                    print("write! - \(bytes.count) bytes")
                     bytes.withUnsafeBufferPointer { buffer in
                         outputBuffer.append(contentsOf: buffer)
                     }
                     return bytes.count;
                 },
-                flush: { () -> Bool in
-                    print ("flush!")
-                    return true;
-                },
+                flush: nil,
                 options: options);
 
-            NSLog("ZZZ");
             let header = try MTPNGHeader.init();
             try header.setSize(width: UInt32(width), height: UInt32(height));
             try header.setColor(color: MTPNGColor.TruecolorAlpha, bits: 8);
             try encoder.writeHeader(header: header);
 
-            NSLog("QQQ");
             try encoder.writeImageRows(bytes: data);
-            NSLog("WWW");
             try encoder.finish();
 
             let delta = Date().timeIntervalSince(start);
