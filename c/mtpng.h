@@ -54,7 +54,7 @@ typedef enum mtpng_result_t {
 } mtpng_result;
 
 //
-// Filter types for mtpng_encoder_set_filter_mode().
+// Filter types for mtpng_encoder_options_set_filter().
 //
 // MTPNG_FILTER_ADAPTIVE is the default behavior, which uses
 // a heuristic to try to guess the best compressing filter.
@@ -69,7 +69,7 @@ typedef enum mtpng_filter_t {
 } mtpng_filter;
 
 //
-// Strategy types for mtpng_encoder_set_strategy_mode().
+// Strategy types for mtpng_encoder_options_set_strategy().
 //
 // MTPNG_STRATEGY_ADAPTIVE is the default behavior.
 //
@@ -294,11 +294,14 @@ mtpng_encoder_options_set_strategy(mtpng_encoder_options* p_options,
 //
 // Override the default PNG compression level.
 //
+// Default, Low, and High are available in mtpng_compression_level
+// or use integers 0-9.
+//
 // Check the return value for errors.
 //
 extern mtpng_result
 mtpng_encoder_options_set_compression_level(mtpng_encoder_options* p_options,
-                                            mtpng_compression_level compression_level);
+                                            int compression_level);
 
 //
 // Override the default chunk size for parallel encoding
