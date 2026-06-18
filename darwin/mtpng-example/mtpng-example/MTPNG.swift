@@ -44,7 +44,7 @@ enum MTPNGStrategy: Int32 {
 }
 
 //
-// Compression levels for mtpng_encoder_options_set_compression_level().
+// Compression levels for MTPNGEncoderOptions.setCompressionLevel().
 //
 enum MTPNGCompressionLevel: Int32 {
     case Fast = 1
@@ -53,15 +53,15 @@ enum MTPNGCompressionLevel: Int32 {
 }
 
 //
-// Color types for mtpng_encoder_set_color().
+// Color types for MTPNGEncoderOptions.setColor().
 //
 
 enum MTPNGColor: UInt32 {
-    case Greyscale = 0 // MTPNG_COLOR_GREYSCALE
-    case Truecolor = 2 // MTPNG_COLOR_TRUECOLOR
-    case IndexedColor = 3 // MTPNG_COLOR_INDEXED_COLOR
-    case GreyscaleAlpha = 4 // MTPNG_COLOR_GREYSCALE_ALPHA
-    case TruecolorAlpha = 6 // MTPNG_COLOR_TRUECOLOR_ALPHA
+    case Greyscale = 0
+    case Truecolor = 2
+    case IndexedColor = 3
+    case GreyscaleAlpha = 4
+    case TruecolorAlpha = 6
 }
 
 
@@ -275,14 +275,16 @@ class MTPNGEncoder {
     var handle: OpaquePointer? = nil
     var writeFunc: MTPNGWriteFunc? = nil
     var flushFunc: MTPNGFlushFunc? = nil
-    var options: MTPNGEncoderOptions? = nil
+
+    // Keep a thread pool reference for lifetime management
+    var pool: MTPNGThreadPool? = nil;
 
     // Can throw MTPNGError.unknownError
     //
     init (write: MTPNGWriteFunc?, flush: MTPNGFlushFunc?, options: MTPNGEncoderOptions?) throws {
         self.writeFunc = write
         self.flushFunc = flush
-        self.options = options
+        self.pool = options?.pool
         let user_data = UnsafeMutableRawPointer.init(Unmanaged.passUnretained(self).toOpaque());
         let ret = mtpng_encoder_new(&handle,
                           write_func,
