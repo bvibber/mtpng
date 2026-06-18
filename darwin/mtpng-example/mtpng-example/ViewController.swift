@@ -9,8 +9,8 @@
 import UIKit
 
 private actor SavePNGExample {
-    var threads: Int = 0;
-    var pool: MTPNGThreadPool? = nil;
+    var threads: Int = 0
+    var pool: MTPNGThreadPool? = nil
     
     func setThreads(threads: Int) {
         if self.threads == threads && self.pool != nil {
@@ -31,11 +31,11 @@ private actor SavePNGExample {
         let image = UIImage.init(named: file)!
         
         // Draw the UIImage into a CGImage with specified RGB order
-        let cgi = image.cgImage!;
+        let cgi = image.cgImage!
         
-        let width = cgi.width;
-        let height = cgi.height;
-        let stride = (cgi.bitsPerPixel / 8) * width;
+        let width = cgi.width
+        let height = cgi.height
+        let stride = (cgi.bitsPerPixel / 8) * width
         
         let context = CGContext(data: nil,
                                 width: width,
@@ -43,8 +43,8 @@ private actor SavePNGExample {
                                 bitsPerComponent: cgi.bitsPerComponent,
                                 bytesPerRow: cgi.bytesPerRow,
                                 space: cgi.colorSpace!,
-                                bitmapInfo: cgi.bitmapInfo)!;
-        context.draw(cgi, in: CGRect(x: 0, y: 0, width: width, height: height));
+                                bitmapInfo: cgi.bitmapInfo)!
+        context.draw(cgi, in: CGRect(x: 0, y: 0, width: width, height: height))
         
         // And get the data out.
         let dataSize = height * stride
@@ -52,24 +52,24 @@ private actor SavePNGExample {
         let bytes = UnsafeBufferPointer(start: ptr, count: dataSize)
         let data = bytes.span
         
-        let options = try MTPNGEncoderOptions.init()
+        let options = try MTPNGEncoderOptions()
         try options.setThreadPool(pool: pool!)
         
-        let start = Date();
+        let start = Date()
         
         // Create the encoder
-        var outputBuffer: [UInt8] = [];
+        //var outputBuffer: [UInt8] = [];
         let encoder = try MTPNGEncoder.init(
-            write: { (bytes: Span<UInt8>) -> Int in
+            write: nil /* { (bytes: Span<UInt8>) -> Int in
                 bytes.withUnsafeBufferPointer { buffer in
                     outputBuffer.append(contentsOf: buffer)
                 }
                 return bytes.count;
-            },
+            } */,
             flush: nil,
-            options: options);
+            options: options)
         
-        let header = try MTPNGHeader.init()
+        let header = try MTPNGHeader()
         try header.setSize(width: UInt32(width), height: UInt32(height))
         try header.setColor(color: MTPNGColor.TruecolorAlpha, bits: 8)
         try encoder.writeHeader(header: header)
@@ -77,9 +77,7 @@ private actor SavePNGExample {
         try encoder.writeImageRows(bytes: data)
         try encoder.finish()
         
-        let delta = Date().timeIntervalSince(start)
-        
-        return delta
+        return Date().timeIntervalSince(start)
     }
 }
 
@@ -108,9 +106,10 @@ class ViewController: UIViewController {
     }
 
     @IBAction func threadsChanged(_ sender: Any) {
-        threadLabel.text = String(Int(threadSlider.value));
+        let threads = Int(threadSlider.value)
+        threadLabel.text = String(threads)
         Task {
-            await example.setThreads(threads: Int(threadSlider.value))
+            await example.setThreads(threads: threads)
         }
     }
 
@@ -118,23 +117,26 @@ class ViewController: UIViewController {
     }
 
     @IBAction func compressTouch(_ sender: Any) {
-        self.timeLabel.text = "Loading..."
-        let file = self.samplePicker.titleForSegment(at: self.samplePicker.selectedSegmentIndex)!
         self.timeLabel.text = "Running..."
+        let file = self.samplePicker.titleForSegment(at: self.samplePicker.selectedSegmentIndex)!
         Task.detached {
             do {
                 let delta = try await self.example.savePNGImage(file: file)
                 await self.showResult(delta: delta)
             } catch {
                 print("Unexpected error: \(error).")
+                await self.showError()
             }
         }
     }
     
-    func showResult(delta: TimeInterval) {
+    private func showResult(delta: TimeInterval) {
         let ms = Int(delta * 1000.0);
         self.timeLabel.text = String(format: "Done in %d ms.", ms);
     }
-    
+
+    private func showError() {
+        self.timeLabel.text = "Error.";
+    }
 }
 
