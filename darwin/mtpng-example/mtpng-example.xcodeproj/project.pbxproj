@@ -8,11 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		B40F025D2FDF53FD00491E1F /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B40F025C2FDF53FD00491E1F /* libz.tbd */; };
+		B413049A2FE4BBD4004C3DDB /* libmtpng.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B41304992FE4BBD4004C3DDB /* libmtpng.a */; };
 		B4F5CC8B2FE074D50090C140 /* MTPNG.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F5CC8A2FE074C00090C140 /* MTPNG.swift */; };
 		D45DAFDE2153FC5F00C45312 /* dual4k.png in Resources */ = {isa = PBXBuildFile; fileRef = D45DAFDC2153FC5F00C45312 /* dual4k.png */; };
 		D45DAFDF2153FC5F00C45312 /* arch-640.png in Resources */ = {isa = PBXBuildFile; fileRef = D45DAFDD2153FC5F00C45312 /* arch-640.png */; };
-		D49519E821529B1500945F17 /* mtpng in Resources */ = {isa = PBXBuildFile; fileRef = D49519E721529B1500945F17 /* mtpng */; };
-		D49519EA21529B5F00945F17 /* libmtpng.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D49519E921529B5F00945F17 /* libmtpng.a */; };
 		D4CCEB4021527618001DB9D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4CCEB3F21527618001DB9D9 /* AppDelegate.swift */; };
 		D4CCEB4221527618001DB9D9 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4CCEB4121527618001DB9D9 /* ViewController.swift */; };
 		D4CCEB4521527618001DB9D9 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D4CCEB4321527618001DB9D9 /* Main.storyboard */; };
@@ -22,11 +21,10 @@
 
 /* Begin PBXFileReference section */
 		B40F025C2FDF53FD00491E1F /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		B41304992FE4BBD4004C3DDB /* libmtpng.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmtpng.a; path = ../iphoneos/mtpng/libmtpng.a; sourceTree = SOURCE_ROOT; };
 		B4F5CC8A2FE074C00090C140 /* MTPNG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MTPNG.swift; sourceTree = "<group>"; };
 		D45DAFDC2153FC5F00C45312 /* dual4k.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = dual4k.png; path = ../../samples/dual4k.png; sourceTree = "<group>"; };
 		D45DAFDD2153FC5F00C45312 /* arch-640.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "arch-640.png"; path = "../../samples/arch-640.png"; sourceTree = "<group>"; };
-		D49519E721529B1500945F17 /* mtpng */ = {isa = PBXFileReference; lastKnownFileType = folder; name = mtpng; path = ../mtpng; sourceTree = "<group>"; };
-		D49519E921529B5F00945F17 /* libmtpng.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmtpng.a; path = ../mtpng/libmtpng.a; sourceTree = "<group>"; };
 		D4CCEB3C21527618001DB9D9 /* mtpng-example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "mtpng-example.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D4CCEB3F21527618001DB9D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		D4CCEB4121527618001DB9D9 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -41,8 +39,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B413049A2FE4BBD4004C3DDB /* libmtpng.a in Frameworks */,
 				B40F025D2FDF53FD00491E1F /* libz.tbd in Frameworks */,
-				D49519EA21529B5F00945F17 /* libmtpng.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -54,7 +52,6 @@
 			children = (
 				D45DAFDD2153FC5F00C45312 /* arch-640.png */,
 				D45DAFDC2153FC5F00C45312 /* dual4k.png */,
-				D49519E721529B1500945F17 /* mtpng */,
 				D4CCEB3E21527618001DB9D9 /* mtpng-example */,
 				D4CCEB3D21527618001DB9D9 /* Products */,
 				D4CCEB5121527637001DB9D9 /* Frameworks */,
@@ -86,8 +83,8 @@
 		D4CCEB5121527637001DB9D9 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				B41304992FE4BBD4004C3DDB /* libmtpng.a */,
 				B40F025C2FDF53FD00491E1F /* libz.tbd */,
-				D49519E921529B5F00945F17 /* libmtpng.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -156,7 +153,6 @@
 				D45DAFDF2153FC5F00C45312 /* arch-640.png in Resources */,
 				D45DAFDE2153FC5F00C45312 /* dual4k.png in Resources */,
 				D4CCEB4521527618001DB9D9 /* Main.storyboard in Resources */,
-				D49519E821529B1500945F17 /* mtpng in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -325,21 +321,21 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				ENABLE_BITCODE = NO;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/../mtpng/";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../$(PLATFORM_NAME)/mtpng/";
 				INFOPLIST_FILE = "mtpng-example/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "MTPNG Example";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../mtpng/";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../$(PLATFORM_NAME)/mtpng/";
 				PRODUCT_BUNDLE_IDENTIFIER = "net.vibber.brooke.mtpng-example";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../mtpng";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../$(PLATFORM_NAME)/mtpng/";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -351,21 +347,21 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				ENABLE_BITCODE = NO;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/../mtpng/";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/../$(PLATFORM_NAME)/mtpng/";
 				INFOPLIST_FILE = "mtpng-example/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "MTPNG Example";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../mtpng/";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../$(PLATFORM_NAME)/mtpng/";
 				PRODUCT_BUNDLE_IDENTIFIER = "net.vibber.brooke.mtpng-example";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../mtpng";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../$(PLATFORM_NAME)/mtpng/";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
