@@ -21,6 +21,6 @@ function buildit() {
 
 
 buildit iphoneos aarch64-apple-ios
-buildit iphonesimulator aarch64-apple-ios x86_64-apple-ios
-buildit macos aarch64-apple-darwin x86_64-apple-darwin
+buildit iphonesimulator aarch64-apple-ios-sim x86_64-apple-ios
+buildit macosx aarch64-apple-darwin x86_64-apple-darwin
 buildit catalyst aarch64-apple-ios-macabi x86_64-apple-ios-macabi
