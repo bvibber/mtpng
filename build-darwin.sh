@@ -20,7 +20,7 @@ function buildit() {
 }
 
 
-buildit iphoneos aarch64-apple-ios
-buildit iphonesimulator aarch64-apple-ios-sim x86_64-apple-ios
-buildit macosx aarch64-apple-darwin x86_64-apple-darwin
-buildit catalyst aarch64-apple-ios-macabi x86_64-apple-ios-macabi
+buildit build/iphoneos aarch64-apple-ios
+buildit build/iphonesimulator aarch64-apple-ios-sim x86_64-apple-ios
+buildit build/macosxNO aarch64-apple-darwin x86_64-apple-darwin
+buildit build/macosxYES aarch64-apple-ios-macabi x86_64-apple-ios-macabi
