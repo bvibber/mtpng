@@ -9,7 +9,7 @@
 import Foundation
 import mtpng
 
-enum MTPNGError: Error {
+public enum MTPNGError: Error {
     case unknownError
     case inputOutOfBounds
 }
@@ -20,7 +20,7 @@ enum MTPNGError: Error {
 // MTPNG_FILTER_ADAPTIVE is the default behavior, which uses
 // a heuristic to try to guess the best compressing filter.
 //
-enum MTPNGFilter: Int32 {
+public enum MTPNGFilter: Int32 {
     case Adaptive = -1
     case None = 0
     case Sub = 1
@@ -34,7 +34,7 @@ enum MTPNGFilter: Int32 {
 //
 // Adaptive is the default behavior.
 //
-enum MTPNGStrategy: Int32 {
+public enum MTPNGStrategy: Int32 {
     case Adaptive = -1
     case Default = 0
     case Filtered = 1
@@ -46,7 +46,7 @@ enum MTPNGStrategy: Int32 {
 //
 // Compression levels for MTPNGEncoderOptions.setCompressionLevel().
 //
-enum MTPNGCompressionLevel: Int32 {
+public enum MTPNGCompressionLevel: Int32 {
     case Fast = 1
     case Default = 6
     case High = 9
@@ -56,7 +56,7 @@ enum MTPNGCompressionLevel: Int32 {
 // Color types for MTPNGEncoderOptions.setColor().
 //
 
-enum MTPNGColor: UInt32 {
+public enum MTPNGColor: UInt32 {
     case Greyscale = 0
     case Truecolor = 2
     case IndexedColor = 3
@@ -64,16 +64,14 @@ enum MTPNGColor: UInt32 {
     case TruecolorAlpha = 6
 }
 
+public typealias MTPNGWriteFunc = (_: Span<UInt8>) -> Int
 
+public typealias MTPNGFlushFunc = () -> Bool
 
-typealias MTPNGWriteFunc = (_: Span<UInt8>) -> Int
-
-typealias MTPNGFlushFunc = () -> Bool
-
-class MTPNGThreadPool {
+public class MTPNGThreadPool {
     var handle: OpaquePointer? = nil
 
-    init(threads: Int) throws {
+    public init(threads: Int) throws {
         let ret = mtpng_threadpool_new(&self.handle, threads)
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.unknownError
@@ -94,13 +92,13 @@ class MTPNGThreadPool {
     }
 }
 
-class MTPNGEncoderOptions {
+public class MTPNGEncoderOptions {
     var handle: OpaquePointer? = nil
     var pool: MTPNGThreadPool? = nil
 
     // Can throw MTPNGError.unknownError
     //
-    init() throws {
+    public init() throws {
         let ret = mtpng_encoder_options_new(&self.handle)
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.unknownError
@@ -128,7 +126,7 @@ class MTPNGEncoderOptions {
     //
     // Can throw MTPNGError.unknownError
     //
-    func setThreadPool(pool: MTPNGThreadPool?) throws {
+    public func setThreadPool(pool: MTPNGThreadPool?) throws {
         self.pool = pool
         let ret = mtpng_encoder_options_set_thread_pool(handle, pool?.handle)
         if ret != MTPNG_RESULT_OK {
@@ -145,7 +143,7 @@ class MTPNGEncoderOptions {
     //
     // Can throw MTPNGError.unknownError
     //
-    func setFilter(filter: MTPNGFilter) throws {
+    public func setFilter(filter: MTPNGFilter) throws {
         let ret = mtpng_encoder_options_set_filter(handle, mtpng_filter(filter.rawValue))
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.unknownError
@@ -157,7 +155,7 @@ class MTPNGEncoderOptions {
     //
     // Can throw MTPNGError.unknownError
     //
-    func setStrategy(strategy: MTPNGStrategy) throws {
+    public func setStrategy(strategy: MTPNGStrategy) throws {
         let ret = mtpng_encoder_options_set_strategy(handle, mtpng_strategy(strategy.rawValue))
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.unknownError
@@ -172,7 +170,7 @@ class MTPNGEncoderOptions {
     //
     // Can throw MTPNGError.unknownError
     //
-    func setCompressionLevel(level: Int) throws {
+    public func setCompressionLevel(level: Int) throws {
         let ret = mtpng_encoder_options_set_compression_level(handle, Int32(level))
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.unknownError
@@ -198,7 +196,7 @@ class MTPNGEncoderOptions {
     //
     // Can throw MTPNGError.unknownError
     //
-    func setChunkSize(size: Int) throws {
+    public func setChunkSize(size: Int) throws {
         let ret = mtpng_encoder_options_set_chunk_size(handle, size)
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.unknownError
@@ -206,12 +204,12 @@ class MTPNGEncoderOptions {
     }
 }
 
-class MTPNGHeader {
+public class MTPNGHeader {
     var handle: OpaquePointer? = nil
     
     // Can throw MTPNGError.unknownError
     //
-    init () throws {
+    public init () throws {
         let ret = mtpng_header_new(&self.handle)
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.unknownError
@@ -233,7 +231,7 @@ class MTPNGHeader {
 
     // Can throw MTPNGError.unknownError
     //
-    func setSize(width: UInt32, height: UInt32) throws {
+    public func setSize(width: UInt32, height: UInt32) throws {
         let ret = mtpng_header_set_size(self.handle, width, height)
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.inputOutOfBounds
@@ -242,7 +240,7 @@ class MTPNGHeader {
 
     // Can throw MTPNGError.unknownError
     //
-    func setColor(color: MTPNGColor, bits: UInt8) throws {
+    public func setColor(color: MTPNGColor, bits: UInt8) throws {
         let ret = mtpng_header_set_color(self.handle, mtpng_color_t(UInt32(color.rawValue)), bits)
         if ret != MTPNG_RESULT_OK {
             throw MTPNGError.unknownError
@@ -271,7 +269,7 @@ private func flush_func(_user_data: UnsafeMutableRawPointer?) -> Bool
     }
 }
 
-class MTPNGEncoder {
+public class MTPNGEncoder {
     var handle: OpaquePointer? = nil
     var writeFunc: MTPNGWriteFunc? = nil
     var flushFunc: MTPNGFlushFunc? = nil
@@ -281,7 +279,7 @@ class MTPNGEncoder {
 
     // Can throw MTPNGError.unknownError
     //
-    init (write: MTPNGWriteFunc?, flush: MTPNGFlushFunc?, options: MTPNGEncoderOptions?) throws {
+    public init (write: MTPNGWriteFunc?, flush: MTPNGFlushFunc?, options: MTPNGEncoderOptions?) throws {
         self.writeFunc = write
         self.flushFunc = flush
         self.pool = options?.pool
@@ -316,7 +314,7 @@ class MTPNGEncoder {
     
     // Can throw MTPNGError.unknownError
     //
-    func writeHeader(header: MTPNGHeader) throws {
+    public func writeHeader(header: MTPNGHeader) throws {
         if handle == nil {
             print("encoder is already finished")
             throw MTPNGError.unknownError
@@ -329,7 +327,7 @@ class MTPNGEncoder {
 
     // Can throw MTPNGError.unknownError
     //
-    func writeImageRows(bytes: Span<UInt8>) throws {
+    public func writeImageRows(bytes: Span<UInt8>) throws {
         if handle == nil {
             print("encoder is already finished")
             throw MTPNGError.unknownError
@@ -343,9 +341,10 @@ class MTPNGEncoder {
         }
     }
 
+    //
     // Can throw MTPNGError.unknownError
     //
-    func finish() throws {
+    public func finish() throws {
         if handle == nil {
             print("encoder is already finished")
             throw MTPNGError.unknownError;

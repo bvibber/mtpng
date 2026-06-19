@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import MTPNG
 
 private actor SavePNGExample {
     var threads: Int = 0
