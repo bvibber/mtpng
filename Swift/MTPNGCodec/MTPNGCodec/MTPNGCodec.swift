@@ -1,6 +1,6 @@
 //
-//  MTPNG.swift
-//  mtpng-example
+//  MTPNGCodec.swift
+//  MTPNGCodec
 //
 //  Created by Brooke on 6/15/26.
 //  Copyright © 2026 Brooke Vibber. All rights reserved.

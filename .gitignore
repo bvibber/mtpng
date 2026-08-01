@@ -7,6 +7,6 @@ cachegrind.out.*
 /perf.*
 /build
 /sample.obj
-/darwin/mtpng
+/Swift/lib
 xcuserdata
 .vscode

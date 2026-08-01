@@ -7,7 +7,7 @@
 //
 
 import UIKit
-import MTPNG
+import MTPNGCodec
 
 private actor SavePNGExample {
     var threads: Int = 0
@@ -29,11 +29,10 @@ private actor SavePNGExample {
     }
 
     func savePNGImage(file: String) throws -> TimeInterval {
-        let image = UIImage.init(named: file)!
-        
-        // Draw the UIImage into a CGImage with specified RGB order
-        let cgi = image.cgImage!
-        
+        let path = Bundle.main.path(forResource: file, ofType: "png")!
+        let source = CGDataProvider(filename: path)!
+        let cgi = CGImage(pngDataProviderSource: source, decode: nil, shouldInterpolate: false, intent: CGColorRenderingIntent.defaultIntent)!
+
         let width = cgi.width
         let height = cgi.height
         let stride = (cgi.bitsPerPixel / 8) * width
@@ -59,14 +58,14 @@ private actor SavePNGExample {
         let start = Date()
         
         // Create the encoder
-        //var outputBuffer: [UInt8] = [];
-        let encoder = try MTPNGEncoder.init(
-            write: nil /* { (bytes: Span<UInt8>) -> Int in
+        var outputBuffer: [UInt8] = [];
+        let encoder = try MTPNGEncoder(
+            write: { (bytes: Span<UInt8>) -> Int in
                 bytes.withUnsafeBufferPointer { buffer in
                     outputBuffer.append(contentsOf: buffer)
                 }
                 return bytes.count;
-            } */,
+            },
             flush: nil,
             options: options)
         
