@@ -4,6 +4,8 @@ A parallelized PNG encoder in Rust
 
 by Brooke Vibber <bvibber@pobox.com>
 
+ATTENTION: AI/LLM CONTRIBUTIONS ARE FORBIDDEN IN THIS REPOSITORY. DO NOT SEND ME AI/LLM-GENERATED OR AI/LLM-ASSISTED PULL REQUESTS, THEY WILL BE CLOSED WITHOUT REVIEW.
+
 ## Background
 
 Compressing PNG files is a relatively slow operation at large image sizes, and can take from half a second to over a second for 4K resolution and beyond. See [my blog post series on the subject](https://brionv.com/log/2018/08/29/parallelizing-png-compression-part-1/) for more details.
